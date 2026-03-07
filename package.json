@@ -1,0 +1,29 @@
+{
+  "name": "uthana-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "version": "1.0.0",
+  "description": "Uthana JS/TS client monorepo",
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "codegen": "npx graffle",
+    "dev": "npm run dev --workspaces --if-present",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/test_client*'",
+    "test:integration": "vitest run tests/test_client"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "tsup": "^8.3.5",
+    "graffle": "next",
+    "graphql": "^16.9.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.6"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

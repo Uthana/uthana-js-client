@@ -1,0 +1,54 @@
+# (c) Copyright 2026 Uthana, Inc. All Rights Reserved
+
+query GetJob($job_id: String!) {
+  job(job_id: $job_id) {
+    id
+    status
+    result
+  }
+}
+
+query ListJobs($method: String) {
+  jobs(method: $method) {
+    id
+    status
+    method
+    created
+    updated
+  }
+}
+
+query ListMotions {
+  motions {
+    id
+    name
+    created
+  }
+}
+
+query ListCharacters {
+  characters {
+    id
+    name
+    created
+    updated
+  }
+}
+
+query GetUser {
+  user {
+    id
+    name
+    email
+    email_verified
+  }
+}
+
+query GetOrg {
+  org {
+    id
+    name
+    motion_download_secs_per_month
+    motion_download_secs_per_month_remaining
+  }
+}

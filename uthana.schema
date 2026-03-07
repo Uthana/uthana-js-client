@@ -1,0 +1,123 @@
+# (c) Copyright 2026 Uthana, Inc. All Rights Reserved
+#
+# Placeholder schema for Uthana API. Replace with your full uthana.schema
+# from your API/schema export. This minimal schema allows codegen to run.
+#
+# Graffle codegen: pnpm codegen
+
+scalar Upload
+
+type User {
+  id: ID
+  name: String
+  email: String
+  email_verified: Boolean
+}
+
+type Org {
+  id: ID
+  name: String
+  motion_download_secs_per_month: Float
+  motion_download_secs_per_month_remaining: Float
+}
+
+type Character {
+  id: ID
+  name: String
+  created: String
+  updated: String
+}
+
+type Motion {
+  id: ID
+  name: String
+  created: String
+  deleted: String
+}
+
+type Job {
+  id: ID
+  status: String!
+  method: String
+  created: String
+  updated: String
+  result: String
+}
+
+type MotionFavorite {
+  id: ID
+  motion_id: String
+}
+
+type Query {
+  user: User
+  org: Org
+  job(job_id: String!): Job
+  jobs(method: String): [Job!]
+  motions: [Motion!]
+  characters: [Character!]
+}
+
+type CreateTextToMotionPayload {
+  motion: Motion
+}
+
+type CreateCharacterPayload {
+  character: Character
+  auto_rig_confidence: Float
+}
+
+type CreateVideoToMotionPayload {
+  job: Job
+}
+
+type CreateMotionFromGltfPayload {
+  motion: Motion
+}
+
+type UpdateMotionPayload {
+  id: ID
+  name: String
+  deleted: String
+}
+
+type CreateMotionFavoritePayload {
+  id: ID
+  motion_id: String
+}
+
+type DeleteMotionFavoritePayload {
+  id: ID
+}
+
+type Mutation {
+  create_text_to_motion(
+    prompt: String!
+    character_id: String
+    model: String!
+    foot_ik: Boolean
+    cfg_scale: Float
+    length: Float
+    seed: Int
+    retargeting_ik: Boolean
+  ): CreateTextToMotionPayload
+  create_character(
+    name: String!
+    file: Upload!
+    auto_rig: Boolean
+    auto_rig_front_facing: Boolean
+  ): CreateCharacterPayload
+  create_video_to_motion(
+    file: Upload!
+    motion_name: String!
+    model: String
+  ): CreateVideoToMotionPayload
+  create_motion_from_gltf(
+    gltf: String!
+    motion_name: String!
+    character_id: String
+  ): CreateMotionFromGltfPayload
+  update_motion(id: String!, name: String, deleted: Boolean): UpdateMotionPayload
+  create_motion_favorite(motion_id: String!): CreateMotionFavoritePayload
+  delete_motion_favorite(motion_id: String!): DeleteMotionFavoritePayload
+}

@@ -1,0 +1,113 @@
+# (c) Copyright 2026 Uthana, Inc. All Rights Reserved
+
+mutation TextToMotion(
+  $prompt: String!
+  $character_id: String
+  $model: String!
+  $foot_ik: Boolean
+) {
+  create_text_to_motion(
+    prompt: $prompt
+    character_id: $character_id
+    model: $model
+    foot_ik: $foot_ik
+  ) {
+    motion {
+      id
+      name
+    }
+  }
+}
+
+mutation CreateTextToMotion(
+  $prompt: String!
+  $character_id: String
+  $model: String!
+  $foot_ik: Boolean
+  $cfg_scale: Float
+  $length: Float
+  $seed: Int
+  $retargeting_ik: Boolean
+) {
+  create_text_to_motion(
+    prompt: $prompt
+    character_id: $character_id
+    model: $model
+    foot_ik: $foot_ik
+    cfg_scale: $cfg_scale
+    length: $length
+    seed: $seed
+    retargeting_ik: $retargeting_ik
+  ) {
+    motion {
+      id
+      name
+    }
+  }
+}
+
+mutation CreateCharacter(
+  $name: String!
+  $file: Upload!
+  $auto_rig: Boolean
+  $auto_rig_front_facing: Boolean
+) {
+  create_character(
+    name: $name
+    file: $file
+    auto_rig: $auto_rig
+    auto_rig_front_facing: $auto_rig_front_facing
+  ) {
+    character {
+      id
+      name
+    }
+    auto_rig_confidence
+  }
+}
+
+mutation CreateVideoToMotion($file: Upload!, $motion_name: String!, $model: String) {
+  create_video_to_motion(file: $file, motion_name: $motion_name, model: $model) {
+    job {
+      id
+      status
+    }
+  }
+}
+
+mutation CreateMotionFromGltf(
+  $gltf: String!
+  $motionName: String!
+  $characterId: String
+) {
+  create_motion_from_gltf(
+    gltf: $gltf
+    motion_name: $motionName
+    character_id: $characterId
+  ) {
+    motion {
+      id
+    }
+  }
+}
+
+mutation UpdateMotion($id: String!, $name: String, $deleted: Boolean) {
+  update_motion(id: $id, name: $name, deleted: $deleted) {
+    id
+    name
+    deleted
+  }
+}
+
+mutation CreateMotionFavorite($motion_id: String!) {
+  create_motion_favorite(motion_id: $motion_id) {
+    id
+    motion_id
+  }
+}
+
+mutation DeleteMotionFavorite($motion_id: String!) {
+  delete_motion_favorite(motion_id: $motion_id) {
+    id
+  }
+}

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Generated
+graffle/
+packages/client/src/generated/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+tests/artifacts/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
