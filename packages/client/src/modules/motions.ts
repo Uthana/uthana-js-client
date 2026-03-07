@@ -2,15 +2,17 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
+import type { UthanaClient } from "../client";
 import {
-  LIST_MOTIONS,
-  UPDATE_MOTION,
   CREATE_MOTION_FAVORITE,
   DELETE_MOTION_FAVORITE,
-} from "../graphql.js";
-import type { UthanaClient } from "../client.js";
-import type { Motion, OutputFormat } from "../types.js";
-import { BaseModule } from "./base.js";
+  GET_MOTION_BY_ID,
+  LIST_MOTIONS,
+  RATE_MOTION,
+  UPDATE_MOTION,
+} from "../graphql";
+import type { Motion, OutputFormat } from "../types";
+import { BaseModule } from "./base";
 
 /** Motion management: list, download, delete, rename, favorite. */
 export class MotionsModule extends BaseModule {
@@ -20,9 +22,36 @@ export class MotionsModule extends BaseModule {
 
   /** List all motions for the authenticated user. */
   async list(): Promise<Motion[]> {
-    return this._client._graphql<Motion[]>(LIST_MOTIONS, {}, {
-      path: "motions",
-      pathDefault: [],
+    return this._client._graphql<Motion[]>(
+      LIST_MOTIONS,
+      {},
+      {
+        path: "motions",
+        pathDefault: [],
+      },
+    );
+  }
+
+  /** Get a single motion by ID. */
+  async get(motion_id: string): Promise<Motion | null> {
+    const motion = await this._client._graphql<Motion | null>(
+      GET_MOTION_BY_ID,
+      { motionId: motion_id },
+      { path: "motion", pathDefault: null },
+    );
+    return motion;
+  }
+
+  /** Rate a motion (thumbs up/down). score: 1 = thumbs up, 0 = thumbs down. */
+  async rate(
+    motion_id: string,
+    score: 0 | 1,
+    options?: { label_id?: string | null },
+  ): Promise<void> {
+    await this._client._graphql(RATE_MOTION, {
+      motion_id,
+      label_id: options?.label_id ?? null,
+      score,
     });
   }
 
@@ -34,7 +63,7 @@ export class MotionsModule extends BaseModule {
       output_format?: OutputFormat;
       fps?: number | null;
       no_mesh?: boolean | null;
-    }
+    },
   ): Promise<ArrayBuffer> {
     const url = this._client._motionUrl({
       character_id,
@@ -48,10 +77,7 @@ export class MotionsModule extends BaseModule {
   }
 
   /** Download motion preview WebM (does not charge download seconds). */
-  async download_preview(
-    character_id: string,
-    motion_id: string
-  ): Promise<ArrayBuffer> {
+  async download_preview(character_id: string, motion_id: string): Promise<ArrayBuffer> {
     const url = `${this._client.baseUrl}/app/preview/${character_id}/${motion_id}/preview.webm`;
     const res = await this._client._fetch(url);
     return res.arrayBuffer();
@@ -62,7 +88,7 @@ export class MotionsModule extends BaseModule {
     return this._client._graphql<Motion>(
       UPDATE_MOTION,
       { id: motion_id, deleted: true },
-      { path: "update_motion" }
+      { path: "update_motion" },
     );
   }
 
@@ -71,7 +97,7 @@ export class MotionsModule extends BaseModule {
     return this._client._graphql<Motion>(
       UPDATE_MOTION,
       { id: motion_id, name: new_name },
-      { path: "update_motion" }
+      { path: "update_motion" },
     );
   }
 

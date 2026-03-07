@@ -4,33 +4,14 @@
  * GraphQL query and mutation strings for the Uthana API.
  */
 
-export const TEXT_TO_MOTION_VQVAE_V1 = `
-mutation TextToMotion(
-  $prompt: String!,
-  $character_id: String,
-  $model: String!,
-  $foot_ik: Boolean
-) {
-  create_text_to_motion(
-    prompt: $prompt,
-    character_id: $character_id,
-    model: $model,
-    foot_ik: $foot_ik
-  ) {
-    motion {
-      id
-      name
-    }
-  }
-}
-`;
-
-export const TEXT_TO_MOTION_DIFFUSION_V2 = `
-mutation CreateTextToMotion(
+export const CREATE_T2M = `
+mutation CreateT2m(
   $prompt: String!,
   $character_id: String,
   $model: String!,
   $foot_ik: Boolean,
+  $enhance_prompt: Boolean,
+  $steps: Int,
   $cfg_scale: Float,
   $length: Float,
   $seed: Int,
@@ -41,6 +22,8 @@ mutation CreateTextToMotion(
     character_id: $character_id,
     model: $model,
     foot_ik: $foot_ik,
+    enhance_prompt: $enhance_prompt,
+    steps: $steps,
     cfg_scale: $cfg_scale,
     length: $length,
     seed: $seed,
@@ -103,8 +86,7 @@ query ListJobs($method: String) {
     id
     status
     method
-    created
-    updated
+    created_at
   }
 }
 `;
@@ -119,6 +101,43 @@ query {
 }
 `;
 
+export const GET_MOTION_BY_ID = `
+query GetMotionById($motionId: String!) {
+  motion(id: $motionId) {
+    id
+    name
+    org_id
+    created
+    updated
+    favorite {
+      user_id
+      label_id
+      created
+      updated
+    }
+    rating {
+      user_id
+      label_id
+      score
+      created
+    }
+    tags
+  }
+}
+`;
+
+export const RATE_MOTION = `
+mutation RateMotion($motion_id: String!, $label_id: String, $score: Int!) {
+  rate_motion(motion_id: $motion_id, label_id: $label_id, score: $score) {
+    motion_rating {
+      motion_id
+      label_id
+      score
+    }
+  }
+}
+`;
+
 export const LIST_CHARACTERS = `
 query {
   characters {
@@ -126,6 +145,64 @@ query {
     name
     created
     updated
+  }
+}
+`;
+
+export const CREATE_IMAGE_FROM_TEXT = `
+mutation CreateImageFromText($prompt: String!) {
+  create_image_from_text(prompt: $prompt) {
+    character_id
+    images {
+      key
+      url
+    }
+  }
+}
+`;
+
+export const CREATE_IMAGE_FROM_IMAGE = `
+mutation CreateImageFromImage($file: Upload!) {
+  create_image_from_image(file: $file) {
+    character_id
+    image {
+      key
+      url
+    }
+  }
+}
+`;
+
+export const CREATE_CHARACTER_FROM_IMAGE = `
+mutation CreateCharacterFromImage($character_id: String!, $image_key: String!, $prompt: String!, $name: String) {
+  create_character_from_image(character_id: $character_id, image_key: $image_key, prompt: $prompt, name: $name) {
+    character {
+      id
+      name
+    }
+    auto_rig_confidence
+  }
+}
+`;
+
+export const RENAME_CHARACTER = `
+mutation RenameCharacter($character_id: String!, $name: String!) {
+  update_character(character_id: $character_id, name: $name) {
+    character {
+      id
+      name
+    }
+  }
+}
+`;
+
+export const DELETE_CHARACTER = `
+mutation DeleteCharacter($character_id: String!) {
+  update_character(character_id: $character_id, deleted: true) {
+    character {
+      id
+      name
+    }
   }
 }
 `;
@@ -183,6 +260,32 @@ export const DELETE_MOTION_FAVORITE = `
 mutation delete_motion_favorite($motion_id: String!) {
   delete_motion_favorite(motion_id: $motion_id) {
     id
+  }
+}
+`;
+
+export const GET_MOTION_DOWNLOADS = `
+query GetMotionDownloads {
+  motion_downloads {
+    motion_id
+    character_id
+    secs
+    created
+    motion {
+      id
+      name
+      org_id
+      created
+      updated
+    }
+  }
+}
+`;
+
+export const MOTION_DOWNLOAD_ALLOWED = `
+query motion_download_allowed($characterId: String, $motionId: String) {
+  motion_download_allowed(character_id: $characterId, motion_id: $motionId) {
+    allowed
   }
 }
 `;

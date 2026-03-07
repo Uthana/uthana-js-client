@@ -5,8 +5,11 @@
  * Skipped unless UTHANA_API_KEY is set.
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
-import { UthanaClient } from "@uthana/client";
+import { resolve } from "node:path";
+import { UthanaClient, UthanaCharacters } from "@uthana/client";
+import { beforeAll, describe, expect, it } from "vitest";
+
+const FIXTURES_DIR = resolve(import.meta.dirname, "fixtures");
 
 const API_KEY = process.env.UTHANA_API_KEY;
 const DOMAIN = process.env.UTHANA_DOMAIN;
@@ -48,4 +51,83 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     const jobs = await client.jobs.list();
     expect(Array.isArray(jobs)).toBe(true);
   });
+
+  it("ttm.create (vqvae-v1) + motions.download glb", async () => {
+    const result = await client.ttm.create("a person walking forward", { model: "vqvae-v1" });
+    expect(result.character_id).toBeTruthy();
+    expect(result.motion_id).toBeTruthy();
+
+    const data = await client.motions.download(result.character_id, result.motion_id, {
+      output_format: "glb",
+      fps: 30,
+    });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 30_000);
+
+  it("ttm.create (vqvae-v1) + motions.download fbx", async () => {
+    const result = await client.ttm.create("a person walking forward", { model: "vqvae-v1" });
+    expect(result.character_id).toBeTruthy();
+    expect(result.motion_id).toBeTruthy();
+
+    const data = await client.motions.download(result.character_id, result.motion_id, {
+      output_format: "fbx",
+      fps: 60,
+    });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 30_000);
+
+  it("ttm.create (diffusion-v2) + motions.download glb", async () => {
+    const result = await client.ttm.create("a person dancing", { model: "diffusion-v2" });
+    expect(result.character_id).toBeTruthy();
+    expect(result.motion_id).toBeTruthy();
+
+    const data = await client.motions.download(result.character_id, result.motion_id, {
+      output_format: "glb",
+      fps: 30,
+    });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("characters.create (glb) + characters.download", async () => {
+    const result = await client.characters.create(`${FIXTURES_DIR}/pig.glb`);
+    expect(result.character_id).toBeTruthy();
+    expect(result.url).toBeTruthy();
+    expect(result.auto_rig_confidence).not.toBeNull();
+    expect(result.auto_rig_confidence).toBeLessThan(0.5);
+
+    const data = await client.characters.download(result.character_id, { output_format: "glb" });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("characters.create (fbx) + characters.download", async () => {
+    const result = await client.characters.create(`${FIXTURES_DIR}/wrestler.fbx`);
+    expect(result.character_id).toBeTruthy();
+    expect(result.url).toBeTruthy();
+    expect(result.auto_rig_confidence).not.toBeNull();
+    expect(result.auto_rig_confidence).toBeGreaterThan(0.5);
+
+    const data = await client.characters.download(result.character_id, { output_format: "fbx" });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("vtm.create submits job and polls to FINISHED", async () => {
+    const job = await client.vtm.create(`${FIXTURES_DIR}/dance.mp4`);
+    expect(job.id).toBeTruthy();
+    expect(job.status).toBeTruthy();
+
+    const finished = await client.jobs.wait(job.id, {
+      intervalMs: 3000,
+      timeoutMs: 300_000,
+    });
+    expect(finished.status).toBe("FINISHED");
+
+    const motionId = (finished.result as { result?: { id?: string } })?.result?.id;
+    expect(motionId).toBeTruthy();
+
+    const data = await client.motions.download(UthanaCharacters.tar, motionId!, {
+      output_format: "glb",
+      fps: 30,
+    });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 300_000);
 });

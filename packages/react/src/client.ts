@@ -10,16 +10,15 @@ let clientInstance: UthanaClient | null = null;
 /**
  * Create or return the singleton Uthana client for React apps.
  * Call this once (e.g. in a root layout or provider) with your API key.
- * Returns null when called in SSR (typeof window === "undefined") if you prefer to defer client creation.
+ * If called again with a different apiKey, the singleton is replaced.
  */
-export function createUthanaClient(
-  apiKey: string,
-  options?: UthanaClientOptions
-): UthanaClient {
-  if (clientInstance) {
-    return clientInstance;
+export function createUthanaClient(apiKey: string, options?: UthanaClientOptions): UthanaClient {
+  if (clientInstance && clientInstance.apiKey !== apiKey) {
+    clientInstance = null;
   }
-  clientInstance = new UthanaClientClass(apiKey, options);
+  if (!clientInstance) {
+    clientInstance = new UthanaClientClass(apiKey, options);
+  }
   return clientInstance;
 }
 

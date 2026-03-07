@@ -1,6 +1,6 @@
 {
   "name": "@uthana/react",
-  "version": "1.0.0",
+  "version": "1.1.0-rc.0",
   "description": "React and react-query hooks for the Uthana API",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -17,8 +17,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch"
+    "build": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "dev": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript --watch"
   },
   "dependencies": {
     "@uthana/client": "file:../client",
@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
-    "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   },
   "peerDependencies": {

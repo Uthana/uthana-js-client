@@ -2,22 +2,23 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { describe, it, expect, vi } from "vitest";
 import {
-  UthanaError,
-  Error as UthanaErrorBase,
-  UthanaCharacters,
-  detectMeshFormat,
   DEFAULT_OUTPUT_FORMAT,
   SUPPORTED_VIDEO_FORMATS,
+  UthanaCharacters,
+  UthanaError,
+  detectMeshFormat,
 } from "@uthana/client";
+import { describe, expect, it } from "vitest";
 
 describe("UthanaError", () => {
   it("creates error with status and message", () => {
     const err = new UthanaError(404, "Not found");
-    expect(err).toBeInstanceOf(UthanaErrorBase);
+    expect(err).toBeInstanceOf(UthanaError);
     expect(err.statusCode).toBe(404);
-    expect(err.message).toBe("Not found");
+    expect(err.apiMessage).toBe("Not found");
+    expect(err.message).toContain("404");
+    expect(err.message).toContain("Not found");
   });
 });
 

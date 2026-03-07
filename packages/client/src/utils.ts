@@ -2,8 +2,8 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { Error } from "./errors.js";
-import { SUPPORTED_VIDEO_FORMATS } from "./types.js";
+import { UthanaError } from "./errors";
+import { SUPPORTED_VIDEO_FORMATS } from "./types";
 
 /** Detect mesh format from file header. Returns 'glb', 'fbx', or null if unknown. */
 export function detectMeshFormat(header: Uint8Array): "glb" | "fbx" | null {
@@ -48,12 +48,11 @@ export function prepareCreateCharacter(
   filePathOrName: string,
   autoRig: boolean | null,
   frontFacing: boolean | null,
-  detectedFormat?: "glb" | "fbx" | null
+  detectedFormat?: "glb" | "fbx" | null,
 ): PrepareCreateCharacterResult {
   const filename = basename(filePathOrName);
   const name = stem(filename);
-  const ext =
-    detectedFormat ?? (extname(filename).replace(".", "") || "glb");
+  const ext = detectedFormat ?? (extname(filename).replace(".", "") || "glb");
 
   const variables: Record<string, unknown> = {
     name,
@@ -72,13 +71,13 @@ export interface PrepareVideoToMotionResult {
 /** Validate video format and build variables for create_video_to_motion. */
 export function prepareVideoToMotion(
   filePathOrName: string,
-  motionName: string | null
+  motionName: string | null,
 ): PrepareVideoToMotionResult {
   const filename = basename(filePathOrName);
   const ext = extname(filename);
   if (!SUPPORTED_VIDEO_FORMATS.has(ext)) {
     const supported = [...SUPPORTED_VIDEO_FORMATS].sort().join(", ");
-    throw new Error(`Unsupported video format '${ext}'. Supported: ${supported}`);
+    throw new UthanaError(400, `Unsupported video format '${ext}'. Supported: ${supported}`);
   }
   const name = motionName ?? stem(filename);
   return {

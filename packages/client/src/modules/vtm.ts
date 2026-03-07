@@ -2,12 +2,12 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { CREATE_VIDEO_TO_MOTION } from "../graphql.js";
-import { models } from "../models.js";
-import { prepareVideoToMotion } from "../utils.js";
-import type { UthanaClient } from "../client.js";
-import type { VideoToMotionResult, VtmModelType } from "../types.js";
-import { BaseModule } from "./base.js";
+import type { UthanaClient } from "../client";
+import { CREATE_VIDEO_TO_MOTION } from "../graphql";
+import { models } from "../models";
+import type { VideoToMotionResult, VtmModelType } from "../types";
+import { prepareVideoToMotion } from "../utils";
+import { BaseModule } from "./base";
 
 /** Video to motion: extract motion capture from video files. */
 export class VtmModule extends BaseModule {
@@ -21,7 +21,7 @@ export class VtmModule extends BaseModule {
     options?: {
       motion_name?: string | null;
       model?: VtmModelType | null;
-    }
+    },
   ): Promise<VideoToMotionResult> {
     let variables: Record<string, unknown>;
     let blob: Blob;
@@ -43,7 +43,7 @@ export class VtmModule extends BaseModule {
     const job = await this._client._graphql<VideoToMotionResult>(
       CREATE_VIDEO_TO_MOTION,
       variables,
-      { path: "create_video_to_motion.job" }
+      { path: "create_video_to_motion.job" },
     );
     return job;
   }

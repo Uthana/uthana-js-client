@@ -26,12 +26,26 @@ export interface Character {
   updated?: string | null;
 }
 
-/** Motion object from motions.list or update_motion (delete/rename). */
+/** Motion object from motions.list, motions.get, or update_motion (delete/rename). */
 export interface Motion {
   id?: string;
   name?: string | null;
+  org_id?: string | null;
   created?: string | null;
+  updated?: string | null;
   deleted?: string | null;
+  favorite?: { user_id?: string; label_id?: string; created?: string; updated?: string } | null;
+  rating?: { user_id?: string; label_id?: string; score?: number; created?: string } | null;
+  tags?: string[] | null;
+}
+
+/** Motion download record from motion_downloads query. */
+export interface MotionDownloadRecord {
+  motion_id: string;
+  character_id: string;
+  secs: number;
+  created?: string | null;
+  motion?: Motion | null;
 }
 
 /** Job object from jobs.get, jobs.list, or vtm.create. Poll until status is FINISHED or FAILED. */
@@ -39,8 +53,7 @@ export interface Job {
   id?: string;
   status: string;
   method?: string | null;
-  created?: string | null;
-  updated?: string | null;
+  created_at?: string | null;
   result?: Record<string, unknown> | null;
 }
 
@@ -57,11 +70,34 @@ export interface CreateCharacterResult {
   auto_rig_confidence?: number | null;
 }
 
+/** Result of characters.generate_from_text. */
+export interface GenerateFromTextResult {
+  character_id: string;
+  images: { key: string; url: string }[];
+}
+
+/** Result of characters.generate_from_image. */
+export interface GenerateFromImageResult {
+  character_id: string;
+  image: { key: string; url: string };
+}
+
+/** Result of characters.create_from_generated_image. */
+export interface CreateFromGeneratedImageResult {
+  character: Character;
+  auto_rig_confidence?: number | null;
+}
+
 /** Alias for vtm.create return type */
 export type VideoToMotionResult = Job;
 
-/** TTM model types */
-export type TtmModelType = "vqvae-v1" | "diffusion-v2";
+/** TTM model types. Friendly names (vqvae-v1, diffusion-v2) or server aliases (text-to-motion, text-to-motion-bucmd). */
+export type TtmModelType =
+  | "vqvae-v1"
+  | "diffusion-v2"
+  | "flow-matching-v1"
+  | "text-to-motion"
+  | "text-to-motion-bucmd";
 
 /** VTM model types */
 export type VtmModelType = "video-to-motion-v1" | "video-to-motion-v2";

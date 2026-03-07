@@ -3,22 +3,20 @@
  */
 
 import { Graffle } from "graffle";
-import { Upload } from "graffle/extensions/upload";
 import { Throws } from "graffle/extensions/throws";
-import { UthanaError } from "./errors.js";
-import {
-  TEXT_TO_MOTION_VQVAE_V1,
-  TEXT_TO_MOTION_DIFFUSION_V2,
-} from "./graphql.js";
-import { models } from "./models.js";
-import { CharactersModule } from "./modules/characters.js";
-import { JobsModule } from "./modules/jobs.js";
-import { MotionsModule } from "./modules/motions.js";
-import { OrgModule } from "./modules/org.js";
-import { TtmModule } from "./modules/ttm.js";
-import { VtmModule } from "./modules/vtm.js";
-import type { CreateCharacterResult, ModelType, OutputFormat } from "./types.js";
-import { DEFAULT_TIMEOUT } from "./types.js";
+import { Upload } from "graffle/extensions/upload";
+import { UthanaError } from "./errors";
+import { CREATE_T2M } from "./graphql";
+import { TTM_MODEL_MAP, models } from "./models";
+import { CharactersModule } from "./modules/characters";
+import { JobsModule } from "./modules/jobs";
+import { MotionDownloadsModule } from "./modules/motionDownloads";
+import { MotionsModule } from "./modules/motions";
+import { OrgModule } from "./modules/org";
+import { TtmModule } from "./modules/ttm";
+import { VtmModule } from "./modules/vtm";
+import type { CreateCharacterResult, ModelType, OutputFormat } from "./types";
+import { DEFAULT_TIMEOUT } from "./types";
 
 /** Options for UthanaClient construction. */
 export interface UthanaClientOptions {
@@ -46,6 +44,7 @@ export class UthanaClient {
   readonly vtm: VtmModule;
   readonly characters: CharactersModule;
   readonly motions: MotionsModule;
+  readonly motionDownloads: MotionDownloadsModule;
   readonly org: OrgModule;
   readonly jobs: JobsModule;
 
@@ -56,7 +55,7 @@ export class UthanaClient {
 
   constructor(
     public readonly apiKey: string,
-    options: UthanaClientOptions = {}
+    options: UthanaClientOptions = {},
   ) {
     const domain = options.domain ?? "uthana.com";
     this.baseUrl = `https://${domain}`;
@@ -82,6 +81,7 @@ export class UthanaClient {
     this.vtm = new VtmModule(this);
     this.characters = new CharactersModule(this);
     this.motions = new MotionsModule(this);
+    this.motionDownloads = new MotionDownloadsModule(this);
     this.org = new OrgModule(this);
     this.jobs = new JobsModule(this);
   }
@@ -90,7 +90,7 @@ export class UthanaClient {
   async _graphql<T = unknown>(
     query: string,
     variables: Record<string, unknown> = {},
-    options?: { path?: string; pathDefault?: unknown }
+    options?: { path?: string; pathDefault?: unknown },
   ): Promise<T> {
     const doc = this._graffle.gql(query);
     const result = (await doc.$send(variables)) as Record<string, unknown>;
@@ -118,18 +118,16 @@ export class UthanaClient {
     let url = `${this.baseUrl}/motion/file/motion_viewer/${options.character_id}/${options.motion_id}/${ext}/${options.character_id}-${options.motion_id}.${ext}`;
     const params: string[] = [];
     if (options.fps != null) params.push(`fps=${options.fps}`);
-    if (options.no_mesh != null)
-      params.push(`no_mesh=${options.no_mesh ? "true" : "false"}`);
+    if (options.no_mesh != null) params.push(`no_mesh=${options.no_mesh ? "true" : "false"}`);
     if (params.length) url += `?${params.join("&")}`;
     return url;
   }
 
-  _buildCharacterOutput(
-    result: Record<string, unknown>,
-    ext: string
-  ): CreateCharacterResult {
-    const createChar = (result?.data as Record<string, unknown>)
-      ?.create_character as Record<string, unknown>;
+  _buildCharacterOutput(result: Record<string, unknown>, ext: string): CreateCharacterResult {
+    const createChar = (result?.data as Record<string, unknown>)?.create_character as Record<
+      string,
+      unknown
+    >;
     const character = createChar?.character as Record<string, unknown>;
     const characterId = character?.id as string;
     const autoRigConf = createChar?.auto_rig_confidence as number | undefined;
@@ -141,11 +139,14 @@ export class UthanaClient {
     };
   }
 
-  _prepareAndSelectTextToMotion(options: {
+  /** Resolve model to server string and build CreateT2m variables. */
+  _prepareTextToMotion(options: {
     model: ModelType;
     prompt: string;
     character_id?: string | null;
     foot_ik?: boolean | null;
+    enhance_prompt?: boolean | null;
+    steps?: number | null;
     length?: number | null;
     cfg_scale?: number | null;
     seed?: number | null;
@@ -154,41 +155,34 @@ export class UthanaClient {
     let model = options.model;
     if (model === "auto") model = models.ttm.default;
 
-    if (model === "vqvae-v1") {
-      return {
-        mutation: TEXT_TO_MOTION_VQVAE_V1,
-        variables: {
-          prompt: options.prompt,
-          character_id: options.character_id,
-          model: "text-to-motion",
-          foot_ik: options.foot_ik,
-        },
-      };
+    const serverModel = TTM_MODEL_MAP[model as keyof typeof TTM_MODEL_MAP];
+    if (!serverModel) {
+      throw new Error(
+        `Unknown model: '${model}'. Must be one of: ${Object.keys(TTM_MODEL_MAP).join(", ")}.`,
+      );
     }
-    if (model === "diffusion-v2") {
-      return {
-        mutation: TEXT_TO_MOTION_DIFFUSION_V2,
-        variables: {
-          prompt: options.prompt,
-          character_id: options.character_id,
-          model: "text-to-motion-bucmd",
-          foot_ik: options.foot_ik,
-          cfg_scale: options.cfg_scale,
-          length: options.length,
-          seed: options.seed,
-          retargeting_ik: options.internal_ik,
-        },
-      };
-    }
-    throw new Error(
-      `Unknown model: '${model}'. Must be 'auto', 'vqvae-v1', or 'diffusion-v2'.`
-    );
+
+    return {
+      mutation: CREATE_T2M,
+      variables: {
+        prompt: options.prompt,
+        character_id: options.character_id,
+        model: serverModel,
+        foot_ik: options.foot_ik,
+        enhance_prompt: options.enhance_prompt,
+        steps: options.steps,
+        cfg_scale: options.cfg_scale,
+        length: options.length,
+        seed: options.seed,
+        retargeting_ik: options.internal_ik,
+      },
+    };
   }
 
   /** Raw fetch for non-GraphQL requests (e.g. file downloads). Throws UthanaError on !ok. */
   async _fetch(
     url: string,
-    init?: RequestInit
+    init?: RequestInit,
   ): Promise<{ arrayBuffer: () => Promise<ArrayBuffer> }> {
     const res = await fetch(url, {
       ...init,
