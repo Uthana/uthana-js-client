@@ -7,15 +7,13 @@ import {
   UthanaProvider,
   useUthanaCharacters,
   useUthanaCreateCharacter,
-  useUthanaCreateCharacterFromImage,
   useUthanaDeleteCharacter,
-  useUthanaGenerateCharacterFromImage,
-  useUthanaGenerateCharacterFromText,
   useUthanaJob,
   useUthanaJobs,
   useUthanaMotion,
-  useUthanaMotionDownloadAllowed,
+  useUthanaIsMotionDownloadAllowed,
   useUthanaMotionDownloads,
+  useUthanaMotionPreview,
   useUthanaMotions,
   useUthanaOrg,
   useUthanaRateMotion,
@@ -24,12 +22,13 @@ import {
   useUthanaUser,
   useUthanaVtm,
 } from "@uthana/react";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockClient } = vi.hoisted(() => {
   const mockMotionsList = vi.fn().mockResolvedValue([{ id: "m1", name: "Walk" }]);
   const mockMotionGet = vi.fn().mockResolvedValue({ id: "m1", name: "Walk" });
+  const mockMotionPreview = vi.fn().mockResolvedValue(new ArrayBuffer(8));
   const mockMotionRate = vi.fn().mockResolvedValue(undefined);
   const mockMotionDelete = vi.fn().mockResolvedValue({ id: "m1", deleted: true });
   const mockMotionRename = vi.fn().mockResolvedValue({ id: "m1", name: "New Name" });
@@ -61,6 +60,7 @@ const { mockClient } = vi.hoisted(() => {
       motions: {
         list: mockMotionsList,
         get: mockMotionGet,
+        preview: mockMotionPreview,
         rate: mockMotionRate,
         delete: mockMotionDelete,
         rename: mockMotionRename,
@@ -70,15 +70,15 @@ const { mockClient } = vi.hoisted(() => {
         create: mockCharacterCreate,
         rename: mockCharacterRename,
         delete: mockCharacterDelete,
-        generate_from_text: mockCharacterGenerateFromText,
-        generate_from_image: mockCharacterGenerateFromImage,
-        create_from_generated_image: mockCharacterCreateFromImage,
+        generateFromText: mockCharacterGenerateFromText,
+        generateFromImage: mockCharacterGenerateFromImage,
+        createFromGeneratedImage: mockCharacterCreateFromImage,
       },
-      org: { get_user: mockUser, get_org: mockOrg },
+      org: { getUser: mockUser, getOrg: mockOrg },
       jobs: { list: mockJobsList, get: mockJobGet },
       motionDownloads: {
         list: mockMotionDownloadsList,
-        check_allowed: mockMotionDownloadAllowed,
+        isAllowed: mockMotionDownloadAllowed,
       },
       ttm: { create: mockTtmCreate },
       vtm: { create: mockVtmCreate },
@@ -131,6 +131,25 @@ describe("React hooks", () => {
     expect(mockClient.motions.get).not.toHaveBeenCalled();
   });
 
+  it("useUthanaMotionPreview fetches preview when ids provided", async () => {
+    const { result } = renderHook(() => useUthanaMotionPreview("c1", "m1"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeInstanceOf(ArrayBuffer);
+    expect(mockClient.motions.preview).toHaveBeenCalledWith("c1", "m1");
+  });
+
+  it("useUthanaMotionPreview is disabled when ids are null", () => {
+    const { result } = renderHook(() => useUthanaMotionPreview(null, null), {
+      wrapper: createWrapper(),
+    });
+
+    expect(result.current.isFetching).toBe(false);
+    expect(mockClient.motions.preview).not.toHaveBeenCalled();
+  });
+
   it("useUthanaRateMotion calls rate and invalidates", async () => {
     const { result } = renderHook(() => useUthanaRateMotion(), {
       wrapper: createWrapper(),
@@ -158,7 +177,7 @@ describe("React hooks", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({ id: "u1", name: "Test" });
-    expect(mockClient.org.get_user).toHaveBeenCalled();
+    expect(mockClient.org.getUser).toHaveBeenCalled();
   });
 
   it("useUthanaOrg fetches org", async () => {
@@ -168,7 +187,7 @@ describe("React hooks", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({ id: "o1", name: "Org" });
-    expect(mockClient.org.get_org).toHaveBeenCalled();
+    expect(mockClient.org.getOrg).toHaveBeenCalled();
   });
 
   it("useUthanaJobs fetches jobs", async () => {
@@ -202,34 +221,116 @@ describe("React hooks", () => {
   });
 
   it("useUthanaMotionDownloadAllowed checks when ids provided", async () => {
-    const { result } = renderHook(() => useUthanaMotionDownloadAllowed("c1", "m1"), {
+    const { result } = renderHook(() => useUthanaIsMotionDownloadAllowed("c1", "m1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(true);
-    expect(mockClient.motionDownloads.check_allowed).toHaveBeenCalledWith("c1", "m1");
+    expect(mockClient.motionDownloads.isAllowed).toHaveBeenCalledWith("c1", "m1");
   });
 
-  it("useUthanaCreateCharacter returns mutation", () => {
+  it("useUthanaCreateCharacter exposes create, generate, confirm functions", () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.mutate).toBeDefined();
-    expect(result.current.mutateAsync).toBeDefined();
+    expect(result.current.create).toBeDefined();
+    expect(result.current.generate).toBeDefined();
+    expect(result.current.confirm).toBeDefined();
   });
 
-  it("useUthanaCreateCharacter calls characters.create on mutate", async () => {
+  it("useUthanaCreateCharacter.create calls characters.create for file upload", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    result.current.mutate({ file: "path/to/char.glb" });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await act(async () => {
+      await result.current.create({ from: "file", file: "path/to/char.glb" });
+    });
+    expect(result.current.isSuccess).toBe(true);
     expect(mockClient.characters.create).toHaveBeenCalledWith(
       "path/to/char.glb",
-      expect.objectContaining({ file: "path/to/char.glb" }),
+      { auto_rig: undefined, front_facing: undefined },
+    );
+  });
+
+  it("useUthanaCreateCharacter.generate calls generate_from_text for prompt flow", async () => {
+    const { result } = renderHook(() => useUthanaCreateCharacter(), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      await result.current.generate({ from: "prompt", prompt: "a robot" });
+    });
+    expect(result.current.isAwaitingSelection).toBe(true);
+    expect(mockClient.characters.generateFromText).toHaveBeenCalledWith("a robot");
+    expect(result.current.previews).toEqual([]);
+  });
+
+  it("useUthanaCreateCharacter.generate with onPreviewsReady auto-confirms", async () => {
+    const { result } = renderHook(() => useUthanaCreateCharacter(), {
+      wrapper: createWrapper(),
+    });
+
+    mockClient.characters.generateFromText.mockResolvedValueOnce({
+      character_id: "c3",
+      images: [{ key: "img1", url: "http://img1" }],
+    });
+
+    await act(async () => {
+      await result.current.generate({
+        from: "prompt",
+        prompt: "a robot",
+        onPreviewsReady: (previews) => previews[0].key,
+      });
+    });
+    expect(result.current.isSuccess).toBe(true);
+    expect(mockClient.characters.createFromGeneratedImage).toHaveBeenCalledWith(
+      "c3",
+      "img1",
+      "a robot",
+      { name: undefined },
+    );
+  });
+
+  it("useUthanaCreateCharacter.generate calls generate_from_image for image flow", async () => {
+    const { result } = renderHook(() => useUthanaCreateCharacter(), {
+      wrapper: createWrapper(),
+    });
+
+    const blob = new Blob(["data"]);
+    await act(async () => {
+      await result.current.generate({ from: "image", file: blob, prompt: "a robot" });
+    });
+    expect(result.current.isAwaitingSelection).toBe(true);
+    expect(mockClient.characters.generateFromImage).toHaveBeenCalledWith(blob);
+  });
+
+  it("useUthanaCreateCharacter.confirm calls create_from_generated_image", async () => {
+    const { result } = renderHook(() => useUthanaCreateCharacter(), {
+      wrapper: createWrapper(),
+    });
+
+    mockClient.characters.generateFromText.mockResolvedValueOnce({
+      character_id: "c3",
+      images: [{ key: "img1", url: "http://img1" }],
+    });
+
+    await act(async () => {
+      await result.current.generate({ from: "prompt", prompt: "a robot" });
+    });
+    expect(result.current.isAwaitingSelection).toBe(true);
+
+    await act(async () => {
+      await result.current.confirm({ image_key: "img1" });
+    });
+    expect(result.current.isSuccess).toBe(true);
+    expect(mockClient.characters.createFromGeneratedImage).toHaveBeenCalledWith(
+      "c3",
+      "img1",
+      "a robot",
+      { name: undefined },
     );
   });
 
@@ -251,44 +352,6 @@ describe("React hooks", () => {
     result.current.mutate({ character_id: "c1" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockClient.characters.delete).toHaveBeenCalledWith("c1");
-  });
-
-  it("useUthanaGenerateCharacterFromText calls generate_from_text", async () => {
-    const { result } = renderHook(() => useUthanaGenerateCharacterFromText(), {
-      wrapper: createWrapper(),
-    });
-
-    result.current.mutate({ prompt: "a robot" });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockClient.characters.generate_from_text).toHaveBeenCalledWith("a robot");
-    expect(result.current.data?.character_id).toBe("c3");
-  });
-
-  it("useUthanaGenerateCharacterFromImage calls generate_from_image", async () => {
-    const { result } = renderHook(() => useUthanaGenerateCharacterFromImage(), {
-      wrapper: createWrapper(),
-    });
-
-    const blob = new Blob(["data"]);
-    result.current.mutate({ file: blob });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockClient.characters.generate_from_image).toHaveBeenCalledWith(blob);
-    expect(result.current.data?.character_id).toBe("c4");
-  });
-
-  it("useUthanaCreateCharacterFromImage calls create_from_generated_image", async () => {
-    const { result } = renderHook(() => useUthanaCreateCharacterFromImage(), {
-      wrapper: createWrapper(),
-    });
-
-    result.current.mutate({ character_id: "c4", image_key: "img1", prompt: "a robot" });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockClient.characters.create_from_generated_image).toHaveBeenCalledWith(
-      "c4",
-      "img1",
-      "a robot",
-      expect.anything(),
-    );
   });
 
   it("useUthanaJob is disabled when id is null", () => {

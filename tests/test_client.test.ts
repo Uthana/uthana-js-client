@@ -2,7 +2,15 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  *
  * Integration tests against the real Uthana API.
- * Skipped unless UTHANA_API_KEY is set.
+ *
+ * Required env:
+ *   UTHANA_API_KEY   — skips entire suite when absent or set to "xxx"
+ *   UTHANA_DOMAIN    — optional custom domain (defaults to uthana.com)
+ *
+ * Optional env:
+ *   UTHANA_LONG_TESTS=true — enables long-running tests (vtm, character
+ *                            generation from text). These are skipped by
+ *                            default due to their runtime (up to 5 min).
  */
 
 import { resolve } from "node:path";
@@ -15,6 +23,7 @@ const API_KEY = process.env.UTHANA_API_KEY;
 const DOMAIN = process.env.UTHANA_DOMAIN;
 
 const shouldRun = !!API_KEY && API_KEY !== "xxx";
+const shouldRunLong = shouldRun && process.env.UTHANA_LONG_TESTS === "true";
 
 describe.skipIf(!shouldRun)("UthanaClient integration", () => {
   let client: UthanaClient;
@@ -25,14 +34,14 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     });
   });
 
-  it("org.get_user returns user", async () => {
-    const user = await client.org.get_user();
+  it("org.getUser returns user", async () => {
+    const user = await client.org.getUser();
     expect(user).toBeDefined();
     expect(typeof user?.id).toBe("string");
   });
 
-  it("org.get_org returns org", async () => {
-    const org = await client.org.get_org();
+  it("org.getOrg returns org", async () => {
+    const org = await client.org.getOrg();
     expect(org).toBeDefined();
     expect(typeof org?.id).toBe("string");
   });
@@ -110,7 +119,17 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     expect(data.byteLength).toBeGreaterThan(0);
   }, 60_000);
 
-  it("vtm.create submits job and polls to FINISHED", async () => {
+  it.skipIf(!shouldRunLong)("characters.createFromText + characters.download", async () => {
+    const result = await client.characters.createFromText("a futuristic soldier in heavy armor", {
+      onPreviewsReady: (previews) => previews[0]?.key ?? null,
+    });
+    expect(result.character?.id).toBeTruthy();
+
+    const data = await client.characters.download(result.character!.id!, { output_format: "glb" });
+    expect(data.byteLength).toBeGreaterThan(0);
+  }, 120_000);
+
+  it.skipIf(!shouldRunLong)("vtm.create submits job and polls to FINISHED", async () => {
     const job = await client.vtm.create(`${FIXTURES_DIR}/dance.mp4`);
     expect(job.id).toBeTruthy();
     expect(job.status).toBeTruthy();

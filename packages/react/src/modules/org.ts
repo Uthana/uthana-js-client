@@ -13,7 +13,7 @@ export function useUthanaUser() {
   const client = useUthanaClient();
   return useQuery({
     queryKey: USER_QUERY_KEY,
-    queryFn: () => client.org.get_user(),
+    queryFn: () => client.org.getUser(),
   });
 }
 
@@ -22,6 +22,6 @@ export function useUthanaOrg() {
   const client = useUthanaClient();
   return useQuery({
     queryKey: ORG_QUERY_KEY,
-    queryFn: () => client.org.get_org(),
+    queryFn: () => client.org.getOrg(),
   });
 }

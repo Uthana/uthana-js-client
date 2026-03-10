@@ -2,6 +2,8 @@
 
 A JavaScript/TypeScript client for Uthana: generate lifelike human motion from text or 2D video, create and auto-rig characters, and manage your motions. Works in browser and Node.js.
 
+📖 [Full API documentation](https://uthana.com/docs/api) · 🤖 [Context7 page](https://context7.com/websites/uthana_api)
+
 ## Packages
 
 - **@uthana/client** — Core client (vanilla JS/TS, browser + Node.js)
@@ -116,15 +118,11 @@ createUthanaClient(apiKey);
 const queryClient = new QueryClient();
 
 export default function Layout({ children }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 ```
 
-**4. Manual configuration** — If you want full control over your `QueryClient` (e.g. custom `QueryCache`, `MutationCache`, or defaults), create it yourself and use either option 2 or 3. The hooks use whatever `QueryClient` is in context via `useQueryClient()`, so your configuration applies to all Uthana queries and mutations:
+**4. Manual configuration** — Full control over your `QueryClient` (custom `QueryCache`, `MutationCache`, or defaults). The hooks use whatever `QueryClient` is in context via `useQueryClient()`, so your configuration applies to all Uthana queries and mutations:
 
 ```tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -145,11 +143,7 @@ const queryClient = new QueryClient({
 createUthanaClient(apiKey);
 
 export default function Layout({ children }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 ```
 
@@ -184,7 +178,22 @@ const result = await client.ttm.create("a person waving hello", {
 });
 ```
 
-**Models:** `vqvae-v1`, `diffusion-v2`, `flow-matching-v1`, or server aliases `text-to-motion`, `text-to-motion-bucmd`.
+**Available models:** `vqvae-v1`, `diffusion-v2`, `flow-matching-v1`.
+
+```tsx
+// React
+import { useUthanaTtm } from "@uthana/react";
+
+function GenerateButton() {
+  const ttm = useUthanaTtm();
+
+  return (
+    <button onClick={() => ttm.mutate({ prompt: "a person walking" })} disabled={ttm.isPending}>
+      {ttm.isPending ? "Generating…" : "Generate"}
+    </button>
+  );
+}
+```
 
 ## Video to motion (vtm)
 
@@ -196,6 +205,26 @@ const job = await client.vtm.create(file, { motion_name: "my_dance" });
 // Poll until finished
 const finished = await client.jobs.wait(job.id!);
 const motionId = finished.result?.result?.id;
+```
+
+```tsx
+// React
+import { useUthanaVtm } from "@uthana/react";
+
+function UploadVideo() {
+  const vtm = useUthanaVtm();
+
+  return (
+    <input
+      type="file"
+      accept="video/*"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) vtm.mutate({ file, motion_name: "my_dance" });
+      }}
+    />
+  );
+}
 ```
 
 ## Characters
@@ -213,29 +242,113 @@ const characters = await client.characters.list();
 // Download character mesh
 const buffer = await client.characters.download(characterId);
 
-// Text-to-character pipeline: generate preview from text, then create character
-const { character_id, images } = await client.characters.generate_from_text("a knight in armor");
-const { character } = await client.characters.create_from_generated_image(
-  character_id,
-  images[0].key,
-  "a knight in armor",
-  { name: "Knight" },
-);
+// Text-to-character: auto-pick first preview
+const { character } = await client.characters.createFromText("a knight in armor", {
+  name: "Knight",
+  onPreviewsReady: (previews) => previews[0].key,
+});
 
-// Image-to-character: upload image, then create character
-const { character_id, image } = await client.characters.generate_from_image(imageFile);
-const { character } = await client.characters.create_from_generated_image(
-  character_id,
-  image.key,
-  "a knight in armor",
-);
+// Text-to-character: async callback (e.g. show a picker UI and await selection)
+const { character } = await client.characters.createFromText("a knight in armor", {
+  onPreviewsReady: async (previews) => {
+    return await showPickerUI(previews); // returns selected key
+  },
+});
+
+// Image-to-character: auto-confirms the single generated preview
+const { character } = await client.characters.createFromImage(imageFile, {
+  prompt: "a knight in armor",
+});
 
 // Rename or delete
-await client.characters.rename(characterId, "New Name");
+await client.characters.rename(characterId, "New name");
 await client.characters.delete(characterId);
+```
 
-// Create motion from GLTF content (bake)
-const { motion_id } = await client.characters.create_from_gltf(gltfString, "My Motion");
+```tsx
+// React
+import {
+  useUthanaCharacters,
+  useUthanaCreateCharacter,
+  useUthanaRenameCharacter,
+  useUthanaDeleteCharacter,
+} from "@uthana/react";
+
+// File upload — single step
+function UploadCharacter() {
+  const creator = useUthanaCreateCharacter();
+  return (
+    <input
+      type="file"
+      accept=".glb,.fbx"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) creator.create({ from: "file", file, auto_rig: true });
+      }}
+    />
+  );
+}
+
+// Text prompt — auto-select first preview
+function GenerateFromPrompt() {
+  const creator = useUthanaCreateCharacter();
+  return (
+    <button
+      onClick={() =>
+        creator.generate({
+          from: "prompt",
+          prompt: "a knight in armor",
+          onPreviewsReady: (previews) => previews[0].key,
+        })
+      }
+      disabled={creator.isPending}
+    >
+      Generate
+    </button>
+  );
+}
+
+// Text prompt — manual preview selection
+function GenerateWithSelection() {
+  const creator = useUthanaCreateCharacter();
+  return (
+    <>
+      <button
+        onClick={() => creator.generate({ from: "prompt", prompt: "a knight in armor" })}
+        disabled={creator.isPending}
+      >
+        Generate previews
+      </button>
+      {creator.isAwaitingSelection && (
+        <div>
+          {creator.previews?.map((p) => (
+            <img key={p.key} src={p.url} onClick={() => creator.confirm({ image_key: p.key })} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// List, rename, delete
+function CharacterList() {
+  const { data: characters } = useUthanaCharacters();
+  const rename = useUthanaRenameCharacter();
+  const remove = useUthanaDeleteCharacter();
+  return (
+    <ul>
+      {characters?.map((c) => (
+        <li key={c.id}>
+          {c.name}
+          <button onClick={() => rename.mutate({ character_id: c.id!, name: "New name" })}>
+            Rename
+          </button>
+          <button onClick={() => remove.mutate({ character_id: c.id! })}>Delete</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
 ```
 
 ## Motions
@@ -255,7 +368,7 @@ const buffer = await client.motions.download(characterId, motionId, {
 });
 
 // Download preview WebM (does not charge download seconds)
-const preview = await client.motions.download_preview(characterId, motionId);
+const preview = await client.motions.preview(characterId, motionId);
 
 // Rate a motion (thumbs up/down)
 await client.motions.rate(motionId, 1); // 1 = thumbs up, 0 = thumbs down
@@ -264,6 +377,66 @@ await client.motions.rate(motionId, 1); // 1 = thumbs up, 0 = thumbs down
 await client.motions.rename(motionId, "New Name");
 await client.motions.delete(motionId);
 await client.motions.favorite(motionId, true);
+
+// Bake custom GLTF animation data as a new motion for an existing character
+const { motion_id } = await client.motions.bakeWithChanges(gltfString, "My motion", {
+  character_id: characterId,
+});
+```
+
+```tsx
+// React
+import {
+  useUthanaMotions,
+  useUthanaMotion,
+  useUthanaMotionPreview,
+  useUthanaRateMotion,
+  useUthanaBakeWithChanges,
+} from "@uthana/react";
+
+function MotionList() {
+  const { data: motions } = useUthanaMotions();
+  const rate = useUthanaRateMotion();
+
+  return (
+    <ul>
+      {motions?.map((m) => (
+        <li key={m.id}>
+          {m.name}
+          <button onClick={() => rate.mutate({ motion_id: m.id!, score: 1 })}>👍</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Single motion
+function MotionDetail({ motionId }: { motionId: string }) {
+  const { data: motion } = useUthanaMotion(motionId);
+  return <div>{motion?.name}</div>;
+}
+
+// Preview WebM (does not charge download seconds)
+function MotionPreview({ characterId, motionId }: { characterId: string; motionId: string }) {
+  const { data: buffer } = useUthanaMotionPreview(characterId, motionId);
+  const url = buffer ? URL.createObjectURL(new Blob([buffer], { type: "video/webm" })) : undefined;
+  return url ? <video src={url} autoPlay loop muted /> : null;
+}
+
+// Bake custom GLTF animation data as a new motion
+function BakeGltf({ characterId }: { characterId: string }) {
+  const bake = useUthanaBakeWithChanges();
+  return (
+    <button
+      onClick={() =>
+        bake.mutate({ gltf_content: "<gltf/>", motion_name: "My motion", character_id: characterId })
+      }
+      disabled={bake.isPending}
+    >
+      {bake.isPending ? "Baking…" : "Bake changes"}
+    </button>
+  );
+}
 ```
 
 ## Motion downloads
@@ -275,17 +448,42 @@ Check download quota and list downloaded motions.
 const downloads = await client.motionDownloads.list();
 
 // Check if download is allowed before downloading
-const allowed = await client.motionDownloads.check_allowed(characterId, motionId);
+const allowed = await client.motionDownloads.isAllowed(characterId, motionId);
 if (allowed) {
   const buffer = await client.motions.download(characterId, motionId);
+}
+```
+
+```tsx
+// React
+import { useUthanaMotionDownloads, useUthanaIsMotionDownloadAllowed } from "@uthana/react";
+
+function DownloadButton({ characterId, motionId }: { characterId: string; motionId: string }) {
+  const { data: allowed } = useUthanaIsMotionDownloadAllowed(characterId, motionId);
+  return <button disabled={!allowed}>Download</button>;
 }
 ```
 
 ## Org and user
 
 ```ts
-const user = await client.org.get_user();
-const org = await client.org.get_org();
+const user = await client.org.getUser();
+const org = await client.org.getOrg();
+```
+
+```tsx
+// React
+import { useUthanaUser, useUthanaOrg } from "@uthana/react";
+
+function OrgInfo() {
+  const { data: user } = useUthanaUser();
+  const { data: org } = useUthanaOrg();
+  return (
+    <div>
+      {user?.name} — {org?.name}
+    </div>
+  );
+}
 ```
 
 ## Jobs
@@ -304,6 +502,57 @@ const finished = await client.jobs.wait(jobId, {
 });
 ```
 
+```tsx
+// React
+import { useUthanaJobs, useUthanaJob } from "@uthana/react";
+
+function JobStatus({ jobId }: { jobId: string }) {
+  const { data: job } = useUthanaJob(jobId);
+  return <div>{job?.status}</div>;
+}
+
+function JobList() {
+  const { data: jobs } = useUthanaJobs("VideoToMotion");
+  return (
+    <ul>
+      {jobs?.map((j) => (
+        <li key={j.id}>{j.status}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Accessing the client directly
+
+If you need the `UthanaClient` instance outside of a module hook — for example to call methods not covered by a hook, or to use it in a utility function — you can access it two ways:
+
+**In a component** — `useUthanaClient()` returns the client from context (or the singleton if no `UthanaProvider` is in the tree):
+
+```tsx
+import { useUthanaClient } from "@uthana/react";
+
+function DownloadMotion({ characterId, motionId }: { characterId: string; motionId: string }) {
+  const client = useUthanaClient();
+
+  async function download() {
+    const buffer = await client.motions.download(characterId, motionId);
+    // ...
+  }
+
+  return <button onClick={download}>Download</button>;
+}
+```
+
+**Outside of React** — `getUthanaClient()` returns the singleton directly. Requires `createUthanaClient(apiKey)` to have been called first:
+
+```ts
+import { getUthanaClient } from "@uthana/react";
+
+const client = getUthanaClient();
+const motions = await client.motions.list();
+```
+
 ## Errors
 
 ```ts
@@ -320,26 +569,24 @@ try {
 
 ## React hooks
 
-| Hook                                 | Description                            |
-| ------------------------------------ | -------------------------------------- |
-| `useUthanaMotions`                         | List motions                           |
-| `useUthanaMotion(id)`                      | Get single motion                      |
-| `useUthanaRateMotion`                      | Rate motion mutation                   |
-| `useUthanaCharacters`                      | List characters                        |
-| `useUthanaCreateCharacter`                 | Upload character mutation              |
-| `useUthanaRenameCharacter`                 | Rename character mutation              |
-| `useUthanaDeleteCharacter`                 | Delete character mutation              |
-| `useUthanaGenerateCharacterFromText`       | Text-to-character preview mutation     |
-| `useUthanaGenerateCharacterFromImage`      | Image-to-character preview mutation    |
-| `useUthanaCreateCharacterFromImage`        | Create character from preview mutation |
-| `useUthanaJobs(method?)`                   | List jobs                              |
-| `useUthanaJob(id)`                         | Get job (polls when enabled)           |
-| `useUthanaMotionDownloads`                 | List motion downloads                  |
-| `useUthanaMotionDownloadAllowed(cid, mid)` | Check if download allowed              |
-| `useUthanaUser`                            | Get current user                       |
-| `useUthanaOrg`                             | Get org                                |
-| `useUthanaTtm`                             | Text-to-motion mutation                |
-| `useUthanaVtm`                             | Video-to-motion mutation               |
+| Hook                                         | Description                               |
+| -------------------------------------------- | ----------------------------------------- |
+| `useUthanaMotions`                           | List motions                              |
+| `useUthanaMotion(id)`                        | Get single motion                         |
+| `useUthanaMotionPreview(cid, mid)`           | Fetch preview WebM (no quota charge)      |
+| `useUthanaRateMotion`                        | Rate motion mutation                      |
+| `useUthanaCharacters`                        | List characters                           |
+| `useUthanaCreateCharacter`                   | Create character (file, prompt, or image) |
+| `useUthanaRenameCharacter`                   | Rename character mutation                 |
+| `useUthanaDeleteCharacter`                   | Delete character mutation                 |
+| `useUthanaJobs(method?)`                     | List jobs                                 |
+| `useUthanaJob(id)`                           | Get job (polls when enabled)              |
+| `useUthanaMotionDownloads`                   | List motion downloads                     |
+| `useUthanaIsMotionDownloadAllowed(cid, mid)` | Check if download allowed                 |
+| `useUthanaUser`                              | Get current user                          |
+| `useUthanaOrg`                               | Get org                                   |
+| `useUthanaTtm`                               | Text-to-motion mutation                   |
+| `useUthanaVtm`                               | Video-to-motion mutation                  |
 
 ## Custom domain
 

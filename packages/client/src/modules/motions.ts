@@ -3,15 +3,18 @@
  */
 
 import type { UthanaClient } from "../client";
+import { UthanaError } from "../errors";
 import {
   CREATE_MOTION_FAVORITE,
+  CREATE_MOTION_FROM_GLTF,
   DELETE_MOTION_FAVORITE,
   GET_MOTION_BY_ID,
   LIST_MOTIONS,
   RATE_MOTION,
   UPDATE_MOTION,
 } from "../graphql";
-import type { Motion, OutputFormat } from "../types";
+import type { Motion, OutputFormat, TextToMotionResult } from "../types";
+import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
 /** Motion management: list, download, delete, rename, favorite. */
@@ -77,7 +80,7 @@ export class MotionsModule extends BaseModule {
   }
 
   /** Download motion preview WebM (does not charge download seconds). */
-  async download_preview(character_id: string, motion_id: string): Promise<ArrayBuffer> {
+  async preview(character_id: string, motion_id: string): Promise<ArrayBuffer> {
     const url = `${this._client.baseUrl}/app/preview/${character_id}/${motion_id}/preview.webm`;
     const res = await this._client._fetch(url);
     return res.arrayBuffer();
@@ -112,5 +115,34 @@ export class MotionsModule extends BaseModule {
         motion_id,
       });
     }
+  }
+
+  /**
+   * Bake GLTF content as a new motion for an existing character.
+   * Use this to submit custom or edited GLTF animation data to the platform.
+   * Returns the resulting motion_id and character_id.
+   */
+  async bakeWithChanges(
+    gltf_content: string,
+    motion_name: string,
+    options?: { character_id?: string | null },
+  ): Promise<TextToMotionResult> {
+    const charId = options?.character_id ?? UthanaCharacters.tar;
+    const result = (await this._client._graphql<Record<string, unknown>>(
+      CREATE_MOTION_FROM_GLTF,
+      {
+        gltf: gltf_content,
+        motionName: motion_name,
+        characterId: charId,
+      },
+      { path: "create_motion_from_gltf" },
+    )) as Record<string, unknown>;
+
+    const motion = result?.motion as Record<string, unknown> | undefined;
+    const motionId = motion?.id as string | undefined;
+    if (!motionId) {
+      throw new UthanaError(400, "create_motion_from_gltf did not return motion id");
+    }
+    return { character_id: charId, motion_id: motionId };
   }
 }

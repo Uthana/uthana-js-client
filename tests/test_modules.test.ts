@@ -31,16 +31,16 @@ describe("module methods with mocked _graphql", () => {
   });
 
   describe("org", () => {
-    it("get_user returns user", async () => {
+    it("getUser returns user", async () => {
       mockGql.mockResolvedValue({
         data: { user: { id: "u1", name: "Test", email: "test@example.com" } },
       });
-      const user = await client.org.get_user();
+      const user = await client.org.getUser();
       expect(user?.id).toBe("u1");
       expect(user?.name).toBe("Test");
     });
 
-    it("get_org returns org", async () => {
+    it("getOrg returns org", async () => {
       mockGql.mockResolvedValue({
         data: {
           org: {
@@ -50,7 +50,7 @@ describe("module methods with mocked _graphql", () => {
           },
         },
       });
-      const org = await client.org.get_org();
+      const org = await client.org.getOrg();
       expect(org?.id).toBe("o1");
       expect(org?.name).toBe("Test Org");
     });
@@ -117,6 +117,17 @@ describe("module methods with mocked _graphql", () => {
       await client.motions.favorite("m1", false);
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motion_id: "m1" }));
     });
+
+    it("bakeWithChanges returns character_id and motion_id", async () => {
+      mockGql.mockResolvedValue({
+        data: {
+          create_motion_from_gltf: { motion: { id: "m99" } },
+        },
+      });
+      const result = await client.motions.bakeWithChanges("<gltf/>", "test motion");
+      expect(result.motion_id).toBe("m99");
+      expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motionName: "test motion" }));
+    });
   });
 
   describe("characters", () => {
@@ -151,7 +162,7 @@ describe("module methods with mocked _graphql", () => {
       expect((result as Record<string, unknown>).id).toBe("c1");
     });
 
-    it("generate_from_text returns character_id and images", async () => {
+    it("generateFromText returns character_id and images", async () => {
       mockGql.mockResolvedValue({
         data: {
           create_image_from_text: {
@@ -160,25 +171,25 @@ describe("module methods with mocked _graphql", () => {
           },
         },
       });
-      const result = await client.characters.generate_from_text("a robot");
+      const result = await client.characters.generateFromText("a robot");
       expect(result.character_id).toBe("c2");
       expect(result.images).toHaveLength(1);
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ prompt: "a robot" }));
     });
 
-    it("generate_from_image returns character_id and image", async () => {
+    it("generateFromImage returns character_id and image", async () => {
       mockGql.mockResolvedValue({
         data: {
           create_image_from_image: { character_id: "c3", image: { key: "img2", url: "http://y" } },
         },
       });
       const blob = new Blob(["data"]);
-      const result = await client.characters.generate_from_image(blob);
+      const result = await client.characters.generateFromImage(blob);
       expect(result.character_id).toBe("c3");
       expect(result.image).toBeDefined();
     });
 
-    it("create_from_generated_image returns character and confidence", async () => {
+    it("createFromGeneratedImage returns character and confidence", async () => {
       mockGql.mockResolvedValue({
         data: {
           create_character_from_image: {
@@ -187,23 +198,81 @@ describe("module methods with mocked _graphql", () => {
           },
         },
       });
-      const result = await client.characters.create_from_generated_image("c4", "img1", "a robot");
+      const result = await client.characters.createFromGeneratedImage("c4", "img1", "a robot");
       expect(result.auto_rig_confidence).toBe(0.9);
       expect(mockGql).toHaveBeenCalledWith(
         expect.objectContaining({ character_id: "c4", image_key: "img1", prompt: "a robot" }),
       );
     });
 
-    it("create_from_gltf returns character_id and motion_id", async () => {
-      mockGql.mockResolvedValue({
-        data: {
-          create_motion_from_gltf: { motion: { id: "m99" } },
-        },
+    it("createFromText calls generateFromText then createFromGeneratedImage", async () => {
+      mockGql
+        .mockResolvedValueOnce({
+          data: {
+            create_image_from_text: {
+              character_id: "c3",
+              images: [{ key: "img1", url: "http://x" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            create_character_from_image: {
+              character: { id: "c5", name: "Knight" },
+              auto_rig_confidence: 0.8,
+            },
+          },
+        });
+      const result = await client.characters.createFromText("a knight", {
+        onPreviewsReady: (previews) => previews[0].key,
       });
-      const result = await client.characters.create_from_gltf("<gltf/>", "test motion");
-      expect(result.motion_id).toBe("m99");
-      expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motionName: "test motion" }));
+      expect(result.character?.id).toBe("c5");
+      expect(mockGql).toHaveBeenCalledTimes(2);
     });
+
+    it("createFromText defaults to first preview when onPreviewsReady omitted", async () => {
+      mockGql
+        .mockResolvedValueOnce({
+          data: {
+            create_image_from_text: {
+              character_id: "c3",
+              images: [{ key: "img1", url: "http://x" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            create_character_from_image: {
+              character: { id: "c5", name: "Knight" },
+              auto_rig_confidence: 0.8,
+            },
+          },
+        });
+      const result = await client.characters.createFromText("a knight");
+      expect(result.character?.id).toBe("c5");
+    });
+
+    it("createFromImage calls generateFromImage then createFromGeneratedImage", async () => {
+      mockGql
+        .mockResolvedValueOnce({
+          data: {
+            create_image_from_image: { character_id: "c4", image: { key: "img2", url: "http://y" } },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            create_character_from_image: {
+              character: { id: "c6", name: "Knight" },
+              auto_rig_confidence: 0.7,
+            },
+          },
+        });
+      const blob = new Blob(["data"]);
+      const result = await client.characters.createFromImage(blob, { prompt: "a knight" });
+      expect(result.character?.id).toBe("c6");
+      expect(mockGql).toHaveBeenCalledTimes(2);
+    });
+
   });
 
   describe("jobs", () => {
@@ -286,19 +355,19 @@ describe("module methods with mocked _graphql", () => {
       expect(mockGql).toHaveBeenCalledTimes(1);
     });
 
-    it("check_allowed returns boolean", async () => {
+    it("checkIsAllowed returns boolean", async () => {
       mockGql.mockResolvedValue({
         data: { motion_download_allowed: { allowed: true } },
       });
-      const allowed = await client.motionDownloads.check_allowed("c1", "m1");
+      const allowed = await client.motionDownloads.isAllowed("c1", "m1");
       expect(allowed).toBe(true);
     });
 
-    it("check_allowed returns false when not allowed", async () => {
+    it("checkIsAllowed returns false when not allowed", async () => {
       mockGql.mockResolvedValue({
         data: { motion_download_allowed: { allowed: false } },
       });
-      const allowed = await client.motionDownloads.check_allowed("c1", "m1");
+      const allowed = await client.motionDownloads.isAllowed("c1", "m1");
       expect(allowed).toBe(false);
     });
   });

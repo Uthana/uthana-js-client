@@ -57,7 +57,7 @@ export interface Job {
   result?: Record<string, unknown> | null;
 }
 
-/** Result of ttm.create or characters.create_from_gltf mutation. */
+/** Result of ttm.create or motions.bakeWithChanges mutation. */
 export interface TextToMotionResult {
   character_id: string;
   motion_id: string;
@@ -70,19 +70,19 @@ export interface CreateCharacterResult {
   auto_rig_confidence?: number | null;
 }
 
-/** Result of characters.generate_from_text. */
+/** Result of characters.generateFromText. */
 export interface GenerateFromTextResult {
   character_id: string;
   images: { key: string; url: string }[];
 }
 
-/** Result of characters.generate_from_image. */
+/** Result of characters.generateFromImage. */
 export interface GenerateFromImageResult {
   character_id: string;
   image: { key: string; url: string };
 }
 
-/** Result of characters.create_from_generated_image. */
+/** Result of characters.createFromGeneratedImage. */
 export interface CreateFromGeneratedImageResult {
   character: Character;
   auto_rig_confidence?: number | null;

@@ -9,7 +9,6 @@ import {
   CREATE_CHARACTER_FROM_IMAGE,
   CREATE_IMAGE_FROM_IMAGE,
   CREATE_IMAGE_FROM_TEXT,
-  CREATE_MOTION_FROM_GLTF,
   DELETE_CHARACTER,
   LIST_CHARACTERS,
   RENAME_CHARACTER,
@@ -21,9 +20,7 @@ import type {
   GenerateFromImageResult,
   GenerateFromTextResult,
   OutputFormat,
-  TextToMotionResult,
 } from "../types";
-import { UthanaCharacters } from "../types";
 import { detectMeshFormat, prepareCreateCharacter } from "../utils";
 import { BaseModule } from "./base";
 
@@ -106,7 +103,7 @@ export class CharactersModule extends BaseModule {
   }
 
   /** Generate character preview images from a text prompt. Returns character_id and images. */
-  async generate_from_text(prompt: string): Promise<GenerateFromTextResult> {
+  async generateFromText(prompt: string): Promise<GenerateFromTextResult> {
     const result = (await this._client._graphql<Record<string, unknown>>(
       CREATE_IMAGE_FROM_TEXT,
       { prompt },
@@ -119,7 +116,7 @@ export class CharactersModule extends BaseModule {
   }
 
   /** Generate a character preview image from an uploaded image file. Returns character_id and image. */
-  async generate_from_image(file: File | Blob): Promise<GenerateFromImageResult> {
+  async generateFromImage(file: File | Blob): Promise<GenerateFromImageResult> {
     const result = (await this._client._graphql<Record<string, unknown>>(
       CREATE_IMAGE_FROM_IMAGE,
       { file },
@@ -131,8 +128,52 @@ export class CharactersModule extends BaseModule {
     };
   }
 
-  /** Create a character from a previously generated image (from generate_from_text or generate_from_image). */
-  async create_from_generated_image(
+  /**
+   * Create a character from a text prompt. Generates preview images, calls `onPreviewsReady`
+   * to select one (defaults to first), then finalizes the character.
+   */
+  async createFromText(
+    prompt: string,
+    options?: {
+      name?: string | null;
+      onPreviewsReady?: (
+        previews: { key: string; url: string }[],
+      ) => string | null | undefined | Promise<string | null | undefined>;
+    },
+  ): Promise<CreateFromGeneratedImageResult> {
+    const { character_id, images } = await this.generateFromText(prompt);
+    const key = options?.onPreviewsReady
+      ? await options.onPreviewsReady(images)
+      : images[0]?.key;
+    if (!key) throw new UthanaError(400, "No preview image selected");
+    return this.createFromGeneratedImage(character_id, key, prompt, { name: options?.name });
+  }
+
+  /**
+   * Create a character from an image file. Generates a preview, calls `onPreviewsReady`
+   * if provided (defaults to auto-confirming the single preview), then finalizes the character.
+   */
+  async createFromImage(
+    file: File | Blob,
+    options: {
+      prompt: string;
+      name?: string | null;
+      onPreviewsReady?: (
+        previews: { key: string; url: string }[],
+      ) => string | null | undefined | Promise<string | null | undefined>;
+    },
+  ): Promise<CreateFromGeneratedImageResult> {
+    const { character_id, image } = await this.generateFromImage(file);
+    const previews = [image];
+    const key = options.onPreviewsReady
+      ? await options.onPreviewsReady(previews)
+      : image.key;
+    if (!key) throw new UthanaError(400, "No preview image selected");
+    return this.createFromGeneratedImage(character_id, key, options.prompt, { name: options.name });
+  }
+
+  /** Create a character from a previously generated image (from generateFromText or generateFromImage). */
+  async createFromGeneratedImage(
     character_id: string,
     image_key: string,
     prompt: string,
@@ -185,28 +226,4 @@ export class CharactersModule extends BaseModule {
     return res.arrayBuffer();
   }
 
-  /** Upload GLTF content as a new motion. Returns motion_id and character_id. */
-  async create_from_gltf(
-    gltf_content: string,
-    motion_name: string,
-    options?: { character_id?: string | null },
-  ): Promise<TextToMotionResult> {
-    const charId = options?.character_id ?? UthanaCharacters.tar;
-    const result = (await this._client._graphql<Record<string, unknown>>(
-      CREATE_MOTION_FROM_GLTF,
-      {
-        gltf: gltf_content,
-        motionName: motion_name,
-        characterId: charId,
-      },
-      { path: "create_motion_from_gltf" },
-    )) as Record<string, unknown>;
-
-    const motion = result?.motion as Record<string, unknown> | undefined;
-    const motionId = motion?.id as string | undefined;
-    if (!motionId) {
-      throw new UthanaError(400, "create_motion_from_gltf did not return motion id");
-    }
-    return { character_id: charId, motion_id: motionId };
-  }
 }

@@ -23,7 +23,7 @@ export class MotionDownloadsModule extends BaseModule {
   }
 
   /** Check if downloading a motion for a character is allowed (quota, permissions). */
-  async check_allowed(character_id: string, motion_id: string): Promise<boolean> {
+  async isAllowed(character_id: string, motion_id: string): Promise<boolean> {
     const result = await this._client._graphql<{ allowed: boolean }>(
       MOTION_DOWNLOAD_ALLOWED,
       { characterId: character_id, motionId: motion_id },

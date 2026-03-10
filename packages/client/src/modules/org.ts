@@ -14,7 +14,7 @@ export class OrgModule extends BaseModule {
   }
 
   /** Get current user information. */
-  async get_user(): Promise<User> {
+  async getUser(): Promise<User> {
     return this._client._graphql<User>(
       GET_USER,
       {},
@@ -26,7 +26,7 @@ export class OrgModule extends BaseModule {
   }
 
   /** Get current organization information including quota. */
-  async get_org(): Promise<Org> {
+  async getOrg(): Promise<Org> {
     return this._client._graphql<Org>(
       GET_ORG,
       {},
