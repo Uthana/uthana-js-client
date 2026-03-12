@@ -8,6 +8,24 @@ import { GET_JOB, LIST_JOBS } from "../graphql";
 import type { Job } from "../types";
 import { BaseModule } from "./base";
 
+/** Raw shape returned by the GraphQL API before field normalization. */
+type RawJob = Omit<Job, "created" | "started" | "ended"> & {
+  created_at?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+};
+
+/** Normalize API timestamp fields: `created_at` → `created`, `started_at` → `started`, `ended_at` → `ended`. */
+export function transformJob(raw: RawJob): Job {
+  const { created_at, started_at, ended_at, ...rest } = raw;
+  return {
+    ...rest,
+    created: created_at ?? null,
+    started: started_at ?? null,
+    ended: ended_at ?? null,
+  };
+}
+
 /** Async job polling for video to motion and other long-running operations. */
 export class JobsModule extends BaseModule {
   constructor(client: UthanaClient) {
@@ -17,22 +35,20 @@ export class JobsModule extends BaseModule {
   /** List jobs, optionally filtered by method (e.g. 'VideoToMotion'). */
   async list(method?: string | null): Promise<Job[]> {
     const variables = method != null ? { method } : {};
-    return this._client._graphql<Job[]>(LIST_JOBS, variables, {
+    const jobs = await this._client._graphql<RawJob[]>(LIST_JOBS, variables, {
       path: "jobs",
       pathDefault: [],
     });
+    return jobs.map(transformJob);
   }
 
   /** Get the status and result of an async job. */
   async get(job_id: string): Promise<Job> {
-    return this._client._graphql<Job>(
-      GET_JOB,
-      { job_id },
-      {
-        path: "job",
-        pathDefault: {},
-      },
-    );
+    const raw = await this._client._graphql<RawJob>(GET_JOB, { job_id }, {
+      path: "job",
+      pathDefault: {},
+    });
+    return transformJob(raw);
   }
 
   /** Poll until job finishes or fails. Throws UthanaError on FAILED or timeout. */

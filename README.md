@@ -55,7 +55,7 @@ function App() {
 }
 
 function Dashboard() {
-  const { data: motions } = useUthanaMotions();
+  const { motions } = useUthanaMotions();
   const ttm = useUthanaTtm();
 
   return (
@@ -231,7 +231,9 @@ function UploadVideo() {
 
 ```ts
 // Upload a character (GLB or FBX)
-const result = await client.characters.create(file, {
+const result = await client.characters.create({
+  method: "file",
+  file,
   auto_rig: true,
   front_facing: true,
 });
@@ -242,23 +244,28 @@ const characters = await client.characters.list();
 // Download character mesh
 const buffer = await client.characters.download(characterId);
 
-// Text-to-character: auto-pick first preview
-const { character } = await client.characters.createFromText("a knight in armor", {
+// Text-to-character: one-shot with callback
+const { character } = await client.characters.create({
+  prompt: "a knight in armor",
   name: "Knight",
   onPreviewsReady: (previews) => previews[0].key,
 });
 
 // Text-to-character: async callback (e.g. show a picker UI and await selection)
-const { character } = await client.characters.createFromText("a knight in armor", {
+const { character } = await client.characters.create({
+  prompt: "a knight in armor",
   onPreviewsReady: async (previews) => {
     return await showPickerUI(previews); // returns selected key
   },
 });
 
-// Image-to-character: auto-confirms the single generated preview
-const { character } = await client.characters.createFromImage(imageFile, {
-  prompt: "a knight in armor",
-});
+// Text-to-character: two-step (inspect previews before confirming)
+const pending = await client.characters.create({ prompt: "a knight in armor" });
+// pending.previews — show to user, then confirm:
+const { character } = await client.characters.generateFromImage(pending, pending.previews[0].key);
+
+// Image-to-character: upload an image file (always one-shot, requires method: "image")
+const { character } = await client.characters.create({ method: "image", file: imageFile });
 
 // Rename or delete
 await client.characters.rename(characterId, "New name");
@@ -332,7 +339,7 @@ function GenerateWithSelection() {
 
 // List, rename, delete
 function CharacterList() {
-  const { data: characters } = useUthanaCharacters();
+  const { characters } = useUthanaCharacters();
   const rename = useUthanaRenameCharacter();
   const remove = useUthanaDeleteCharacter();
   return (
@@ -395,7 +402,7 @@ import {
 } from "@uthana/react";
 
 function MotionList() {
-  const { data: motions } = useUthanaMotions();
+  const { motions } = useUthanaMotions();
   const rate = useUthanaRateMotion();
 
   return (
@@ -412,13 +419,13 @@ function MotionList() {
 
 // Single motion
 function MotionDetail({ motionId }: { motionId: string }) {
-  const { data: motion } = useUthanaMotion(motionId);
+  const { motion } = useUthanaMotion(motionId);
   return <div>{motion?.name}</div>;
 }
 
 // Preview WebM (does not charge download seconds)
 function MotionPreview({ characterId, motionId }: { characterId: string; motionId: string }) {
-  const { data: buffer } = useUthanaMotionPreview(characterId, motionId);
+  const { preview } = useUthanaMotionPreview(characterId, motionId);
   const url = buffer ? URL.createObjectURL(new Blob([buffer], { type: "video/webm" })) : undefined;
   return url ? <video src={url} autoPlay loop muted /> : null;
 }
@@ -459,8 +466,8 @@ if (allowed) {
 import { useUthanaMotionDownloads, useUthanaIsMotionDownloadAllowed } from "@uthana/react";
 
 function DownloadButton({ characterId, motionId }: { characterId: string; motionId: string }) {
-  const { data: allowed } = useUthanaIsMotionDownloadAllowed(characterId, motionId);
-  return <button disabled={!allowed}>Download</button>;
+  const { isAllowed } = useUthanaIsMotionDownloadAllowed(characterId, motionId);
+  return <button disabled={!isAllowed}>Download</button>;
 }
 ```
 
@@ -476,8 +483,8 @@ const org = await client.org.getOrg();
 import { useUthanaUser, useUthanaOrg } from "@uthana/react";
 
 function OrgInfo() {
-  const { data: user } = useUthanaUser();
-  const { data: org } = useUthanaOrg();
+  const { user } = useUthanaUser();
+  const { org } = useUthanaOrg();
   return (
     <div>
       {user?.name} — {org?.name}
@@ -507,16 +514,16 @@ const finished = await client.jobs.wait(jobId, {
 import { useUthanaJobs, useUthanaJob } from "@uthana/react";
 
 function JobStatus({ jobId }: { jobId: string }) {
-  const { data: job } = useUthanaJob(jobId);
+  const { job } = useUthanaJob(jobId);
   return <div>{job?.status}</div>;
 }
 
 function JobList() {
-  const { data: jobs } = useUthanaJobs("VideoToMotion");
+  const { jobs } = useUthanaJobs("VideoToMotion");
   return (
     <ul>
       {jobs?.map((j) => (
-        <li key={j.id}>{j.status}</li>
+        <li key={j.id}>{j.status} — {j.created}</li>
       ))}
     </ul>
   );

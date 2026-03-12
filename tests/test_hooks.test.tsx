@@ -33,16 +33,14 @@ const { mockClient } = vi.hoisted(() => {
   const mockMotionDelete = vi.fn().mockResolvedValue({ id: "m1", deleted: true });
   const mockMotionRename = vi.fn().mockResolvedValue({ id: "m1", name: "New Name" });
   const mockCharactersList = vi.fn().mockResolvedValue([{ id: "c1", name: "Tar" }]);
-  const mockCharacterCreate = vi.fn().mockResolvedValue({ character_id: "c2", url: "http://x" });
+  // Default: file upload result. Tests that need prompt/image results override per-test.
+  const mockCharacterCreate = vi
+    .fn()
+    .mockResolvedValue({ character_id: "c2", url: "http://x" });
   const mockCharacterRename = vi.fn().mockResolvedValue({ id: "c1", name: "Renamed" });
   const mockCharacterDelete = vi.fn().mockResolvedValue({ id: "c1", deleted: true });
-  const mockCharacterGenerateFromText = vi
-    .fn()
-    .mockResolvedValue({ character_id: "c3", images: [] });
+  // Step-2 finalization (generateFromImage)
   const mockCharacterGenerateFromImage = vi
-    .fn()
-    .mockResolvedValue({ character_id: "c4", image: {} });
-  const mockCharacterCreateFromImage = vi
     .fn()
     .mockResolvedValue({ character: { id: "c5" }, auto_rig_confidence: 0.9 });
   const mockUser = vi.fn().mockResolvedValue({ id: "u1", name: "Test" });
@@ -70,9 +68,7 @@ const { mockClient } = vi.hoisted(() => {
         create: mockCharacterCreate,
         rename: mockCharacterRename,
         delete: mockCharacterDelete,
-        generateFromText: mockCharacterGenerateFromText,
         generateFromImage: mockCharacterGenerateFromImage,
-        createFromGeneratedImage: mockCharacterCreateFromImage,
       },
       org: { getUser: mockUser, getOrg: mockOrg },
       jobs: { list: mockJobsList, get: mockJobGet },
@@ -108,7 +104,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: "m1", name: "Walk" }]);
+    expect(result.current.motions).toEqual([{ id: "m1", name: "Walk" }]);
     expect(mockClient.motions.list).toHaveBeenCalled();
   });
 
@@ -118,7 +114,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual({ id: "m1", name: "Walk" });
+    expect(result.current.motion).toEqual({ id: "m1", name: "Walk" });
     expect(mockClient.motions.get).toHaveBeenCalledWith("m1");
   });
 
@@ -137,7 +133,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toBeInstanceOf(ArrayBuffer);
+    expect(result.current.preview).toBeInstanceOf(ArrayBuffer);
     expect(mockClient.motions.preview).toHaveBeenCalledWith("c1", "m1");
   });
 
@@ -166,7 +162,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: "c1", name: "Tar" }]);
+    expect(result.current.characters).toEqual([{ id: "c1", name: "Tar" }]);
     expect(mockClient.characters.list).toHaveBeenCalled();
   });
 
@@ -176,7 +172,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual({ id: "u1", name: "Test" });
+    expect(result.current.user).toEqual({ id: "u1", name: "Test" });
     expect(mockClient.org.getUser).toHaveBeenCalled();
   });
 
@@ -186,7 +182,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual({ id: "o1", name: "Org" });
+    expect(result.current.org).toEqual({ id: "o1", name: "Org" });
     expect(mockClient.org.getOrg).toHaveBeenCalled();
   });
 
@@ -196,7 +192,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: "j1", status: "FINISHED" }]);
+    expect(result.current.jobs).toEqual([{ id: "j1", status: "FINISHED" }]);
     expect(mockClient.jobs.list).toHaveBeenCalled();
   });
 
@@ -206,7 +202,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual({ id: "j1", status: "FINISHED" });
+    expect(result.current.job).toEqual({ id: "j1", status: "FINISHED" });
     expect(mockClient.jobs.get).toHaveBeenCalledWith("j1");
   });
 
@@ -216,7 +212,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([]);
+    expect(result.current.downloads).toEqual([]);
     expect(mockClient.motionDownloads.list).toHaveBeenCalled();
   });
 
@@ -226,7 +222,7 @@ describe("React hooks", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toBe(true);
+    expect(result.current.isAllowed).toBe(true);
     expect(mockClient.motionDownloads.isAllowed).toHaveBeenCalledWith("c1", "m1");
   });
 
@@ -240,7 +236,7 @@ describe("React hooks", () => {
     expect(result.current.confirm).toBeDefined();
   });
 
-  it("useUthanaCreateCharacter.create calls characters.create for file upload", async () => {
+  it("useUthanaCreateCharacter.create calls characters.create with keyword params for file upload", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
@@ -249,33 +245,41 @@ describe("React hooks", () => {
       await result.current.create({ from: "file", file: "path/to/char.glb" });
     });
     expect(result.current.isSuccess).toBe(true);
-    expect(mockClient.characters.create).toHaveBeenCalledWith(
-      "path/to/char.glb",
-      { auto_rig: undefined, front_facing: undefined },
-    );
+    expect(mockClient.characters.create).toHaveBeenCalledWith({
+      file: "path/to/char.glb",
+      auto_rig: undefined,
+      front_facing: undefined,
+    });
   });
 
-  it("useUthanaCreateCharacter.generate calls generate_from_text for prompt flow", async () => {
+  it("useUthanaCreateCharacter.generate calls characters.create for prompt flow", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
+    });
+
+    mockClient.characters.create.mockResolvedValueOnce({
+      character_id: "c3",
+      previews: [],
+      prompt: "a robot",
     });
 
     await act(async () => {
       await result.current.generate({ from: "prompt", prompt: "a robot" });
     });
     expect(result.current.isAwaitingSelection).toBe(true);
-    expect(mockClient.characters.generateFromText).toHaveBeenCalledWith("a robot");
+    expect(mockClient.characters.create).toHaveBeenCalledWith({ prompt: "a robot", name: undefined });
     expect(result.current.previews).toEqual([]);
   });
 
-  it("useUthanaCreateCharacter.generate with onPreviewsReady auto-confirms", async () => {
+  it("useUthanaCreateCharacter.generate with onPreviewsReady auto-confirms via generateFromImage", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.generateFromText.mockResolvedValueOnce({
+    mockClient.characters.create.mockResolvedValueOnce({
       character_id: "c3",
-      images: [{ key: "img1", url: "http://img1" }],
+      previews: [{ key: "img1", url: "http://img1" }],
+      prompt: "a robot",
     });
 
     await act(async () => {
@@ -286,35 +290,46 @@ describe("React hooks", () => {
       });
     });
     expect(result.current.isSuccess).toBe(true);
-    expect(mockClient.characters.createFromGeneratedImage).toHaveBeenCalledWith(
-      "c3",
+    expect(mockClient.characters.generateFromImage).toHaveBeenCalledWith(
+      expect.objectContaining({ character_id: "c3", prompt: "a robot" }),
       "img1",
-      "a robot",
-      { name: undefined },
+      undefined,
     );
   });
 
-  it("useUthanaCreateCharacter.generate calls generate_from_image for image flow", async () => {
+  it("useUthanaCreateCharacter.generate calls characters.create for image flow (single-step)", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
+    });
+
+    mockClient.characters.create.mockResolvedValueOnce({
+      character: { id: "c6" },
+      auto_rig_confidence: 0.7,
     });
 
     const blob = new Blob(["data"]);
     await act(async () => {
-      await result.current.generate({ from: "image", file: blob, prompt: "a robot" });
+      await result.current.generate({ from: "image", file: blob });
     });
-    expect(result.current.isAwaitingSelection).toBe(true);
-    expect(mockClient.characters.generateFromImage).toHaveBeenCalledWith(blob);
+    // Image flow is single-step — should go straight to success, no awaiting_selection
+    expect(result.current.isSuccess).toBe(true);
+    expect(result.current.isAwaitingSelection).toBe(false);
+    expect(mockClient.characters.create).toHaveBeenCalledWith({
+      method: "image",
+      file: blob,
+      name: undefined,
+    });
   });
 
-  it("useUthanaCreateCharacter.confirm calls create_from_generated_image", async () => {
+  it("useUthanaCreateCharacter.confirm calls generateFromImage with pending and key", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.generateFromText.mockResolvedValueOnce({
+    mockClient.characters.create.mockResolvedValueOnce({
       character_id: "c3",
-      images: [{ key: "img1", url: "http://img1" }],
+      previews: [{ key: "img1", url: "http://img1" }],
+      prompt: "a robot",
     });
 
     await act(async () => {
@@ -326,11 +341,10 @@ describe("React hooks", () => {
       await result.current.confirm({ image_key: "img1" });
     });
     expect(result.current.isSuccess).toBe(true);
-    expect(mockClient.characters.createFromGeneratedImage).toHaveBeenCalledWith(
-      "c3",
+    expect(mockClient.characters.generateFromImage).toHaveBeenCalledWith(
+      expect.objectContaining({ character_id: "c3", prompt: "a robot" }),
       "img1",
-      "a robot",
-      { name: undefined },
+      undefined,
     );
   });
 

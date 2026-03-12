@@ -8,6 +8,7 @@ import { models } from "../models";
 import type { VideoToMotionResult, VtmModelType } from "../types";
 import { prepareVideoToMotion } from "../utils";
 import { BaseModule } from "./base";
+import { transformJob } from "./jobs";
 
 /** Video to motion: extract motion capture from video files. */
 export class VtmModule extends BaseModule {
@@ -26,25 +27,32 @@ export class VtmModule extends BaseModule {
     let variables: Record<string, unknown>;
     let blob: Blob;
 
+    let uploadFilename: string;
+
     if (typeof file === "string") {
       const prepared = prepareVideoToMotion(file, options?.motion_name ?? null);
       const mod = await import("node:fs/promises");
       const buf = await mod.readFile(file);
       blob = new Blob([buf], { type: "application/octet-stream" });
-      variables = { ...prepared.variables, file: blob };
+      variables = prepared.variables;
+      uploadFilename = prepared.filename;
     } else {
       const filename = file instanceof File ? file.name : "video.mp4";
       const prepared = prepareVideoToMotion(filename, options?.motion_name ?? null);
-      variables = { ...prepared.variables, file };
+      blob = file instanceof Blob ? file : new Blob([], { type: "application/octet-stream" });
+      variables = prepared.variables;
+      uploadFilename = prepared.filename;
     }
 
     variables.model = options?.model ?? models.vtm.default;
 
-    const job = await this._client._graphql<VideoToMotionResult>(
+    const raw = await this._client._graphqlUpload<VideoToMotionResult & { created_at?: string | null }>(
       CREATE_VIDEO_TO_MOTION,
       variables,
-      { path: "create_video_to_motion.job" },
+      "file",
+      blob,
+      { path: "create_video_to_motion.job", filename: uploadFilename },
     );
-    return job;
+    return transformJob(raw);
   }
 }

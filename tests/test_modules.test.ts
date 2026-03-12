@@ -19,14 +19,14 @@ vi.mock("graffle", () => ({
   Graffle: { create: () => createChain() },
 }));
 
-vi.mock("graffle/extensions/upload", () => ({ Upload: {} }));
 vi.mock("graffle/extensions/throws", () => ({ Throws: {} }));
 
 describe("module methods with mocked _graphql", () => {
   let client: UthanaClient;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.unstubAllGlobals();
     client = new UthanaClient("test-key");
   });
 
@@ -162,50 +162,26 @@ describe("module methods with mocked _graphql", () => {
       expect((result as Record<string, unknown>).id).toBe("c1");
     });
 
-    it("generateFromText returns character_id and images", async () => {
+    it("create({prompt}) without callback returns CharacterPreviewResult", async () => {
       mockGql.mockResolvedValue({
         data: {
           create_image_from_text: {
             character_id: "c2",
-            images: [{ key: "img1", url: "http://x" }],
+            images: [
+              { key: "img1", url: "http://x/1" },
+              { key: "img2", url: "http://x/2" },
+            ],
           },
         },
       });
-      const result = await client.characters.generateFromText("a robot");
+      const result = await client.characters.create({ prompt: "a robot" });
       expect(result.character_id).toBe("c2");
-      expect(result.images).toHaveLength(1);
+      expect(result.previews).toHaveLength(2);
+      expect((result as { prompt: string }).prompt).toBe("a robot");
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ prompt: "a robot" }));
     });
 
-    it("generateFromImage returns character_id and image", async () => {
-      mockGql.mockResolvedValue({
-        data: {
-          create_image_from_image: { character_id: "c3", image: { key: "img2", url: "http://y" } },
-        },
-      });
-      const blob = new Blob(["data"]);
-      const result = await client.characters.generateFromImage(blob);
-      expect(result.character_id).toBe("c3");
-      expect(result.image).toBeDefined();
-    });
-
-    it("createFromGeneratedImage returns character and confidence", async () => {
-      mockGql.mockResolvedValue({
-        data: {
-          create_character_from_image: {
-            character: { id: "c4", name: "MyChar" },
-            auto_rig_confidence: 0.9,
-          },
-        },
-      });
-      const result = await client.characters.createFromGeneratedImage("c4", "img1", "a robot");
-      expect(result.auto_rig_confidence).toBe(0.9);
-      expect(mockGql).toHaveBeenCalledWith(
-        expect.objectContaining({ character_id: "c4", image_key: "img1", prompt: "a robot" }),
-      );
-    });
-
-    it("createFromText calls generateFromText then createFromGeneratedImage", async () => {
+    it("create({prompt, onPreviewsReady}) calls two mutations and returns character", async () => {
       mockGql
         .mockResolvedValueOnce({
           data: {
@@ -223,69 +199,85 @@ describe("module methods with mocked _graphql", () => {
             },
           },
         });
-      const result = await client.characters.createFromText("a knight", {
+      const result = await client.characters.create({
+        prompt: "a knight",
         onPreviewsReady: (previews) => previews[0].key,
       });
       expect(result.character?.id).toBe("c5");
       expect(mockGql).toHaveBeenCalledTimes(2);
+      expect(mockGql).toHaveBeenLastCalledWith(
+        expect.objectContaining({ image_key: "img1", prompt: "a knight" }),
+      );
     });
 
-    it("createFromText defaults to first preview when onPreviewsReady omitted", async () => {
-      mockGql
-        .mockResolvedValueOnce({
+    it("create({method:'image', file}) calls two mutations and passes empty prompt", async () => {
+      // First mutation (create_image_from_image) goes through _graphqlUpload → fetch
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
           data: {
-            create_image_from_text: {
-              character_id: "c3",
-              images: [{ key: "img1", url: "http://x" }],
+            create_image_from_image: {
+              character_id: "c4",
+              image: { key: "img2", url: "http://y" },
             },
           },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            create_character_from_image: {
-              character: { id: "c5", name: "Knight" },
-              auto_rig_confidence: 0.8,
-            },
-          },
-        });
-      const result = await client.characters.createFromText("a knight");
-      expect(result.character?.id).toBe("c5");
-    });
+        }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
 
-    it("createFromImage calls generateFromImage then createFromGeneratedImage", async () => {
-      mockGql
-        .mockResolvedValueOnce({
-          data: {
-            create_image_from_image: { character_id: "c4", image: { key: "img2", url: "http://y" } },
+      // Second mutation (create_character_from_image) goes through _graphql → mockGql
+      mockGql.mockResolvedValue({
+        data: {
+          create_character_from_image: {
+            character: { id: "c6", name: "Archer" },
+            auto_rig_confidence: 0.7,
           },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            create_character_from_image: {
-              character: { id: "c6", name: "Knight" },
-              auto_rig_confidence: 0.7,
-            },
-          },
-        });
+        },
+      });
+
       const blob = new Blob(["data"]);
-      const result = await client.characters.createFromImage(blob, { prompt: "a knight" });
+      const result = await client.characters.create({ method: "image", file: blob });
       expect(result.character?.id).toBe("c6");
-      expect(mockGql).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockGql).toHaveBeenCalledTimes(1);
+      // prompt must be "" (internal detail — not user-supplied)
+      expect(mockGql).toHaveBeenLastCalledWith(
+        expect.objectContaining({ image_key: "img2", prompt: "" }),
+      );
     });
 
+    it("generateFromImage finalizes with prompt from pending", async () => {
+      mockGql.mockResolvedValue({
+        data: {
+          create_character_from_image: {
+            character: { id: "c7", name: "Mage" },
+            auto_rig_confidence: 0.85,
+          },
+        },
+      });
+      const pending = { character_id: "c7", previews: [{ key: "k1", url: "u1" }], prompt: "a mage" };
+      const result = await client.characters.generateFromImage(pending, "k1");
+      expect(result.character?.id).toBe("c7");
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({ character_id: "c7", image_key: "k1", prompt: "a mage" }),
+      );
+    });
   });
 
   describe("jobs", () => {
     it("list returns jobs array", async () => {
       mockGql.mockResolvedValue({
         data: {
-          jobs: [{ id: "j1", status: "FINISHED", method: "VideoToMotion", created: "2024-01-01" }],
+          jobs: [{ id: "j1", status: "FINISHED", method: "VideoToMotion", created_at: "2024-01-01", started_at: "2024-01-01", ended_at: "2024-01-02" }],
         },
       });
       const jobs = await client.jobs.list();
       expect(jobs).toHaveLength(1);
       expect(jobs[0]?.id).toBe("j1");
       expect(jobs[0]?.status).toBe("FINISHED");
+      expect(jobs[0]?.created).toBe("2024-01-01");
+      expect(jobs[0]?.started).toBe("2024-01-01");
+      expect(jobs[0]?.ended).toBe("2024-01-02");
     });
 
     it("list with method passes filter", async () => {

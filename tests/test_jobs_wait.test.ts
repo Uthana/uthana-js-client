@@ -19,7 +19,6 @@ vi.mock("graffle", () => ({
   Graffle: { create: () => createChain() },
 }));
 
-vi.mock("graffle/extensions/upload", () => ({ Upload: {} }));
 vi.mock("graffle/extensions/throws", () => ({ Throws: {} }));
 
 describe("jobs.wait", () => {

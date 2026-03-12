@@ -1,6 +1,6 @@
 {
   "name": "@uthana/client",
-  "version": "1.1.0-rc.0",
+  "version": "0.2.0",
   "description": "Uthana API client for JavaScript and TypeScript — works in browser and Node.js",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,7 +18,9 @@
   ],
   "scripts": {
     "build": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "dev": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript --watch"
+    "dev": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript --watch",
+    "test": "vitest run --root ../.. tests/test_modules tests/test_jobs_wait tests/test_ttm_mapping tests/test_unit tests/test_utils",
+    "test:integration": "vitest run --root ../.. tests/test_client"
   },
   "peerDependencies": {
     "graffle": "next",

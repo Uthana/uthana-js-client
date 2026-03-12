@@ -53,7 +53,9 @@ export interface Job {
   id?: string;
   status: string;
   method?: string | null;
-  created_at?: string | null;
+  created?: string | null;
+  started?: string | null;
+  ended?: string | null;
   result?: Record<string, unknown> | null;
 }
 
@@ -63,26 +65,25 @@ export interface TextToMotionResult {
   motion_id: string;
 }
 
-/** Result of characters.create mutation. */
+/** Result of characters.create({ from: "file" }). */
 export interface CreateCharacterResult {
   url: string;
   character_id: string;
   auto_rig_confidence?: number | null;
 }
 
-/** Result of characters.generateFromText. */
-export interface GenerateFromTextResult {
+/**
+ * Intermediate result of characters.create({ from: "prompt" | "image" }) when no onPreviewsReady
+ * callback is provided. Pass to characters.generateFromImage() to finalize the character.
+ */
+export interface CharacterPreviewResult {
   character_id: string;
-  images: { key: string; url: string }[];
+  previews: { key: string; url: string }[];
+  /** Stored internally so generateFromImage() doesn't require re-specifying it. */
+  prompt: string;
 }
 
-/** Result of characters.generateFromImage. */
-export interface GenerateFromImageResult {
-  character_id: string;
-  image: { key: string; url: string };
-}
-
-/** Result of characters.createFromGeneratedImage. */
+/** Result of characters.create({ from: "prompt" | "image" }, { onPreviewsReady }) or characters.generateFromImage(). */
 export interface CreateFromGeneratedImageResult {
   character: Character;
   auto_rig_confidence?: number | null;

@@ -18,10 +18,9 @@ export {
 } from "./modules/index";
 export type {
   Character,
+  CharacterPreviewResult,
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
-  GenerateFromImageResult,
-  GenerateFromTextResult,
   Job,
   ModelType,
   Motion,

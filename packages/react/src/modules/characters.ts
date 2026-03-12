@@ -3,7 +3,11 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateCharacterResult, CreateFromGeneratedImageResult } from "@uthana/client";
+import type {
+  CharacterPreviewResult,
+  CreateCharacterResult,
+  CreateFromGeneratedImageResult,
+} from "@uthana/client";
 import { useCallback, useRef, useState } from "react";
 import { useUthanaClient } from "../UthanaProvider";
 
@@ -12,10 +16,11 @@ const CHARACTERS_QUERY_KEY = ["uthana", "characters"] as const;
 /** Hook to list characters. */
 export function useUthanaCharacters() {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: characters, ...rest } = useQuery({
     queryKey: CHARACTERS_QUERY_KEY,
     queryFn: () => client.characters.list(),
   });
+  return { characters, ...rest };
 }
 
 // ---------------------------------------------------------------------------
@@ -30,15 +35,19 @@ type GenerateParams =
       prompt: string;
       name?: string | null;
       /** Return a preview key to auto-confirm without waiting for manual confirm(). */
-      onPreviewsReady?: (previews: Preview[]) => string | null | undefined | Promise<string | null | undefined>;
+      onPreviewsReady?: (
+        previews: Preview[],
+      ) => string | null | undefined | Promise<string | null | undefined>;
     }
   | {
+      /**
+       * Upload an image file and generate a character from it.
+       * Always single-step — resolves directly to a finished character.
+       * No prompt or preview selection required.
+       */
       from: "image";
       file: File | Blob;
-      prompt: string;
       name?: string | null;
-      /** Return a preview key to auto-confirm without waiting for manual confirm(). */
-      onPreviewsReady?: (previews: Preview[]) => string | null | undefined | Promise<string | null | undefined>;
     };
 
 type CreateFileParams = {
@@ -50,6 +59,7 @@ type CreateFileParams = {
 
 type ConfirmParams = {
   image_key: string;
+  /** Optionally name the character at confirmation time. */
   name?: string | null;
 };
 
@@ -75,8 +85,8 @@ type CreateCharacterStatus =
  * creator.create({ from: "file", file });
  * ```
  *
- * **Text prompt or image** — two steps. Call generate(), then either:
- * - let `onPreviews` auto-select a key and complete automatically, or
+ * **Text prompt** — two steps. Call generate(), then either:
+ * - let `onPreviewsReady` auto-select a key and complete automatically, or
  * - render `creator.previews`, then call `creator.confirm({ image_key })`.
  *
  * ```ts
@@ -85,9 +95,14 @@ type CreateCharacterStatus =
  *   onPreviewsReady: (previews) => previews[0].key });
  *
  * // Manual selection
- * creator.generate({ from: "image", file, prompt: "a knight" });
+ * creator.generate({ from: "prompt", prompt: "a knight" });
  * // ... render creator.previews, user picks one ...
  * creator.confirm({ image_key: selected });
+ * ```
+ *
+ * **Image file** — single step (no preview selection):
+ * ```ts
+ * creator.generate({ from: "image", file });
  * ```
  */
 export function useUthanaCreateCharacter() {
@@ -95,12 +110,12 @@ export function useUthanaCreateCharacter() {
   const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<CreateCharacterStatus>("idle");
-  const [data, setData] = useState<CreateCharacterData | null>(null);
+  const [character, setCharacter] = useState<CreateCharacterData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [previews, setPreviews] = useState<Preview[] | null>(null);
 
-  // Stored between generate() and confirm()
-  const intermediateRef = useRef<{ character_id: string; prompt: string } | null>(null);
+  // Stored between generate({ from: "prompt" }) and confirm()
+  const intermediateRef = useRef<CharacterPreviewResult | null>(null);
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
@@ -108,13 +123,16 @@ export function useUthanaCreateCharacter() {
 
   const reset = useCallback(() => {
     setStatus("idle");
-    setData(null);
+    setCharacter(null);
     setError(null);
     setPreviews(null);
     intermediateRef.current = null;
   }, []);
 
-  /** Step 2 of the text/image flow — finalize using a selected preview key. */
+  /**
+   * Step 2 of the text-prompt flow — finalize using a selected preview key.
+   * Only valid after `generate({ from: "prompt" })` has been called.
+   */
   const confirm = useCallback(
     async (params: ConfirmParams) => {
       const intermediate = intermediateRef.current;
@@ -123,13 +141,12 @@ export function useUthanaCreateCharacter() {
       }
       setStatus("creating");
       try {
-        const result = await client.characters.createFromGeneratedImage(
-          intermediate.character_id,
+        const result = await client.characters.generateFromImage(
+          intermediate,
           params.image_key,
-          intermediate.prompt,
-          { name: params.name },
+          params.name,
         );
-        setData(result);
+        setCharacter(result);
         setStatus("success");
         intermediateRef.current = null;
         setPreviews(null);
@@ -142,7 +159,12 @@ export function useUthanaCreateCharacter() {
     [client, invalidate],
   );
 
-  /** Step 1 of the text/image flow — generate preview images. */
+  /**
+   * Start a generation flow:
+   * - `from: "prompt"` — generates preview images; either auto-confirms via `onPreviewsReady`
+   *   or waits for a manual `confirm()` call.
+   * - `from: "image"` — uploads an image file and creates the character in one step.
+   */
   const generate = useCallback(
     async (params: GenerateParams) => {
       setStatus("generating");
@@ -150,48 +172,53 @@ export function useUthanaCreateCharacter() {
       setPreviews(null);
       intermediateRef.current = null;
       try {
-        let character_id: string;
-        let generatedPreviews: Preview[];
-
         if (params.from === "prompt") {
-        const result = await client.characters.generateFromText(params.prompt);
-        character_id = result.character_id;
-        generatedPreviews = result.images;
-      } else {
-        const result = await client.characters.generateFromImage(params.file);
-          character_id = result.character_id;
-          generatedPreviews = [result.image];
-        }
+          const pending = await client.characters.create({
+            prompt: params.prompt,
+            name: params.name,
+          });
+          intermediateRef.current = pending as CharacterPreviewResult;
+          const generatedPreviews = (pending as CharacterPreviewResult).previews ?? [];
+          setPreviews(generatedPreviews);
+          setStatus("awaiting_selection");
 
-        intermediateRef.current = { character_id, prompt: params.prompt };
-        setPreviews(generatedPreviews);
-        setStatus("awaiting_selection");
-
-        if (params.onPreviewsReady) {
-          const selectedKey = await params.onPreviewsReady(generatedPreviews);
-          if (selectedKey) {
-            await confirm({ image_key: selectedKey, name: params.name });
+          if (params.onPreviewsReady) {
+            const selectedKey = await params.onPreviewsReady(generatedPreviews);
+            if (selectedKey) {
+              await confirm({ image_key: selectedKey, name: params.name });
+            }
           }
+        } else {
+          // from: "image" — always single-step, no previews
+          const result = await client.characters.create({
+            method: "image",
+            file: params.file,
+            name: params.name,
+          });
+          setCharacter(result as CreateFromGeneratedImageResult);
+          setStatus("success");
+          invalidate();
         }
       } catch (e) {
         setError(e instanceof Error ? e : new Error(String(e)));
         setStatus("error");
       }
     },
-    [client, confirm],
+    [client, confirm, invalidate],
   );
 
-  /** Single-step file upload (GLB or FBX). */
+  /** Single-step GLB/FBX upload. */
   const create = useCallback(
     async (params: CreateFileParams) => {
       setStatus("creating");
       setError(null);
       try {
-        const result = await client.characters.create(params.file, {
+        const result = await client.characters.create({
+          file: params.file,
           auto_rig: params.auto_rig,
           front_facing: params.front_facing,
         });
-        setData(result);
+        setCharacter(result);
         setStatus("success");
         invalidate();
       } catch (e) {
@@ -203,24 +230,24 @@ export function useUthanaCreateCharacter() {
   );
 
   return {
-    /** Start a text-prompt or image generation flow (step 1 of 2). */
+    /** Start a text-prompt or image generation flow. */
     generate,
-    /** Confirm a generated preview and create the character (step 2 of 2). */
+    /** Confirm a generated preview and create the character (step 2 of the prompt flow). */
     confirm,
     /** Upload a GLB/FBX directly (single step). */
     create,
-    /** Preview images returned by generate(). Render these for the user to pick from. */
+    /** Preview images from a prompt generation. Render for user selection, then call confirm(). */
     previews,
     /** True while generate() or create()/confirm() are in flight. */
     isPending: status === "generating" || status === "creating",
     isGenerating: status === "generating",
-    /** True after generate() completes — previews are ready, waiting for confirm(). */
+    /** True after prompt generate() completes and previews are ready for selection. */
     isAwaitingSelection: status === "awaiting_selection",
     isCreating: status === "creating",
     isSuccess: status === "success",
     isError: status === "error",
-    /** Final result — CreateCharacterResult (file upload) or CreateFromGeneratedImageResult (generate flow). */
-    data,
+    /** Final result — CreateCharacterResult (file) or CreateFromGeneratedImageResult (generate flows). */
+    character,
     error,
     /** Reset all state back to idle. */
     reset,

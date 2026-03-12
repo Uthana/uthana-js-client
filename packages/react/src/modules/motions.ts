@@ -10,30 +10,33 @@ const MOTIONS_QUERY_KEY = ["uthana", "motions"] as const;
 /** Hook to list motions. */
 export function useUthanaMotions() {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: motions, ...rest } = useQuery({
     queryKey: MOTIONS_QUERY_KEY,
     queryFn: () => client.motions.list(),
   });
+  return { motions, ...rest };
 }
 
 /** Hook to get a single motion by ID. Disabled when motionId is null. */
 export function useUthanaMotion(motionId: string | null) {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: motion, ...rest } = useQuery({
     queryKey: ["uthana", "motion", motionId] as const,
     queryFn: () => client.motions.get(motionId ?? ""),
     enabled: motionId != null && motionId !== "",
   });
+  return { motion, ...rest };
 }
 
 /** Hook to fetch a motion preview WebM. Disabled when characterId or motionId is null. Does not charge download seconds. */
 export function useUthanaMotionPreview(characterId: string | null, motionId: string | null) {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: preview, ...rest } = useQuery({
     queryKey: ["uthana", "motion_preview", characterId, motionId] as const,
     queryFn: () => client.motions.preview(characterId ?? "", motionId ?? ""),
     enabled: characterId != null && characterId !== "" && motionId != null && motionId !== "",
   });
+  return { preview, ...rest };
 }
 
 /** Hook to rate a motion (thumbs up/down). Invalidates motions on success. */

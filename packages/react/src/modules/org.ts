@@ -11,17 +11,19 @@ const ORG_QUERY_KEY = ["uthana", "org"] as const;
 /** Hook to get current user. */
 export function useUthanaUser() {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: user, ...rest } = useQuery({
     queryKey: USER_QUERY_KEY,
     queryFn: () => client.org.getUser(),
   });
+  return { user, ...rest };
 }
 
 /** Hook to get current org. */
 export function useUthanaOrg() {
   const client = useUthanaClient();
-  return useQuery({
+  const { data: org, ...rest } = useQuery({
     queryKey: ORG_QUERY_KEY,
     queryFn: () => client.org.getOrg(),
   });
+  return { org, ...rest };
 }

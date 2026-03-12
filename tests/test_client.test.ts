@@ -98,7 +98,7 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
   }, 60_000);
 
   it("characters.create (glb) + characters.download", async () => {
-    const result = await client.characters.create(`${FIXTURES_DIR}/pig.glb`);
+    const result = await client.characters.create({ file: `${FIXTURES_DIR}/pig.glb` });
     expect(result.character_id).toBeTruthy();
     expect(result.url).toBeTruthy();
     expect(result.auto_rig_confidence).not.toBeNull();
@@ -109,7 +109,7 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
   }, 60_000);
 
   it("characters.create (fbx) + characters.download", async () => {
-    const result = await client.characters.create(`${FIXTURES_DIR}/wrestler.fbx`);
+    const result = await client.characters.create({ file: `${FIXTURES_DIR}/wrestler.fbx` });
     expect(result.character_id).toBeTruthy();
     expect(result.url).toBeTruthy();
     expect(result.auto_rig_confidence).not.toBeNull();
@@ -119,8 +119,10 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     expect(data.byteLength).toBeGreaterThan(0);
   }, 60_000);
 
-  it.skipIf(!shouldRunLong)("characters.createFromText + characters.download", async () => {
-    const result = await client.characters.createFromText("a futuristic soldier in heavy armor", {
+  it.skipIf(!shouldRunLong)("characters.create (prompt) + characters.download", async () => {
+    const result = await client.characters.create({
+      method: "prompt",
+      prompt: "a futuristic soldier in heavy armor",
       onPreviewsReady: (previews) => previews[0]?.key ?? null,
     });
     expect(result.character?.id).toBeTruthy();

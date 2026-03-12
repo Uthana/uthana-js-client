@@ -75,6 +75,9 @@ query GetJob($job_id: String!) {
   job(job_id: $job_id) {
     id
     status
+    created_at
+    started_at
+    ended_at
     result
   }
 }
@@ -87,6 +90,8 @@ query ListJobs($method: String) {
     status
     method
     created_at
+    started_at
+    ended_at
   }
 }
 `;

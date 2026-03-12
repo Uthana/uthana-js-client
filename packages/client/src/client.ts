@@ -4,7 +4,6 @@
 
 import { Graffle } from "graffle";
 import { Throws } from "graffle/extensions/throws";
-import { Upload } from "graffle/extensions/upload";
 import { UthanaError } from "./errors";
 import { CREATE_T2M } from "./graphql";
 import { TTM_MODEL_MAP, models } from "./models";
@@ -74,7 +73,6 @@ export class UthanaClient {
           Authorization: this._authHeader,
         },
       })
-      .use(Upload)
       .use(Throws);
 
     this.ttm = new TtmModule(this);
@@ -96,6 +94,53 @@ export class UthanaClient {
     const result = (await doc.$send(variables)) as Record<string, unknown>;
     const data = (result?.data ?? result) as Record<string, unknown>;
 
+    if (options?.path) {
+      const parts = options.path.split(".");
+      let out: unknown = data;
+      for (const key of parts) {
+        out = (out as Record<string, unknown>)?.[key];
+      }
+      return (out ?? options.pathDefault ?? {}) as T;
+    }
+    return data as T;
+  }
+
+  /**
+   * Execute a GraphQL mutation with a single file upload using the multipart request spec.
+   * Uses fetch directly so the Authorization header is always forwarded correctly.
+   * @param variablePath - dot-path of the file variable (e.g. "file")
+   */
+  async _graphqlUpload<T = unknown>(
+    query: string,
+    variables: Record<string, unknown>,
+    variablePath: string,
+    blob: Blob,
+    options?: { path?: string; pathDefault?: unknown; filename?: string },
+  ): Promise<T> {
+    const nulledVars = { ...variables, [variablePath]: null };
+    const form = new FormData();
+    form.append("operations", JSON.stringify({ query, variables: nulledVars }));
+    form.append("map", JSON.stringify({ "0": [`variables.${variablePath}`] }));
+    form.append("0", blob, options?.filename);
+
+    const res = await fetch(this.graphqlUrl, {
+      method: "POST",
+      headers: { Authorization: this._authHeader },
+      body: form,
+      signal: AbortSignal.timeout(this.timeout * 1000),
+    });
+
+    if (!res.ok) {
+      throw new UthanaError(res.status, await res.text());
+    }
+
+    const json = (await res.json()) as Record<string, unknown>;
+    if (json.errors) {
+      const errs = json.errors as Array<{ message: string }>;
+      throw new UthanaError(400, errs[0]?.message ?? "GraphQL error");
+    }
+
+    const data = (json.data ?? json) as Record<string, unknown>;
     if (options?.path) {
       const parts = options.path.split(".");
       let out: unknown = data;
