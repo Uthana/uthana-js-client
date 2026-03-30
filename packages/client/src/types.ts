@@ -65,7 +65,7 @@ export interface TextToMotionResult {
   motion_id: string;
 }
 
-/** Result of characters.create({ from: "file" }). */
+/** Result of characters.createFromFile(). */
 export interface CreateCharacterResult {
   url: string;
   character_id: string;
@@ -73,8 +73,8 @@ export interface CreateCharacterResult {
 }
 
 /**
- * Intermediate result of characters.create({ from: "prompt" | "image" }) when no onPreviewsReady
- * callback is provided. Pass to characters.generateFromImage() to finalize the character.
+ * Intermediate result of characters.createFromPrompt when no onPreviewsReady callback is provided.
+ * Pass to characters.generateFromImage() to finalize the character.
  */
 export interface CharacterPreviewResult {
   character_id: string;
@@ -83,7 +83,7 @@ export interface CharacterPreviewResult {
   prompt: string;
 }
 
-/** Result of characters.create({ from: "prompt" | "image" }, { onPreviewsReady }) or characters.generateFromImage(). */
+/** Result of characters.createFromPrompt / createFromImage (with callback where applicable), or characters.generateFromImage(). */
 export interface CreateFromGeneratedImageResult {
   character: Character;
   auto_rig_confidence?: number | null;

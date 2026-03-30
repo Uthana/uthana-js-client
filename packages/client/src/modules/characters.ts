@@ -23,31 +23,15 @@ import type {
 import { detectMeshFormat, prepareCreateCharacter } from "../utils";
 import { BaseModule } from "./base";
 
-type CreateFileParams = {
-  method?: "file";
-  file: File | Blob | string;
-  prompt?: never;
-  auto_rig?: boolean | null;
-  front_facing?: boolean | null;
-};
+type OnPreviewsReady = (
+  previews: { key: string; url: string }[],
+) => string | null | undefined | Promise<string | null | undefined>;
 
-type CreatePromptParams = {
-  method?: "prompt";
+type CreateFromPromptParams = {
   prompt: string;
-  file?: never;
   name?: string | null;
-  onPreviewsReady?: (
-    previews: { key: string; url: string }[],
-  ) => string | null | undefined | Promise<string | null | undefined>;
+  onPreviewsReady?: OnPreviewsReady;
 };
-
-type CreateImageParams = {
-  method?: "image";
-  file: File | Blob | string;
-  name?: string | null;
-};
-
-type CreateParams = CreateFileParams | CreatePromptParams | CreateImageParams;
 
 /** Character management: upload, list, download, generate previews, rename, and delete. */
 export class CharactersModule extends BaseModule {
@@ -56,47 +40,51 @@ export class CharactersModule extends BaseModule {
   }
 
   /**
-   * Create a character.
-   *
-   * The `method` field is optional and inferred from the params you pass:
-   * - `file` only (or `method: "file"`) — upload a GLB/FBX and optionally auto-rig.
-   *   Returns `CreateCharacterResult`.
-   * - `prompt` only (or `method: "prompt"`) — generate from a text prompt. With `onPreviewsReady`,
-   *   calls it with the preview images and uses the returned key to finalize; returns
-   *   `CreateFromGeneratedImageResult`. Without it, returns a `CharacterPreviewResult` to inspect
-   *   and confirm via `generateFromImage()`.
-   * - `file` + `prompt` (or `method: "image"`) — upload an image file and generate a character
-   *   from it. Always returns `CreateFromGeneratedImageResult` directly.
+   * Upload a GLB or FBX and optionally auto-rig. Returns `CreateCharacterResult`.
    */
-  async create(params: CreateFileParams): Promise<CreateCharacterResult>;
-  async create(
-    params: CreatePromptParams & {
-      onPreviewsReady: NonNullable<CreatePromptParams["onPreviewsReady"]>;
-    },
+  async createFromFile(
+    file: File | Blob | string,
+    options?: { auto_rig?: boolean | null; front_facing?: boolean | null },
+  ): Promise<CreateCharacterResult> {
+    if (file === "" || (typeof file === "string" && !file.trim())) {
+      throw new UthanaError(400, "file is required (.glb or .fbx)");
+    }
+    return this._createFromFile(file, options?.auto_rig, options?.front_facing);
+  }
+
+  async createFromPrompt(
+    params: CreateFromPromptParams & { onPreviewsReady: OnPreviewsReady },
   ): Promise<CreateFromGeneratedImageResult>;
-  async create(
-    params: Omit<CreatePromptParams, "onPreviewsReady"> & { onPreviewsReady?: undefined },
+  async createFromPrompt(
+    params: Omit<CreateFromPromptParams, "onPreviewsReady"> & { onPreviewsReady?: undefined },
   ): Promise<CharacterPreviewResult>;
-  async create(params: CreateImageParams): Promise<CreateFromGeneratedImageResult>;
-  async create(
-    params: CreateParams,
-  ): Promise<CreateCharacterResult | CharacterPreviewResult | CreateFromGeneratedImageResult> {
-    const { method, file, prompt, name, auto_rig, front_facing, onPreviewsReady } =
-      params as CreateFileParams & CreatePromptParams & CreateImageParams;
-    const resolved = method ?? (prompt ? "prompt" : "file");
-    if (resolved === "file") {
-      return this._createFromFile(file, auto_rig, front_facing);
+  async createFromPrompt(params: CreateFromPromptParams): Promise<
+    CharacterPreviewResult | CreateFromGeneratedImageResult
+  > {
+    if (!params.prompt?.trim()) {
+      throw new UthanaError(400, "prompt is required");
     }
-    if (resolved === "prompt") {
-      return this._generateFromText(prompt, name, onPreviewsReady);
+    return this._generateFromText(params.prompt, params.name, params.onPreviewsReady);
+  }
+
+  /**
+   * Upload a reference image (PNG/JPEG) and generate a character. Single-step; returns
+   * `CreateFromGeneratedImageResult`.
+   */
+  async createFromImage(
+    file: File | Blob | string,
+    options?: { name?: string | null },
+  ): Promise<CreateFromGeneratedImageResult> {
+    if (file === "" || (typeof file === "string" && !file.trim())) {
+      throw new UthanaError(400, "file is required (.png, .jpg, .jpeg)");
     }
-    return this._generateFromImage(file, name);
+    return this._generateFromImage(file, options?.name);
   }
 
   /**
    * Finalize a character from a previously generated preview (step 2 of the two-step flow).
-   * Use when `create()` was called without `onPreviewsReady` and returned a `CharacterPreviewResult`.
-   * Optionally supply `name` to name the character at finalization time.
+   * Use when `createFromPrompt` was called without `onPreviewsReady` and returned a
+   * `CharacterPreviewResult`. Optionally supply `name` to name the character at finalization time.
    */
   async generateFromImage(
     pending: CharacterPreviewResult,
@@ -213,7 +201,7 @@ export class CharactersModule extends BaseModule {
   private async _generateFromText(
     prompt: string,
     name?: string | null,
-    onPreviewsReady?: CreatePromptParams["onPreviewsReady"],
+    onPreviewsReady?: OnPreviewsReady,
   ): Promise<CharacterPreviewResult | CreateFromGeneratedImageResult> {
     const { character_id, images } = await this._client._graphql<{
       character_id: string;

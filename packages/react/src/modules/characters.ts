@@ -173,7 +173,7 @@ export function useUthanaCreateCharacter() {
       intermediateRef.current = null;
       try {
         if (params.from === "prompt") {
-          const pending = await client.characters.create({
+          const pending = await client.characters.createFromPrompt({
             prompt: params.prompt,
             name: params.name,
           });
@@ -190,9 +190,7 @@ export function useUthanaCreateCharacter() {
           }
         } else {
           // from: "image" — always single-step, no previews
-          const result = await client.characters.create({
-            method: "image",
-            file: params.file,
+          const result = await client.characters.createFromImage(params.file, {
             name: params.name,
           });
           setCharacter(result as CreateFromGeneratedImageResult);
@@ -213,8 +211,7 @@ export function useUthanaCreateCharacter() {
       setStatus("creating");
       setError(null);
       try {
-        const result = await client.characters.create({
-          file: params.file,
+        const result = await client.characters.createFromFile(params.file, {
           auto_rig: params.auto_rig,
           front_facing: params.front_facing,
         });

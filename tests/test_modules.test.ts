@@ -162,7 +162,7 @@ describe("module methods with mocked _graphql", () => {
       expect((result as Record<string, unknown>).id).toBe("c1");
     });
 
-    it("create({prompt}) without callback returns CharacterPreviewResult", async () => {
+    it("createFromPrompt without callback returns CharacterPreviewResult", async () => {
       mockGql.mockResolvedValue({
         data: {
           create_image_from_text: {
@@ -174,14 +174,14 @@ describe("module methods with mocked _graphql", () => {
           },
         },
       });
-      const result = await client.characters.create({ prompt: "a robot" });
+      const result = await client.characters.createFromPrompt({ prompt: "a robot" });
       expect(result.character_id).toBe("c2");
       expect(result.previews).toHaveLength(2);
       expect((result as { prompt: string }).prompt).toBe("a robot");
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ prompt: "a robot" }));
     });
 
-    it("create({prompt, onPreviewsReady}) calls two mutations and returns character", async () => {
+    it("createFromPrompt with onPreviewsReady calls two mutations and returns character", async () => {
       mockGql
         .mockResolvedValueOnce({
           data: {
@@ -199,7 +199,7 @@ describe("module methods with mocked _graphql", () => {
             },
           },
         });
-      const result = await client.characters.create({
+      const result = await client.characters.createFromPrompt({
         prompt: "a knight",
         onPreviewsReady: (previews) => previews[0].key,
       });
@@ -210,7 +210,7 @@ describe("module methods with mocked _graphql", () => {
       );
     });
 
-    it("create({method:'image', file}) calls two mutations and passes empty prompt", async () => {
+    it("createFromImage calls two mutations and passes empty prompt", async () => {
       // First mutation (create_image_from_image) goes through _graphqlUpload → fetch
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -236,7 +236,7 @@ describe("module methods with mocked _graphql", () => {
       });
 
       const blob = new Blob(["data"]);
-      const result = await client.characters.create({ method: "image", file: blob });
+      const result = await client.characters.createFromImage(blob);
       expect(result.character?.id).toBe("c6");
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(mockGql).toHaveBeenCalledTimes(1);

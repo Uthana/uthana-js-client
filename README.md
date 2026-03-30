@@ -231,9 +231,7 @@ function UploadVideo() {
 
 ```ts
 // Upload a character (GLB or FBX)
-const result = await client.characters.create({
-  method: "file",
-  file,
+const result = await client.characters.createFromFile(file, {
   auto_rig: true,
   front_facing: true,
 });
@@ -245,14 +243,14 @@ const characters = await client.characters.list();
 const buffer = await client.characters.download(characterId);
 
 // Text-to-character: one-shot with callback
-const { character } = await client.characters.create({
+const { character } = await client.characters.createFromPrompt({
   prompt: "a knight in armor",
   name: "Knight",
   onPreviewsReady: (previews) => previews[0].key,
 });
 
 // Text-to-character: async callback (e.g. show a picker UI and await selection)
-const { character } = await client.characters.create({
+const { character } = await client.characters.createFromPrompt({
   prompt: "a knight in armor",
   onPreviewsReady: async (previews) => {
     return await showPickerUI(previews); // returns selected key
@@ -260,12 +258,12 @@ const { character } = await client.characters.create({
 });
 
 // Text-to-character: two-step (inspect previews before confirming)
-const pending = await client.characters.create({ prompt: "a knight in armor" });
+const pending = await client.characters.createFromPrompt({ prompt: "a knight in armor" });
 // pending.previews — show to user, then confirm:
 const { character } = await client.characters.generateFromImage(pending, pending.previews[0].key);
 
-// Image-to-character: upload an image file (always one-shot, requires method: "image")
-const { character } = await client.characters.create({ method: "image", file: imageFile });
+// Image-to-character: upload an image file (always one-shot)
+const { character } = await client.characters.createFromImage(imageFile);
 
 // Rename or delete
 await client.characters.rename(characterId, "New name");

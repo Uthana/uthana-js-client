@@ -14,7 +14,11 @@
  */
 
 import { resolve } from "node:path";
-import { UthanaClient, UthanaCharacters } from "@uthana/client";
+import {
+  type CreateFromGeneratedImageResult,
+  UthanaClient,
+  UthanaCharacters,
+} from "@uthana/client";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const FIXTURES_DIR = resolve(import.meta.dirname, "fixtures");
@@ -24,6 +28,15 @@ const DOMAIN = process.env.UTHANA_DOMAIN;
 
 const shouldRun = !!API_KEY && API_KEY !== "xxx";
 const shouldRunLong = shouldRun && process.env.UTHANA_LONG_TESTS === "true";
+
+/** Long integration tests only when `UTHANA_LONG_TESTS=true`. */
+const itLong = it.skipIf(!shouldRunLong);
+
+/** Video-to-motion FINISHED payload shape (job `result` is loosely typed). */
+function vtmMotionIdFromJobResult(result: unknown): string | undefined {
+  const outer = result as { result?: { id?: string } } | null | undefined;
+  return outer?.result?.id;
+}
 
 describe.skipIf(!shouldRun)("UthanaClient integration", () => {
   let client: UthanaClient;
@@ -97,8 +110,8 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     expect(data.byteLength).toBeGreaterThan(0);
   }, 60_000);
 
-  it("characters.create (glb) + characters.download", async () => {
-    const result = await client.characters.create({ file: `${FIXTURES_DIR}/pig.glb` });
+  it("characters.createFromFile (glb) + characters.download", async () => {
+    const result = await client.characters.createFromFile(`${FIXTURES_DIR}/pig.glb`);
     expect(result.character_id).toBeTruthy();
     expect(result.url).toBeTruthy();
     expect(result.auto_rig_confidence).not.toBeNull();
@@ -108,8 +121,8 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     expect(data.byteLength).toBeGreaterThan(0);
   }, 60_000);
 
-  it("characters.create (fbx) + characters.download", async () => {
-    const result = await client.characters.create({ file: `${FIXTURES_DIR}/wrestler.fbx` });
+  it("characters.createFromFile (fbx) + characters.download", async () => {
+    const result = await client.characters.createFromFile(`${FIXTURES_DIR}/wrestler.fbx`);
     expect(result.character_id).toBeTruthy();
     expect(result.url).toBeTruthy();
     expect(result.auto_rig_confidence).not.toBeNull();
@@ -119,36 +132,46 @@ describe.skipIf(!shouldRun)("UthanaClient integration", () => {
     expect(data.byteLength).toBeGreaterThan(0);
   }, 60_000);
 
-  it.skipIf(!shouldRunLong)("characters.create (prompt) + characters.download", async () => {
-    const result = await client.characters.create({
-      method: "prompt",
-      prompt: "a futuristic soldier in heavy armor",
-      onPreviewsReady: (previews) => previews[0]?.key ?? null,
-    });
-    expect(result.character?.id).toBeTruthy();
+  itLong(
+    "characters.createFromPrompt + characters.download",
+    async () => {
+      const result = (await client.characters.createFromPrompt({
+        prompt: "a futuristic soldier in heavy armor",
+        onPreviewsReady: (previews) => previews[0]?.key ?? null,
+      })) as CreateFromGeneratedImageResult;
 
-    const data = await client.characters.download(result.character!.id!, { output_format: "glb" });
-    expect(data.byteLength).toBeGreaterThan(0);
-  }, 120_000);
+      const characterId = result.character?.id;
+      expect(characterId).toBeTruthy();
 
-  it.skipIf(!shouldRunLong)("vtm.create submits job and polls to FINISHED", async () => {
-    const job = await client.vtm.create(`${FIXTURES_DIR}/dance.mp4`);
-    expect(job.id).toBeTruthy();
-    expect(job.status).toBeTruthy();
+      const data = await client.characters.download(characterId!, { output_format: "glb" });
+      expect(data.byteLength).toBeGreaterThan(0);
+    },
+    120_000,
+  );
 
-    const finished = await client.jobs.wait(job.id, {
-      intervalMs: 3000,
-      timeoutMs: 300_000,
-    });
-    expect(finished.status).toBe("FINISHED");
+  itLong(
+    "vtm.create submits job and polls to FINISHED",
+    async () => {
+      const job = await client.vtm.create(`${FIXTURES_DIR}/dance.mp4`);
+      expect(job.id).toBeTruthy();
+      expect(job.status).toBeTruthy();
 
-    const motionId = (finished.result as { result?: { id?: string } })?.result?.id;
-    expect(motionId).toBeTruthy();
+      const jobId = job.id!;
+      const finished = await client.jobs.wait(jobId, {
+        intervalMs: 3000,
+        timeoutMs: 300_000,
+      });
+      expect(finished.status).toBe("FINISHED");
 
-    const data = await client.motions.download(UthanaCharacters.tar, motionId!, {
-      output_format: "glb",
-      fps: 30,
-    });
-    expect(data.byteLength).toBeGreaterThan(0);
-  }, 300_000);
+      const motionId = vtmMotionIdFromJobResult(finished.result);
+      expect(motionId).toBeTruthy();
+
+      const data = await client.motions.download(UthanaCharacters.tar, motionId!, {
+        output_format: "glb",
+        fps: 30,
+      });
+      expect(data.byteLength).toBeGreaterThan(0);
+    },
+    300_000,
+  );
 });

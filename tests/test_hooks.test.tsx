@@ -33,10 +33,16 @@ const { mockClient } = vi.hoisted(() => {
   const mockMotionDelete = vi.fn().mockResolvedValue({ id: "m1", deleted: true });
   const mockMotionRename = vi.fn().mockResolvedValue({ id: "m1", name: "New Name" });
   const mockCharactersList = vi.fn().mockResolvedValue([{ id: "c1", name: "Tar" }]);
-  // Default: file upload result. Tests that need prompt/image results override per-test.
-  const mockCharacterCreate = vi
-    .fn()
-    .mockResolvedValue({ character_id: "c2", url: "http://x" });
+  const mockCreateFromFile = vi.fn().mockResolvedValue({ character_id: "c2", url: "http://x" });
+  const mockCreateFromPrompt = vi.fn().mockResolvedValue({
+    character_id: "c3",
+    previews: [],
+    prompt: "a robot",
+  });
+  const mockCreateFromImage = vi.fn().mockResolvedValue({
+    character: { id: "c6" },
+    auto_rig_confidence: 0.7,
+  });
   const mockCharacterRename = vi.fn().mockResolvedValue({ id: "c1", name: "Renamed" });
   const mockCharacterDelete = vi.fn().mockResolvedValue({ id: "c1", deleted: true });
   // Step-2 finalization (generateFromImage)
@@ -65,7 +71,9 @@ const { mockClient } = vi.hoisted(() => {
       },
       characters: {
         list: mockCharactersList,
-        create: mockCharacterCreate,
+        createFromFile: mockCreateFromFile,
+        createFromPrompt: mockCreateFromPrompt,
+        createFromImage: mockCreateFromImage,
         rename: mockCharacterRename,
         delete: mockCharacterDelete,
         generateFromImage: mockCharacterGenerateFromImage,
@@ -236,7 +244,7 @@ describe("React hooks", () => {
     expect(result.current.confirm).toBeDefined();
   });
 
-  it("useUthanaCreateCharacter.create calls characters.create with keyword params for file upload", async () => {
+  it("useUthanaCreateCharacter.create calls createFromFile for file upload", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
@@ -245,19 +253,18 @@ describe("React hooks", () => {
       await result.current.create({ from: "file", file: "path/to/char.glb" });
     });
     expect(result.current.isSuccess).toBe(true);
-    expect(mockClient.characters.create).toHaveBeenCalledWith({
-      file: "path/to/char.glb",
+    expect(mockClient.characters.createFromFile).toHaveBeenCalledWith("path/to/char.glb", {
       auto_rig: undefined,
       front_facing: undefined,
     });
   });
 
-  it("useUthanaCreateCharacter.generate calls characters.create for prompt flow", async () => {
+  it("useUthanaCreateCharacter.generate calls createFromPrompt for prompt flow", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.create.mockResolvedValueOnce({
+    mockClient.characters.createFromPrompt.mockResolvedValueOnce({
       character_id: "c3",
       previews: [],
       prompt: "a robot",
@@ -267,7 +274,10 @@ describe("React hooks", () => {
       await result.current.generate({ from: "prompt", prompt: "a robot" });
     });
     expect(result.current.isAwaitingSelection).toBe(true);
-    expect(mockClient.characters.create).toHaveBeenCalledWith({ prompt: "a robot", name: undefined });
+    expect(mockClient.characters.createFromPrompt).toHaveBeenCalledWith({
+      prompt: "a robot",
+      name: undefined,
+    });
     expect(result.current.previews).toEqual([]);
   });
 
@@ -276,7 +286,7 @@ describe("React hooks", () => {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.create.mockResolvedValueOnce({
+    mockClient.characters.createFromPrompt.mockResolvedValueOnce({
       character_id: "c3",
       previews: [{ key: "img1", url: "http://img1" }],
       prompt: "a robot",
@@ -297,12 +307,12 @@ describe("React hooks", () => {
     );
   });
 
-  it("useUthanaCreateCharacter.generate calls characters.create for image flow (single-step)", async () => {
+  it("useUthanaCreateCharacter.generate calls createFromImage for image flow (single-step)", async () => {
     const { result } = renderHook(() => useUthanaCreateCharacter(), {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.create.mockResolvedValueOnce({
+    mockClient.characters.createFromImage.mockResolvedValueOnce({
       character: { id: "c6" },
       auto_rig_confidence: 0.7,
     });
@@ -314,11 +324,7 @@ describe("React hooks", () => {
     // Image flow is single-step — should go straight to success, no awaiting_selection
     expect(result.current.isSuccess).toBe(true);
     expect(result.current.isAwaitingSelection).toBe(false);
-    expect(mockClient.characters.create).toHaveBeenCalledWith({
-      method: "image",
-      file: blob,
-      name: undefined,
-    });
+    expect(mockClient.characters.createFromImage).toHaveBeenCalledWith(blob, { name: undefined });
   });
 
   it("useUthanaCreateCharacter.confirm calls generateFromImage with pending and key", async () => {
@@ -326,7 +332,7 @@ describe("React hooks", () => {
       wrapper: createWrapper(),
     });
 
-    mockClient.characters.create.mockResolvedValueOnce({
+    mockClient.characters.createFromPrompt.mockResolvedValueOnce({
       character_id: "c3",
       previews: [{ key: "img1", url: "http://img1" }],
       prompt: "a robot",
