@@ -22,7 +22,7 @@
     "test": "vitest run --root ../.. tests/test_hooks"
   },
   "dependencies": {
-    "@uthana/client": "file:../client",
+    "@uthana/client": "^0.2.0",
     "@tanstack/react-query": "^5.62.0",
     "graffle": "next",
     "graphql": "^16.9.0",

@@ -646,3 +646,27 @@ Replace `uthana.schema` with your full schema, then:
 ```bash
 npm run codegen
 ```
+
+## Publishing (maintainers)
+
+Packages **`@uthana/client`** and **`@uthana/react`** are published from this monorepo. Before a release:
+
+1. **Bump versions** in `packages/client/package.json` and `packages/react/package.json` (and the root `package.json` if you keep them aligned). `@uthana/react` must depend on `@uthana/client` with a **registry semver range** (not `file:../client`). Running **`npm install`** runs **`prepare`**, which runs **`npm run sync-versions`** so `packages/react`’s `@uthana/client` dependency is set to `^` the client package version, then builds workspaces and sets up Husky. If `sync-versions` rewrites `package.json`, run **`npm install`** again so the lockfile updates.
+
+2. **Sanity-check the publish** without uploading:
+
+   ```bash
+   npm run publish -- --dry-run
+   ```
+
+   That builds the workspace packages and simulates both `npm publish` steps. Extra `npm publish` flags after `--` are forwarded (for example `--tag beta`).
+
+3. **Publish for real** when logged into npm with access to the `@uthana` scope:
+
+   ```bash
+   npm run publish
+   ```
+
+   The script publishes **`@uthana/client` first**, then **`@uthana/react`**, with public access. It aborts if `@uthana/react` still lists `@uthana/client` as a `file:` dependency.
+
+Use **`npm run sync-versions`** alone if you only need to align the React package’s client dependency without a full install.
