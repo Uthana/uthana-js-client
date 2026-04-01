@@ -255,7 +255,11 @@ describe("module methods with mocked _graphql", () => {
           },
         },
       });
-      const pending = { character_id: "c7", previews: [{ key: "k1", url: "u1" }], prompt: "a mage" };
+      const pending = {
+        character_id: "c7",
+        previews: [{ key: "k1", url: "u1" }],
+        prompt: "a mage",
+      };
       const result = await client.characters.generateFromImage(pending, "k1");
       expect(result.character?.id).toBe("c7");
       expect(mockGql).toHaveBeenCalledWith(
@@ -268,7 +272,16 @@ describe("module methods with mocked _graphql", () => {
     it("list returns jobs array", async () => {
       mockGql.mockResolvedValue({
         data: {
-          jobs: [{ id: "j1", status: "FINISHED", method: "VideoToMotion", created_at: "2024-01-01", started_at: "2024-01-01", ended_at: "2024-01-02" }],
+          jobs: [
+            {
+              id: "j1",
+              status: "FINISHED",
+              method: "VideoToMotion",
+              created_at: "2024-01-01",
+              started_at: "2024-01-01",
+              ended_at: "2024-01-02",
+            },
+          ],
         },
       });
       const jobs = await client.jobs.list();

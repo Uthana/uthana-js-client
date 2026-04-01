@@ -434,7 +434,11 @@ function BakeGltf({ characterId }: { characterId: string }) {
   return (
     <button
       onClick={() =>
-        bake.mutate({ gltf_content: "<gltf/>", motion_name: "My motion", character_id: characterId })
+        bake.mutate({
+          gltf_content: "<gltf/>",
+          motion_name: "My motion",
+          character_id: characterId,
+        })
       }
       disabled={bake.isPending}
     >
@@ -521,7 +525,9 @@ function JobList() {
   return (
     <ul>
       {jobs?.map((j) => (
-        <li key={j.id}>{j.status} — {j.created}</li>
+        <li key={j.id}>
+          {j.status} — {j.created}
+        </li>
       ))}
     </ul>
   );

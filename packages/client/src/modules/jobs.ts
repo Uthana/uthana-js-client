@@ -44,10 +44,14 @@ export class JobsModule extends BaseModule {
 
   /** Get the status and result of an async job. */
   async get(job_id: string): Promise<Job> {
-    const raw = await this._client._graphql<RawJob>(GET_JOB, { job_id }, {
-      path: "job",
-      pathDefault: {},
-    });
+    const raw = await this._client._graphql<RawJob>(
+      GET_JOB,
+      { job_id },
+      {
+        path: "job",
+        pathDefault: {},
+      },
+    );
     return transformJob(raw);
   }
 

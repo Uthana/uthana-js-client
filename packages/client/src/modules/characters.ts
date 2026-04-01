@@ -58,9 +58,9 @@ export class CharactersModule extends BaseModule {
   async createFromPrompt(
     params: Omit<CreateFromPromptParams, "onPreviewsReady"> & { onPreviewsReady?: undefined },
   ): Promise<CharacterPreviewResult>;
-  async createFromPrompt(params: CreateFromPromptParams): Promise<
-    CharacterPreviewResult | CreateFromGeneratedImageResult
-  > {
+  async createFromPrompt(
+    params: CreateFromPromptParams,
+  ): Promise<CharacterPreviewResult | CreateFromGeneratedImageResult> {
     if (!params.prompt?.trim()) {
       throw new UthanaError(400, "prompt is required");
     }
@@ -238,7 +238,10 @@ export class CharactersModule extends BaseModule {
     const { character_id, image } = await this._client._graphqlUpload<{
       character_id: string;
       image: { key: string; url: string };
-    }>(CREATE_IMAGE_FROM_IMAGE, {}, "file", fileValue, { path: "create_image_from_image", filename: uploadFilename });
+    }>(CREATE_IMAGE_FROM_IMAGE, {}, "file", fileValue, {
+      path: "create_image_from_image",
+      filename: uploadFilename,
+    });
     return this._finalizeFromImage(character_id, image.key, name);
   }
 

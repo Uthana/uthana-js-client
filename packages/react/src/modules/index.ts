@@ -10,7 +10,13 @@ export {
 } from "./characters";
 export { useUthanaJob, useUthanaJobs } from "./jobs";
 export { useUthanaIsMotionDownloadAllowed, useUthanaMotionDownloads } from "./motionDownloads";
-export { useUthanaBakeWithChanges, useUthanaMotion, useUthanaMotionPreview, useUthanaMotions, useUthanaRateMotion } from "./motions";
+export {
+  useUthanaBakeWithChanges,
+  useUthanaMotion,
+  useUthanaMotionPreview,
+  useUthanaMotions,
+  useUthanaRateMotion,
+} from "./motions";
 export { useUthanaOrg, useUthanaUser } from "./org";
 export { useUthanaTtm } from "./ttm";
 export { useUthanaVtm } from "./vtm";

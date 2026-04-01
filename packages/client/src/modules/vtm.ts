@@ -46,13 +46,12 @@ export class VtmModule extends BaseModule {
 
     variables.model = options?.model ?? models.vtm.default;
 
-    const raw = await this._client._graphqlUpload<VideoToMotionResult & { created_at?: string | null }>(
-      CREATE_VIDEO_TO_MOTION,
-      variables,
-      "file",
-      blob,
-      { path: "create_video_to_motion.job", filename: uploadFilename },
-    );
+    const raw = await this._client._graphqlUpload<
+      VideoToMotionResult & { created_at?: string | null }
+    >(CREATE_VIDEO_TO_MOTION, variables, "file", blob, {
+      path: "create_video_to_motion.job",
+      filename: uploadFilename,
+    });
     return transformJob(raw);
   }
 }

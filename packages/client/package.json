@@ -17,8 +17,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "dev": "rollup -c rollup.config.ts --configPlugin @rollup/plugin-typescript --watch",
+    "build": "rollup -c rollup.config.mjs",
+    "dev": "rollup -c rollup.config.mjs --watch",
     "test": "vitest run --root ../.. tests/test_modules tests/test_jobs_wait tests/test_ttm_mapping tests/test_unit tests/test_utils",
     "test:integration": "vitest run --root ../.. tests/test_client"
   },
@@ -27,8 +27,12 @@
     "graphql": "^16.9.0"
   },
   "peerDependenciesMeta": {
-    "graffle": { "optional": false },
-    "graphql": { "optional": false }
+    "graffle": {
+      "optional": false
+    },
+    "graphql": {
+      "optional": false
+    }
   },
   "devDependencies": {
     "typescript": "^5.7.2"

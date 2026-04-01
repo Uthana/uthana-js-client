@@ -3,24 +3,31 @@ import typescript from "@rollup/plugin-typescript";
 import dts from "rollup-plugin-dts";
 import { defineConfig } from "rollup";
 
-const external = [
-  "react",
-  "react/jsx-runtime",
-  "@tanstack/react-query",
-  "@uthana/client",
-];
+const external = ["graffle", "graffle/extensions/upload", "graffle/extensions/throws", "graphql"];
 
 export default defineConfig([
   {
     input: "src/index.ts",
     external,
-    plugins: [resolve(), typescript({ tsconfig: "./tsconfig.json" })],
+    plugins: [
+      resolve(),
+      typescript({
+        tsconfig: "./tsconfig.json",
+        compilerOptions: { declaration: false, declarationMap: false },
+      }),
+    ],
     output: { file: "dist/index.js", format: "esm", sourcemap: true },
   },
   {
     input: "src/index.ts",
     external,
-    plugins: [resolve(), typescript({ tsconfig: "./tsconfig.json" })],
+    plugins: [
+      resolve(),
+      typescript({
+        tsconfig: "./tsconfig.json",
+        compilerOptions: { declaration: false, declarationMap: false },
+      }),
+    ],
     output: { file: "dist/index.cjs", format: "cjs", sourcemap: true },
   },
   {

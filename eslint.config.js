@@ -4,7 +4,15 @@ import eslintPluginImport from "eslint-plugin-import";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/*.config.js", "**/*.config.ts"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/*.config.js",
+      "**/*.config.ts",
+      "**/*.config.mjs",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   eslintPluginPrettier,

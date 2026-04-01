@@ -4,4 +4,3 @@ npm run lint:fix
 npm run format
 git add -u
 npm run build
-git add packages/client/dist packages/react/dist
