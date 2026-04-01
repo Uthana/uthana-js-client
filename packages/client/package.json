@@ -1,6 +1,6 @@
 {
   "name": "@uthana/client",
-  "version": "0.2.0",
+  "version": "0.2.1-rc.0",
   "description": "Uthana API client for JavaScript and TypeScript — works in browser and Node.js",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -44,5 +44,10 @@
     "animation",
     "3d"
   ],
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uthana/uthana-js-client.git",
+    "directory": "packages/client"
+  }
 }
