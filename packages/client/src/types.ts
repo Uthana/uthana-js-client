@@ -65,6 +65,18 @@ export interface TextToMotionResult {
   motion_id: string;
 }
 
+/** Optional inputs for motions.createLocomotion (see Uthana locomotion API). */
+export interface CreateLocomotionOptions {
+  /** Full stride pairs, 1–5; API default 4. */
+  strides?: number | null;
+  /** Speed in m/s, 0.25–8.0; API default 1.2. */
+  move_speed?: number | null;
+  /** From listLocomotionStyles; API default neutral_male_a. */
+  style_id?: string | null;
+  /** Direction in degrees on ground plane, -180 to 180; API default 0. */
+  travel_angle?: number | null;
+}
+
 /** Result of characters.createFromFile(). */
 export interface CreateCharacterResult {
   url: string;

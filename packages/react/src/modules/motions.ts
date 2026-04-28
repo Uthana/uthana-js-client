@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUthanaClient } from "../UthanaProvider";
 
 const MOTIONS_QUERY_KEY = ["uthana", "motions"] as const;
+const LOCOMOTION_STYLES_QUERY_KEY = ["uthana", "locomotion_styles"] as const;
 
 /** Hook to list motions. */
 export function useUthanaMotions() {
@@ -69,6 +70,40 @@ export function useUthanaBakeWithChanges() {
     }) =>
       client.motions.bakeWithChanges(params.gltf_content, params.motion_name, {
         character_id: params.character_id,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
+    },
+  });
+}
+
+/** Hook to list locomotion style IDs for createLocomotion. */
+export function useUthanaLocomotionStyles() {
+  const client = useUthanaClient();
+  const { data: styles, ...rest } = useQuery({
+    queryKey: LOCOMOTION_STYLES_QUERY_KEY,
+    queryFn: () => client.motions.listLocomotionStyles(),
+  });
+  return { styles, ...rest };
+}
+
+/** Hook to create locomotion; invalidates motions list on success. */
+export function useUthanaCreateLocomotion() {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      character_id: string;
+      strides?: number | null;
+      move_speed?: number | null;
+      style_id?: string | null;
+      travel_angle?: number | null;
+    }) =>
+      client.motions.createLocomotion(params.character_id, {
+        strides: params.strides,
+        move_speed: params.move_speed,
+        style_id: params.style_id,
+        travel_angle: params.travel_angle,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });

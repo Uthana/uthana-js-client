@@ -61,14 +61,16 @@ Use **`@uthana/client`** only.
 
 ## Hooks overview
 
-| Hook                             | Use            |
-| -------------------------------- | -------------- |
-| `useUthanaMotions`               | List motions   |
-| `useUthanaMotion`                | Single motion  |
-| `useUthanaTtm` / `useUthanaVtm`  | TTM / VTM jobs |
-| `useUthanaCharacters`            | Characters     |
-| `useUthanaJobs` / `useUthanaJob` | Jobs           |
-| `useUthanaUser` / `useUthanaOrg` | User / org     |
+| Hook                             | Use                  |
+| -------------------------------- | -------------------- |
+| `useUthanaMotions`               | List motions         |
+| `useUthanaMotion`                | Single motion        |
+| `useUthanaLocomotionStyles`      | Locomotion style IDs |
+| `useUthanaCreateLocomotion`      | Locomotion mutation  |
+| `useUthanaTtm` / `useUthanaVtm`  | TTM / VTM jobs       |
+| `useUthanaCharacters`            | Characters           |
+| `useUthanaJobs` / `useUthanaJob` | Jobs                 |
+| `useUthanaUser` / `useUthanaOrg` | User / org           |
 
 Full table and examples: [monorepo README — React hooks](https://github.com/Uthana/uthana-js-client#react-hooks).
 

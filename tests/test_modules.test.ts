@@ -128,6 +128,56 @@ describe("module methods with mocked _graphql", () => {
       expect(result.motion_id).toBe("m99");
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motionName: "test motion" }));
     });
+
+    it("createLocomotion returns character_id and motion_id and passes variables", async () => {
+      mockGql.mockResolvedValue({
+        data: {
+          create_locomotion: { motion: { id: "m-loco", name: "Walk" } },
+        },
+      });
+      const result = await client.motions.createLocomotion("char-1", {
+        strides: 2,
+        move_speed: 1.3,
+        style_id: "neutral_male_a",
+        travel_angle: 0,
+      });
+      expect(result.character_id).toBe("char-1");
+      expect(result.motion_id).toBe("m-loco");
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({
+          character_id: "char-1",
+          strides: 2,
+          move_speed: 1.3,
+          style_id: "neutral_male_a",
+          travel_angle: 0,
+        }),
+      );
+    });
+
+    it("createLocomotion omits optional fields when absent", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_locomotion: { motion: { id: "m1" } } },
+      });
+      await client.motions.createLocomotion("c-only");
+      expect(mockGql).toHaveBeenCalledWith({ character_id: "c-only" });
+    });
+
+    it("createLocomotion throws when motion id missing", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_locomotion: { motion: {} } },
+      });
+      await expect(client.motions.createLocomotion("c1")).rejects.toThrow(
+        "Uthana API error 400: create_locomotion did not return motion id",
+      );
+    });
+
+    it("listLocomotionStyles returns string array", async () => {
+      mockGql.mockResolvedValue({
+        data: { locomotion_styles: ["neutral_male_a", "neutral_female_a"] },
+      });
+      const styles = await client.motions.listLocomotionStyles();
+      expect(styles).toEqual(["neutral_male_a", "neutral_female_a"]);
+    });
   });
 
   describe("characters", () => {

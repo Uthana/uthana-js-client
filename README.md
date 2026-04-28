@@ -195,6 +195,54 @@ function GenerateButton() {
 }
 ```
 
+## Locomotion
+
+Controllable travel motion for a character (strides, speed, style, direction). See [Locomotion](https://uthana.com/docs/api/capabilities/locomotion).
+
+```ts
+import { UthanaClient, UthanaCharacters } from "@uthana/client";
+
+const client = new UthanaClient(process.env.UTHANA_API_KEY!);
+
+const styles = await client.motions.listLocomotionStyles();
+
+const result = await client.motions.createLocomotion(UthanaCharacters.tar, {
+  strides: 2,
+  move_speed: 1.3,
+  style_id: "neutral_male_a",
+  travel_angle: 0,
+});
+```
+
+```tsx
+import { useUthanaCreateLocomotion, useUthanaLocomotionStyles } from "@uthana/react";
+
+function LocomotionPanel({ characterId }: { characterId: string }) {
+  const { styles } = useUthanaLocomotionStyles();
+  const createLoco = useUthanaCreateLocomotion();
+
+  return (
+    <div>
+      <p>Styles: {styles?.join(", ")}</p>
+      <button
+        onClick={() =>
+          createLoco.mutate({
+            character_id: characterId,
+            strides: 2,
+            move_speed: 1.3,
+            style_id: "neutral_male_a",
+            travel_angle: 0,
+          })
+        }
+        disabled={createLoco.isPending}
+      >
+        Generate locomotion
+      </button>
+    </div>
+  );
+}
+```
+
 ## Video to motion (vtm)
 
 Extract motion capture from video files. Returns a job to poll until complete.
@@ -387,6 +435,15 @@ await client.motions.favorite(motionId, true);
 const { motion_id } = await client.motions.bakeWithChanges(gltfString, "My motion", {
   character_id: characterId,
 });
+
+// Locomotion (controllable walk/run clips)
+const styleIds = await client.motions.listLocomotionStyles();
+const loco = await client.motions.createLocomotion(characterId, {
+  strides: 2,
+  move_speed: 1.3,
+  style_id: styleIds[0] ?? "neutral_male_a",
+  travel_angle: 0,
+});
 ```
 
 ```tsx
@@ -397,6 +454,8 @@ import {
   useUthanaMotionPreview,
   useUthanaRateMotion,
   useUthanaBakeWithChanges,
+  useUthanaCreateLocomotion,
+  useUthanaLocomotionStyles,
 } from "@uthana/react";
 
 function MotionList() {
@@ -598,6 +657,8 @@ try {
 | `useUthanaOrg`                               | Get org                                   |
 | `useUthanaTtm`                               | Text-to-motion mutation                   |
 | `useUthanaVtm`                               | Video-to-motion mutation                  |
+| `useUthanaLocomotionStyles`                  | List locomotion `style_id` values         |
+| `useUthanaCreateLocomotion`                  | Create locomotion mutation                |
 
 ## Custom domain
 

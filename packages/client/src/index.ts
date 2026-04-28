@@ -21,6 +21,7 @@ export type {
   CharacterPreviewResult,
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
+  CreateLocomotionOptions,
   Job,
   ModelType,
   Motion,
