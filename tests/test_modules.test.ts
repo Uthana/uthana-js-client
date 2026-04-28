@@ -2,7 +2,7 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { UthanaClient } from "@uthana/client";
+import { UthanaClient, UthanaCharacters } from "@uthana/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGql = vi.fn();
@@ -135,17 +135,17 @@ describe("module methods with mocked _graphql", () => {
           create_locomotion: { motion: { id: "m-loco", name: "Walk" } },
         },
       });
-      const result = await client.motions.createLocomotion("char-1", {
+      const result = await client.motions.createLocomotion(UthanaCharacters.tar, {
         strides: 2,
         move_speed: 1.3,
         style_id: "neutral_male_a",
         travel_angle: 0,
       });
-      expect(result.character_id).toBe("char-1");
+      expect(result.character_id).toBe(UthanaCharacters.tar);
       expect(result.motion_id).toBe("m-loco");
       expect(mockGql).toHaveBeenCalledWith(
         expect.objectContaining({
-          character_id: "char-1",
+          character_id: UthanaCharacters.tar,
           strides: 2,
           move_speed: 1.3,
           style_id: "neutral_male_a",
@@ -158,15 +158,15 @@ describe("module methods with mocked _graphql", () => {
       mockGql.mockResolvedValue({
         data: { create_locomotion: { motion: { id: "m1" } } },
       });
-      await client.motions.createLocomotion("c-only");
-      expect(mockGql).toHaveBeenCalledWith({ character_id: "c-only" });
+      await client.motions.createLocomotion(UthanaCharacters.tar);
+      expect(mockGql).toHaveBeenCalledWith({ character_id: UthanaCharacters.tar });
     });
 
     it("createLocomotion throws when motion id missing", async () => {
       mockGql.mockResolvedValue({
         data: { create_locomotion: { motion: {} } },
       });
-      await expect(client.motions.createLocomotion("c1")).rejects.toThrow(
+      await expect(client.motions.createLocomotion(UthanaCharacters.tar)).rejects.toThrow(
         "Uthana API error 400: create_locomotion did not return motion id",
       );
     });
