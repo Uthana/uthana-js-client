@@ -20,6 +20,8 @@ export {
   useUthanaMotions,
   useUthanaRateMotion,
   useUthanaBakeWithChanges,
+  useUthanaCreateLocomotion,
+  useUthanaLocomotionStyles,
   useUthanaOrg,
   useUthanaUser,
   useUthanaTtm,

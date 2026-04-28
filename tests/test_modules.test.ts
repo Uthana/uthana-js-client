@@ -2,7 +2,7 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { UthanaClient } from "@uthana/client";
+import { UthanaClient, UthanaCharacters } from "@uthana/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGql = vi.fn();
@@ -127,6 +127,56 @@ describe("module methods with mocked _graphql", () => {
       const result = await client.motions.bakeWithChanges("<gltf/>", "test motion");
       expect(result.motion_id).toBe("m99");
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motionName: "test motion" }));
+    });
+
+    it("createLocomotion returns character_id and motion_id and passes variables", async () => {
+      mockGql.mockResolvedValue({
+        data: {
+          create_locomotion: { motion: { id: "m-loco", name: "Walk" } },
+        },
+      });
+      const result = await client.motions.createLocomotion(UthanaCharacters.tar, {
+        strides: 2,
+        move_speed: 1.3,
+        style_id: "neutral_male_a",
+        travel_angle: 0,
+      });
+      expect(result.character_id).toBe(UthanaCharacters.tar);
+      expect(result.motion_id).toBe("m-loco");
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({
+          character_id: UthanaCharacters.tar,
+          strides: 2,
+          move_speed: 1.3,
+          style_id: "neutral_male_a",
+          travel_angle: 0,
+        }),
+      );
+    });
+
+    it("createLocomotion omits optional fields when absent", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_locomotion: { motion: { id: "m1" } } },
+      });
+      await client.motions.createLocomotion(UthanaCharacters.tar);
+      expect(mockGql).toHaveBeenCalledWith({ character_id: UthanaCharacters.tar });
+    });
+
+    it("createLocomotion throws when motion id missing", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_locomotion: { motion: {} } },
+      });
+      await expect(client.motions.createLocomotion(UthanaCharacters.tar)).rejects.toThrow(
+        "Uthana API error 400: create_locomotion did not return motion id",
+      );
+    });
+
+    it("listLocomotionStyles returns string array", async () => {
+      mockGql.mockResolvedValue({
+        data: { locomotion_styles: ["neutral_male_a", "neutral_female_a"] },
+      });
+      const styles = await client.motions.listLocomotionStyles();
+      expect(styles).toEqual(["neutral_male_a", "neutral_female_a"]);
     });
   });
 

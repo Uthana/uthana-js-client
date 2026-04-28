@@ -12,6 +12,8 @@ export { useUthanaJob, useUthanaJobs } from "./jobs";
 export { useUthanaIsMotionDownloadAllowed, useUthanaMotionDownloads } from "./motionDownloads";
 export {
   useUthanaBakeWithChanges,
+  useUthanaCreateLocomotion,
+  useUthanaLocomotionStyles,
   useUthanaMotion,
   useUthanaMotionPreview,
   useUthanaMotions,

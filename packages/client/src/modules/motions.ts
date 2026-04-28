@@ -5,15 +5,17 @@
 import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
+  CREATE_LOCOMOTION,
   CREATE_MOTION_FAVORITE,
   CREATE_MOTION_FROM_GLTF,
   DELETE_MOTION_FAVORITE,
   GET_MOTION_BY_ID,
+  LIST_LOCOMOTION_STYLES,
   LIST_MOTIONS,
   RATE_MOTION,
   UPDATE_MOTION,
 } from "../graphql";
-import type { Motion, OutputFormat, TextToMotionResult } from "../types";
+import type { CreateLocomotionOptions, Motion, OutputFormat, TextToMotionResult } from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
@@ -144,5 +146,45 @@ export class MotionsModule extends BaseModule {
       throw new UthanaError(400, "create_motion_from_gltf did not return motion id");
     }
     return { character_id: charId, motion_id: motionId };
+  }
+
+  /**
+   * Generate controllable locomotion for a character (stride count, speed, style, direction).
+   * See https://uthana.com/docs/api/capabilities/locomotion
+   */
+  async createLocomotion(
+    character_id: string,
+    options?: CreateLocomotionOptions | null,
+  ): Promise<TextToMotionResult> {
+    const variables: Record<string, unknown> = { character_id };
+    if (options?.strides != null) variables.strides = options.strides;
+    if (options?.move_speed != null) variables.move_speed = options.move_speed;
+    if (options?.style_id != null) variables.style_id = options.style_id;
+    if (options?.travel_angle != null) variables.travel_angle = options.travel_angle;
+
+    const result = (await this._client._graphql<Record<string, unknown>>(
+      CREATE_LOCOMOTION,
+      variables,
+      { path: "create_locomotion" },
+    )) as Record<string, unknown>;
+
+    const motion = result?.motion as Record<string, unknown> | undefined;
+    const motionId = motion?.id as string | undefined;
+    if (!motionId) {
+      throw new UthanaError(400, "create_locomotion did not return motion id");
+    }
+    return { character_id, motion_id: motionId };
+  }
+
+  /** All style_id values accepted by createLocomotion. */
+  async listLocomotionStyles(): Promise<string[]> {
+    return this._client._graphql<string[]>(
+      LIST_LOCOMOTION_STYLES,
+      {},
+      {
+        path: "locomotion_styles",
+        pathDefault: [],
+      },
+    );
   }
 }
