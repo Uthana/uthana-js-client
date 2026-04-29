@@ -1,7 +1,6 @@
 {
   "name": "uthana-monorepo",
   "type": "module",
-  "private": true,
   "workspaces": [
     "packages/*"
   ],

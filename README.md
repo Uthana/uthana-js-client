@@ -720,14 +720,25 @@ Packages **`@uthana/client`** and **`@uthana/react`** are published from this mo
    npm run publish -- --dry-run
    ```
 
-   That builds the workspace packages and simulates both `npm publish` steps. Extra `npm publish` flags after `--` are forwarded (for example `--tag beta`).
+   That builds the workspace packages and simulates both `npm publish` steps. Extra `npm publish` flags after `--` are forwarded (for example `--tag beta`). Dry-run does **not** require a git tag.
 
-3. **Publish for real** when logged into npm with access to the `@uthana` scope:
+3. **Tag the release commit** (required before a real publish): create **`vX.Y.Z`** matching **`packages/client`** `version`, on the commit you are publishing from:
+
+   ```bash
+   git tag -a v0.3.0 -m "Release 0.3.0"
+   git push origin v0.3.0
+   ```
+
+   **`npm run publish`** (without `--dry-run`) exits unless **`HEAD`** is exactly tagged as **`v{version}`** and that tag exists on **`origin`** (GitHub), so the release is not published from a commit that was never pushed. Override only if needed: `SKIP_RELEASE_TAG_CHECK=1 npm run publish`.
+
+4. **Publish for real** when logged into npm with access to the **`@uthana`** scope:
 
    ```bash
    npm run publish
    ```
 
    The script publishes **`@uthana/client` first**, then **`@uthana/react`**, with public access. It aborts if `@uthana/react` still lists `@uthana/client` as a `file:` dependency.
+
+If **`npm publish`** fails with **`404`** / **`PUT ... /@uthana/... Not found`**, that is an **npm registry permission** issue (not a missing git tag): confirm **`npm whoami`**, that your account is a member of the **`@uthana`** org on [npmjs.com](https://www.npmjs.com/), and that scoped packages are allowed for first-time publishes (`--access public` is already used).
 
 Use **`npm run sync-versions`** alone if you only need to align the React package’s client dependency without a full install.
