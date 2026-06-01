@@ -282,6 +282,8 @@ function UploadVideo() {
 const result = await client.characters.createFromFile(file, {
   auto_rig: true,
   front_facing: true,
+  rerig_target: null,
+  include_fingers: true,
 });
 
 // List characters

@@ -42,13 +42,17 @@ mutation CreateCharacter(
   $name: String!,
   $file: Upload!,
   $auto_rig: Boolean,
-  $auto_rig_front_facing: Boolean
+  $auto_rig_front_facing: Boolean,
+  $rerig_target: String,
+  $include_fingers: Boolean
 ) {
   create_character(
     name: $name,
     file: $file,
     auto_rig: $auto_rig,
     auto_rig_front_facing: $auto_rig_front_facing
+    rerig_target: $rerig_target
+    include_fingers: $include_fingers
   ) {
     character {
       id

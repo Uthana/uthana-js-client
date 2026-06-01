@@ -106,6 +106,8 @@ type Mutation {
     file: Upload!
     auto_rig: Boolean
     auto_rig_front_facing: Boolean
+    rerig_target: String
+    include_fingers: Boolean
   ): CreateCharacterPayload
   create_video_to_motion(
     file: Upload!

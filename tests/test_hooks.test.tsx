@@ -256,6 +256,8 @@ describe("React hooks", () => {
     expect(mockClient.characters.createFromFile).toHaveBeenCalledWith("path/to/char.glb", {
       auto_rig: undefined,
       front_facing: undefined,
+      rerig_target: undefined,
+      include_fingers: undefined,
     });
   });
 

@@ -55,6 +55,8 @@ type CreateFileParams = {
   file: File | Blob | string;
   auto_rig?: boolean | null;
   front_facing?: boolean | null;
+  rerig_target?: string | null;
+  include_fingers?: boolean | null;
 };
 
 type ConfirmParams = {
@@ -214,6 +216,8 @@ export function useUthanaCreateCharacter() {
         const result = await client.characters.createFromFile(params.file, {
           auto_rig: params.auto_rig,
           front_facing: params.front_facing,
+          rerig_target: params.rerig_target,
+          include_fingers: params.include_fingers,
         });
         setCharacter(result);
         setStatus("success");
