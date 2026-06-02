@@ -55,9 +55,9 @@ describe("prepareCreateCharacter", () => {
   });
 
   it("uses extension when present, falls back to glb when no extension", () => {
-    const withExt = prepareCreateCharacter("character.xyz", null, null);
+    const withExt = prepareCreateCharacter("character.xyz", null, null, null, null);
     expect(withExt.ext).toBe("xyz");
-    const noExt = prepareCreateCharacter("character", null, null);
+    const noExt = prepareCreateCharacter("character", null, null, null, null);
     expect(noExt.ext).toBe("glb");
   });
 });
