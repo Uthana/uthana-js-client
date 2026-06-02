@@ -48,6 +48,8 @@ export function prepareCreateCharacter(
   filePathOrName: string,
   autoRig: boolean | null,
   frontFacing: boolean | null,
+  rerigTarget: string | null,
+  includeFingers: boolean | null,
   detectedFormat?: "glb" | "fbx" | null,
 ): PrepareCreateCharacterResult {
   const filename = basename(filePathOrName);
@@ -59,6 +61,8 @@ export function prepareCreateCharacter(
     file: null,
     auto_rig: autoRig,
     auto_rig_front_facing: frontFacing,
+    rerig_target: rerigTarget,
+    include_fingers: includeFingers,
   };
   return { variables, name, ext, filename };
 }

@@ -4,7 +4,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Uthana JS/TS client monorepo",
   "scripts": {
     "build": "npm run build --workspaces --if-present",

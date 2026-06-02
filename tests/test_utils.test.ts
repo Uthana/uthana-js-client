@@ -35,7 +35,7 @@ describe("extname", () => {
 
 describe("prepareCreateCharacter", () => {
   it("builds variables with path and options", () => {
-    const result = prepareCreateCharacter("/path/to/character.glb", true, false);
+    const result = prepareCreateCharacter("/path/to/character.glb", true, false, null, true);
     expect(result.name).toBe("character");
     expect(result.ext).toBe("glb");
     expect(result.filename).toBe("character.glb");
@@ -44,18 +44,20 @@ describe("prepareCreateCharacter", () => {
       file: null,
       auto_rig: true,
       auto_rig_front_facing: false,
+      rerig_target: null,
+      include_fingers: true,
     });
   });
 
   it("uses detected format when provided", () => {
-    const result = prepareCreateCharacter("character.xyz", null, null, "fbx");
+    const result = prepareCreateCharacter("character.xyz", null, null, null, true, "fbx");
     expect(result.ext).toBe("fbx");
   });
 
   it("uses extension when present, falls back to glb when no extension", () => {
-    const withExt = prepareCreateCharacter("character.xyz", null, null);
+    const withExt = prepareCreateCharacter("character.xyz", null, null, null, null);
     expect(withExt.ext).toBe("xyz");
-    const noExt = prepareCreateCharacter("character", null, null);
+    const noExt = prepareCreateCharacter("character", null, null, null, null);
     expect(noExt.ext).toBe("glb");
   });
 });

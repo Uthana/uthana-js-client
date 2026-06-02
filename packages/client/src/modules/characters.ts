@@ -44,12 +44,23 @@ export class CharactersModule extends BaseModule {
    */
   async createFromFile(
     file: File | Blob | string,
-    options?: { auto_rig?: boolean | null; front_facing?: boolean | null },
+    options?: {
+      auto_rig?: boolean | null;
+      front_facing?: boolean | null;
+      rerig_target?: string | null;
+      include_fingers?: boolean | null;
+    },
   ): Promise<CreateCharacterResult> {
     if (file === "" || (typeof file === "string" && !file.trim())) {
       throw new UthanaError(400, "file is required (.glb or .fbx)");
     }
-    return this._createFromFile(file, options?.auto_rig, options?.front_facing);
+    return this._createFromFile(
+      file,
+      options?.auto_rig,
+      options?.front_facing,
+      options?.rerig_target,
+      options?.include_fingers,
+    );
   }
 
   async createFromPrompt(
@@ -140,6 +151,8 @@ export class CharactersModule extends BaseModule {
     file: File | Blob | string,
     auto_rig?: boolean | null,
     front_facing?: boolean | null,
+    rerig_target?: string | null,
+    include_fingers?: boolean | null,
   ): Promise<CreateCharacterResult> {
     let variables: Record<string, unknown>;
     let ext: string;
@@ -162,6 +175,8 @@ export class CharactersModule extends BaseModule {
         file,
         auto_rig ?? null,
         front_facing ?? null,
+        rerig_target ?? null,
+        include_fingers ?? null,
         detectedFormat,
       );
       variables = prepared.variables;
@@ -179,6 +194,8 @@ export class CharactersModule extends BaseModule {
         filename,
         auto_rig ?? null,
         front_facing ?? null,
+        rerig_target ?? null,
+        include_fingers ?? null,
         detectedFormat,
       );
       variables = prepared.variables;
