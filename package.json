@@ -19,8 +19,10 @@
     "test:integration": "vitest run tests/test_client",
     "test:coverage": "vitest run --coverage --exclude '**/test_client*'",
     "sync-versions": "node scripts/sync-versions.mjs",
-    "prepare": "npm run sync-versions && npm run build && husky",
-    "publish": "node scripts/publish-packages.mjs"
+    "set-version": "node scripts/set-version.mjs",
+    "release:publish-dry-run": "node scripts/publish-packages.mjs --dry-run",
+    "release:publish": "node scripts/publish-packages.mjs",
+    "prepare": "npm run sync-versions && npm run build && husky"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

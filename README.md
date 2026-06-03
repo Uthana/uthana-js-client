@@ -710,37 +710,44 @@ Replace `uthana.schema` with your full schema, then:
 npm run codegen
 ```
 
-## Publishing (maintainers)
+## Releasing and npm
 
-Packages **`@uthana/client`** and **`@uthana/react`** are published from this monorepo. Before a release:
+Packages **`@uthana/client`** and **`@uthana/react`** are published automatically. The workflow is:
 
-1. **Bump versions** in `packages/client/package.json` and `packages/react/package.json` (and the root `package.json` if you keep them aligned). `@uthana/react` must depend on `@uthana/client` with a **registry semver range** (not `file:../client`). Running **`npm install`** runs **`prepare`**, which runs **`npm run sync-versions`** so `packages/react`’s `@uthana/client` dependency is set to `^` the client package version, then builds workspaces and sets up Husky. If `sync-versions` rewrites `package.json`, run **`npm install`** again so the lockfile updates.
+1. In a PR, run `npm run set-version -- 1.2.3` to bump versions across the monorepo, then commit and merge.
+2. On merge to `main`, **`.github/workflows/release.yml`** detects that the new version is not yet on npm, builds, runs unit tests, publishes both packages via OIDC, and creates the `v1.2.3` git tag.
 
-2. **Sanity-check the publish** without uploading:
+Re-merging the same version is a no-op — the workflow checks npm before doing anything.
 
-   ```bash
-   npm run publish -- --dry-run
-   ```
+### Bump version in a branch
 
-   That builds the workspace packages and simulates both `npm publish` steps. Extra `npm publish` flags after `--` are forwarded (for example `--tag beta`). Dry-run does **not** require a git tag.
+```bash
+npm run set-version -- 1.2.3
+```
 
-3. **Tag the release commit** (required before a real publish): create **`vX.Y.Z`** matching **`packages/client`** `version`, on the commit you are publishing from:
+Writes `1.2.3` to the root, `packages/client`, and `packages/react` `package.json` files, updates the `@uthana/react` → `@uthana/client` dependency range, and refreshes the lockfile. No git operations — just commit the changes and open a PR.
 
-   ```bash
-   git tag -a v0.3.0 -m "Release 0.3.0"
-   git push origin v0.3.0
-   ```
+### Manual publish (fallback if CI fails)
 
-   **`npm run publish`** (without `--dry-run`) exits unless **`HEAD`** is exactly tagged as **`v{version}`** and that tag exists on **`origin`** (GitHub), so the release is not published from a commit that was never pushed. Override only if needed: `SKIP_RELEASE_TAG_CHECK=1 npm run publish`.
+```bash
+npm run release:publish-dry-run   # build + simulate, no upload
+npm run release:publish           # build + publish for real
+```
 
-4. **Publish for real** when logged into npm with access to the **`@uthana`** scope:
+Both require `npm login` with access to the `@uthana` scope. After a successful manual publish, create the git tag manually if the CI workflow did not:
 
-   ```bash
-   npm run publish
-   ```
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push origin v1.2.3
+```
 
-   The script publishes **`@uthana/client` first**, then **`@uthana/react`**, with public access. It aborts if `@uthana/react` still lists `@uthana/client` as a `file:` dependency.
+### Auth: npm Trusted Publishing (OIDC)
 
-If **`npm publish`** fails with **`404`** / **`PUT ... /@uthana/... Not found`**, that is an **npm registry permission** issue (not a missing git tag): confirm **`npm whoami`**, that your account is a member of the **`@uthana`** org on [npmjs.com](https://www.npmjs.com/), and that scoped packages are allowed for first-time publishes (`--access public` is already used).
+The release workflow uses npm **Trusted Publishers** (OIDC) — no `NPM_TOKEN` secret required. The Trusted Publisher on [npmjs.com](https://www.npmjs.com/) must be configured for both `@uthana/client` and `@uthana/react` with:
 
-Use **`npm run sync-versions`** alone if you only need to align the React package’s client dependency without a full install.
+- **Repository:** `Uthana/uthana-js-client`
+- **Workflow:** `release.yml`
+
+If OIDC is not yet configured, add `NPM_TOKEN` as a repository secret and uncomment the `NODE_AUTH_TOKEN` line in `.github/workflows/release.yml`.
+
+If `npm publish` fails with **`404`** / **`PUT ... /@uthana/... Not found`**, confirm `npm whoami`, that your account is a member of the `@uthana` org on [npmjs.com](https://www.npmjs.com/), and that `--access public` is in effect (already set in the script).

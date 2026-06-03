@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and npm publish --dry-run (no upload to npm)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # create + push the release tag
+  # npm Trusted Publishing (OIDC) — configure @uthana/client and @uthana/react
+  # as trusted publishers on npmjs.com pointing at this workflow file.
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          # Do not cache in release builds — always install from a clean state.
+          cache: ""
+
+      # npm >= 11.5.1 is required for OIDC trusted publishing.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Detect release
+        id: detect
+        run: |
+          VERSION=$(node -p "require('./packages/client/package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if npm view "@uthana/client@${VERSION}" version >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} is already published — skipping release."
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} is not yet published — will release."
+          fi
+
+      - name: Build
+        if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run build
+
+      - name: Unit tests
+        if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run test:unit
+
+      - name: Publish packages
+        if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+        # Fallback: if OIDC trusted publishing is not yet configured on npmjs.com,
+        # add NPM_TOKEN as a repository secret and uncomment the line below.
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm run release:publish-dry-run
+          else
+            npm run release:publish
+          fi
+
+      - name: Create and push release tag
+        if: steps.detect.outputs.should_release == 'true' && github.event_name != 'workflow_dispatch'
+        run: |
+          VERSION="${{ steps.detect.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
