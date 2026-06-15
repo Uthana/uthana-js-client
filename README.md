@@ -156,7 +156,7 @@ import { UthanaClient, UthanaCharacters } from "@uthana/client";
 
 const client = new UthanaClient(process.env.UTHANA_API_KEY!);
 
-// Basic usage (default model: vqvae-v1)
+// Basic usage (default model: text-to-motion-1.0)
 const result = await client.ttm.create("a person walking forward");
 
 // Use a specific character (default is Tar)
@@ -166,7 +166,7 @@ const result = await client.ttm.create("a person dancing", {
 
 // Explicit model and advanced options
 const result = await client.ttm.create("a person waving hello", {
-  model: "diffusion-v2",
+  model: "text-to-motion-2.0",
   character_id: UthanaCharacters.manny,
   length: 5.0,
   cfg_scale: 2.5,
@@ -191,6 +191,48 @@ function GenerateButton() {
     <button onClick={() => ttm.mutate({ prompt: "a person walking" })} disabled={ttm.isPending}>
       {ttm.isPending ? "Generating…" : "Generate"}
     </button>
+  );
+}
+```
+
+## Text to motion 3.0 async job (ttm.createJob)
+
+`text-to-motion-3.0` runs as an async job and returns a `Job` to poll — the same pattern as video-to-motion. Access is org-gated server-side.
+
+```ts
+// Submit the job
+const job = await client.ttm.createJob("a person doing jumping jacks", {
+  model: "text-to-motion-3.0",
+  length: 8, // optional, 4–10 seconds
+  rewrite_prompt: true, // optional, default true
+  character_id: UthanaCharacters.tar, // optional
+});
+
+// Poll until finished
+const finished = await client.jobs.wait(job.id!);
+const motionId = finished.result?.result?.id;
+```
+
+```tsx
+// React — submit job, then poll with useUthanaJob
+import { useUthanaCreateTtmJob, useUthanaJob } from "@uthana/react";
+
+function TtmJobButton() {
+  const createJob = useUthanaCreateTtmJob();
+  const { job } = useUthanaJob(createJob.data?.id);
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          createJob.mutate({ prompt: "a person jumping", model: "text-to-motion-3.0" })
+        }
+        disabled={createJob.isPending}
+      >
+        {createJob.isPending ? "Submitting…" : "Generate (async)"}
+      </button>
+      {job && <p>Status: {job.status}</p>}
+    </div>
   );
 }
 ```
@@ -248,12 +290,21 @@ function LocomotionPanel({ characterId }: { characterId: string }) {
 Extract motion capture from video files. Returns a job to poll until complete.
 
 ```ts
+// Default model: video-to-motion-2.0 (single base motion)
 const job = await client.vtm.create(file, { motion_name: "my_dance" });
+
+// Use video-to-motion-2.1 for DCM refinement motion IDs
+const job = await client.vtm.create(file, {
+  motion_name: "my_dance",
+  model: "video-to-motion-2.1",
+});
 
 // Poll until finished
 const finished = await client.jobs.wait(job.id!);
 const motionId = finished.result?.result?.id;
 ```
+
+**Available models:** `video-to-motion-2.0` (default), `video-to-motion-2.1`.
 
 ```tsx
 // React
@@ -657,7 +708,8 @@ try {
 | `useUthanaIsMotionDownloadAllowed(cid, mid)` | Check if download allowed                 |
 | `useUthanaUser`                              | Get current user                          |
 | `useUthanaOrg`                               | Get org                                   |
-| `useUthanaTtm`                               | Text-to-motion mutation                   |
+| `useUthanaTtm`                               | Text-to-motion sync mutation              |
+| `useUthanaCreateTtmJob`                      | Text-to-motion 3.0 async job mutation     |
 | `useUthanaVtm`                               | Video-to-motion mutation                  |
 | `useUthanaLocomotionStyles`                  | List locomotion `style_id` values         |
 | `useUthanaCreateLocomotion`                  | Create locomotion mutation                |
