@@ -3,7 +3,9 @@
  */
 
 import type { UthanaClient } from "../client";
-import type { TextToMotionResult, TtmModelType } from "../types";
+import { CREATE_TEXT_TO_MOTION_JOB } from "../graphql";
+import { normalizeModelName } from "../models";
+import type { Job, TextToMotionResult, TtmJobModelType, TtmModelType } from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
@@ -29,8 +31,10 @@ export class TtmModule extends BaseModule {
     },
   ): Promise<TextToMotionResult> {
     const opts = options ?? {};
+    const rawModel = opts.model ?? "auto";
+    const model = rawModel === "auto" ? rawModel : normalizeModelName(rawModel);
     const { mutation, variables } = this._client._prepareTextToMotion({
-      model: opts.model ?? "auto",
+      model,
       prompt,
       character_id: opts.character_id ?? null,
       foot_ik: opts.foot_ik ?? null,
@@ -51,5 +55,31 @@ export class TtmModule extends BaseModule {
     const characterId = options?.character_id ?? UthanaCharacters.tar;
 
     return { character_id: characterId, motion_id: motionId };
+  }
+
+  /**
+   * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
+   * Access is org-gated server-side; the server returns an error if the caller's org is not whitelisted.
+   */
+  async createJob(
+    prompt: string,
+    options: {
+      model: TtmJobModelType;
+      character_id?: string | null;
+      length?: number | null;
+      rewrite_prompt?: boolean | null;
+    },
+  ): Promise<Job> {
+    const variables: Record<string, unknown> = {
+      prompt,
+      model: normalizeModelName(options.model),
+      character_id: options.character_id ?? null,
+      length: options.length ?? null,
+      rewrite_prompt: options.rewrite_prompt ?? null,
+    };
+
+    return this._client._graphql<Job>(CREATE_TEXT_TO_MOTION_JOB, variables, {
+      path: "create_text_to_motion_job.job",
+    });
   }
 }

@@ -6,7 +6,7 @@ import { Graffle } from "graffle";
 import { Throws } from "graffle/extensions/throws";
 import { UthanaError } from "./errors";
 import { CREATE_T2M } from "./graphql";
-import { TTM_MODEL_MAP, models } from "./models";
+import { models, normalizeModelName } from "./models";
 import { CharactersModule } from "./modules/characters";
 import { JobsModule } from "./modules/jobs";
 import { MotionDownloadsModule } from "./modules/motionDownloads";
@@ -200,12 +200,7 @@ export class UthanaClient {
     let model = options.model;
     if (model === "auto") model = models.ttm.default;
 
-    const serverModel = TTM_MODEL_MAP[model as keyof typeof TTM_MODEL_MAP];
-    if (!serverModel) {
-      throw new Error(
-        `Unknown model: '${model}'. Must be one of: ${Object.keys(TTM_MODEL_MAP).join(", ")}.`,
-      );
-    }
+    const serverModel = normalizeModelName(model as string);
 
     return {
       mutation: CREATE_T2M,

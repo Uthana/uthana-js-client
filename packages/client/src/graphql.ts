@@ -69,6 +69,31 @@ mutation CreateVideoToMotion($file: Upload!, $motion_name: String!, $model: Stri
     job {
       id
       status
+      model
+    }
+  }
+}
+`;
+
+export const CREATE_TEXT_TO_MOTION_JOB = `
+mutation CreateTextToMotionJob(
+  $prompt: String!,
+  $model: String!,
+  $character_id: String,
+  $length: Float,
+  $rewrite_prompt: Boolean
+) {
+  create_text_to_motion_job(
+    prompt: $prompt,
+    model: $model,
+    character_id: $character_id,
+    length: $length,
+    rewrite_prompt: $rewrite_prompt
+  ) {
+    job {
+      id
+      status
+      est_processing_time
     }
   }
 }

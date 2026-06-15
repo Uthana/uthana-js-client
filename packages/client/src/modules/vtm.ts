@@ -4,7 +4,7 @@
 
 import type { UthanaClient } from "../client";
 import { CREATE_VIDEO_TO_MOTION } from "../graphql";
-import { models } from "../models";
+import { models, normalizeModelName } from "../models";
 import type { VideoToMotionResult, VtmModelType } from "../types";
 import { prepareVideoToMotion } from "../utils";
 import { BaseModule } from "./base";
@@ -44,7 +44,7 @@ export class VtmModule extends BaseModule {
       uploadFilename = prepared.filename;
     }
 
-    variables.model = options?.model ?? models.vtm.default;
+    variables.model = normalizeModelName(options?.model ?? models.vtm.default);
 
     const raw = await this._client._graphqlUpload<
       VideoToMotionResult & { created_at?: string | null }
