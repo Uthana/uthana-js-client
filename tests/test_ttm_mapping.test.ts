@@ -33,21 +33,24 @@ describe("normalizeModelName / LEGACY_MODEL_SHIM", () => {
     expect(normalizeModelName("video-to-motion-v2")).toBe("video-to-motion-2.0");
   });
 
-  it("maps vqvae-v1 and its server alias to text-to-motion-1.0", () => {
-    expect(normalizeModelName("vqvae-v1")).toBe("text-to-motion-1.0");
-    expect(normalizeModelName("text-to-motion")).toBe("text-to-motion-1.0");
+  it("maps vqvae-v1 and its server alias to text-to-motion (current API string)", () => {
+    expect(normalizeModelName("vqvae-v1")).toBe("text-to-motion");
+    expect(normalizeModelName("text-to-motion")).toBe("text-to-motion");
   });
 
-  it("maps diffusion-v2 and its server alias to text-to-motion-2.0", () => {
-    expect(normalizeModelName("diffusion-v2")).toBe("text-to-motion-2.0");
-    expect(normalizeModelName("text-to-motion-bucmd")).toBe("text-to-motion-2.0");
+  it("maps diffusion-v2 and its server alias to text-to-motion-bucmd (current API string)", () => {
+    expect(normalizeModelName("diffusion-v2")).toBe("text-to-motion-bucmd");
+    expect(normalizeModelName("text-to-motion-bucmd")).toBe("text-to-motion-bucmd");
+  });
+
+  it("maps canonical X.Y TTM names down to current API strings", () => {
+    expect(normalizeModelName("text-to-motion-1.0")).toBe("text-to-motion");
+    expect(normalizeModelName("text-to-motion-2.0")).toBe("text-to-motion-bucmd");
   });
 
   it("passes through canonical X.Y names unchanged", () => {
     expect(normalizeModelName("video-to-motion-2.0")).toBe("video-to-motion-2.0");
     expect(normalizeModelName("video-to-motion-2.1")).toBe("video-to-motion-2.1");
-    expect(normalizeModelName("text-to-motion-1.0")).toBe("text-to-motion-1.0");
-    expect(normalizeModelName("text-to-motion-2.0")).toBe("text-to-motion-2.0");
     expect(normalizeModelName("text-to-motion-3.0")).toBe("text-to-motion-3.0");
   });
 
@@ -85,7 +88,7 @@ describe("_prepareTextToMotion", () => {
     client = new UthanaClient("test-key");
   });
 
-  it("uses text-to-motion-1.0 for vqvae-v1", () => {
+  it("uses text-to-motion for vqvae-v1", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -95,12 +98,24 @@ describe("_prepareTextToMotion", () => {
     expect(result).toMatchObject({
       variables: {
         prompt: "walk",
-        model: "text-to-motion-1.0",
+        model: "text-to-motion",
       },
     });
   });
 
-  it("uses text-to-motion-2.0 for diffusion-v2", () => {
+  it("uses text-to-motion for canonical text-to-motion-1.0", () => {
+    const result = (
+      client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
+    )._prepareTextToMotion({
+      model: "text-to-motion-1.0",
+      prompt: "walk",
+    });
+    expect(result).toMatchObject({
+      variables: { model: "text-to-motion" },
+    });
+  });
+
+  it("uses text-to-motion-bucmd for diffusion-v2", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -112,14 +127,26 @@ describe("_prepareTextToMotion", () => {
     expect(result).toMatchObject({
       variables: {
         prompt: "dance",
-        model: "text-to-motion-2.0",
+        model: "text-to-motion-bucmd",
         cfg_scale: 2.5,
         retargeting_ik: true,
       },
     });
   });
 
-  it("uses auto default (text-to-motion-1.0) when model is auto", () => {
+  it("uses text-to-motion-bucmd for canonical text-to-motion-2.0", () => {
+    const result = (
+      client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
+    )._prepareTextToMotion({
+      model: "text-to-motion-2.0",
+      prompt: "dance",
+    });
+    expect(result).toMatchObject({
+      variables: { model: "text-to-motion-bucmd" },
+    });
+  });
+
+  it("uses auto default (text-to-motion) when model is auto", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -127,19 +154,7 @@ describe("_prepareTextToMotion", () => {
       prompt: "wave",
     });
     expect(result).toMatchObject({
-      variables: { model: "text-to-motion-1.0" },
-    });
-  });
-
-  it("passes canonical X.Y model through unchanged", () => {
-    const result = (
-      client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
-    )._prepareTextToMotion({
-      model: "text-to-motion-1.0",
-      prompt: "jump",
-    });
-    expect(result).toMatchObject({
-      variables: { model: "text-to-motion-1.0" },
+      variables: { model: "text-to-motion" },
     });
   });
 
@@ -161,6 +176,7 @@ describe("_prepareTextToMotion", () => {
     expect(result).toMatchObject({
       variables: {
         prompt: "run",
+        model: "text-to-motion-bucmd",
         character_id: "cid",
         foot_ik: true,
         enhance_prompt: true,
