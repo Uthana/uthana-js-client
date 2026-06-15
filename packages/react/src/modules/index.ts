@@ -20,5 +20,5 @@ export {
   useUthanaRateMotion,
 } from "./motions";
 export { useUthanaOrg, useUthanaUser } from "./org";
-export { useUthanaTtm } from "./ttm";
+export { useUthanaTtm, useUthanaCreateTtmJob } from "./ttm";
 export { useUthanaVtm } from "./vtm";

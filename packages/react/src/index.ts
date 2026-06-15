@@ -25,5 +25,6 @@ export {
   useUthanaOrg,
   useUthanaUser,
   useUthanaTtm,
+  useUthanaCreateTtmJob,
   useUthanaVtm,
 } from "./modules/index";

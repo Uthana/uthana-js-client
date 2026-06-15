@@ -178,7 +178,7 @@ const result = await client.ttm.create("a person waving hello", {
 });
 ```
 
-**Available models:** `vqvae-v1`, `diffusion-v2`, `flow-matching-v1`.
+**Available models:** `text-to-motion-1.0`, `text-to-motion-2.0`.
 
 ```tsx
 // React

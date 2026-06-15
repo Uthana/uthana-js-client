@@ -2,7 +2,12 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { TTM_MODEL_MAP, TTM_MODELS, models } from "../packages/client/src/models.ts";
+import {
+  LEGACY_MODEL_SHIM,
+  TTM_MODELS,
+  models,
+  normalizeModelName,
+} from "../packages/client/src/models.ts";
 import { UthanaClient } from "@uthana/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,28 +28,53 @@ vi.mock("graffle", () => ({
 vi.mock("graffle/extensions/upload", () => ({ Upload: {} }));
 vi.mock("graffle/extensions/throws", () => ({ Throws: {} }));
 
-describe("TTM_MODEL_MAP", () => {
-  it("maps friendly names to server strings", () => {
-    expect(TTM_MODEL_MAP["vqvae-v1"]).toBe("text-to-motion");
-    expect(TTM_MODEL_MAP["diffusion-v2"]).toBe("text-to-motion-bucmd");
-    expect(TTM_MODEL_MAP["flow-matching-v1"]).toBe("flow-matching-v1");
+describe("normalizeModelName / LEGACY_MODEL_SHIM", () => {
+  it("maps VTM legacy alias to canonical X.Y", () => {
+    expect(normalizeModelName("video-to-motion-v2")).toBe("video-to-motion-2.0");
   });
 
-  it("accepts server aliases as identity", () => {
-    expect(TTM_MODEL_MAP["text-to-motion"]).toBe("text-to-motion");
-    expect(TTM_MODEL_MAP["text-to-motion-bucmd"]).toBe("text-to-motion-bucmd");
+  it("maps vqvae-v1 and its server alias to text-to-motion-1.0", () => {
+    expect(normalizeModelName("vqvae-v1")).toBe("text-to-motion-1.0");
+    expect(normalizeModelName("text-to-motion")).toBe("text-to-motion-1.0");
+  });
+
+  it("maps diffusion-v2 and its server alias to text-to-motion-2.0", () => {
+    expect(normalizeModelName("diffusion-v2")).toBe("text-to-motion-2.0");
+    expect(normalizeModelName("text-to-motion-bucmd")).toBe("text-to-motion-2.0");
+  });
+
+  it("passes through canonical X.Y names unchanged", () => {
+    expect(normalizeModelName("video-to-motion-2.0")).toBe("video-to-motion-2.0");
+    expect(normalizeModelName("video-to-motion-2.1")).toBe("video-to-motion-2.1");
+    expect(normalizeModelName("text-to-motion-1.0")).toBe("text-to-motion-1.0");
+    expect(normalizeModelName("text-to-motion-2.0")).toBe("text-to-motion-2.0");
+    expect(normalizeModelName("text-to-motion-3.0")).toBe("text-to-motion-3.0");
+  });
+
+  it("passes through unknown strings unchanged", () => {
+    expect(normalizeModelName("some-future-model-4.0")).toBe("some-future-model-4.0");
+  });
+
+  it("LEGACY_MODEL_SHIM does not contain removed models", () => {
+    expect(LEGACY_MODEL_SHIM["flow-matching-v1"]).toBeUndefined();
+    expect(LEGACY_MODEL_SHIM["nearest-neighbor-v1"]).toBeUndefined();
   });
 });
 
 describe("TTM models", () => {
-  it("TTM_MODELS includes all public models", () => {
-    expect(TTM_MODELS).toContain("vqvae-v1");
-    expect(TTM_MODELS).toContain("diffusion-v2");
-    expect(TTM_MODELS).toContain("flow-matching-v1");
+  it("TTM_MODELS contains canonical X.Y names", () => {
+    expect(TTM_MODELS).toContain("text-to-motion-1.0");
+    expect(TTM_MODELS).toContain("text-to-motion-2.0");
   });
 
-  it("models.ttm.default is vqvae-v1", () => {
-    expect(models.ttm.default).toBe("vqvae-v1");
+  it("TTM_MODELS does not contain removed models", () => {
+    expect(TTM_MODELS).not.toContain("flow-matching-v1");
+    expect(TTM_MODELS).not.toContain("vqvae-v1");
+    expect(TTM_MODELS).not.toContain("diffusion-v2");
+  });
+
+  it("models.ttm.default is text-to-motion-1.0", () => {
+    expect(models.ttm.default).toBe("text-to-motion-1.0");
   });
 });
 
@@ -55,7 +85,7 @@ describe("_prepareTextToMotion", () => {
     client = new UthanaClient("test-key");
   });
 
-  it("uses text-to-motion for vqvae-v1", () => {
+  it("uses text-to-motion-1.0 for vqvae-v1", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -65,12 +95,12 @@ describe("_prepareTextToMotion", () => {
     expect(result).toMatchObject({
       variables: {
         prompt: "walk",
-        model: "text-to-motion",
+        model: "text-to-motion-1.0",
       },
     });
   });
 
-  it("uses text-to-motion-bucmd for diffusion-v2", () => {
+  it("uses text-to-motion-2.0 for diffusion-v2", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -82,14 +112,14 @@ describe("_prepareTextToMotion", () => {
     expect(result).toMatchObject({
       variables: {
         prompt: "dance",
-        model: "text-to-motion-bucmd",
+        model: "text-to-motion-2.0",
         cfg_scale: 2.5,
         retargeting_ik: true,
       },
     });
   });
 
-  it("uses auto default when model is auto", () => {
+  it("uses auto default (text-to-motion-1.0) when model is auto", () => {
     const result = (
       client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
     )._prepareTextToMotion({
@@ -97,7 +127,19 @@ describe("_prepareTextToMotion", () => {
       prompt: "wave",
     });
     expect(result).toMatchObject({
-      variables: { model: "text-to-motion" },
+      variables: { model: "text-to-motion-1.0" },
+    });
+  });
+
+  it("passes canonical X.Y model through unchanged", () => {
+    const result = (
+      client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
+    )._prepareTextToMotion({
+      model: "text-to-motion-1.0",
+      prompt: "jump",
+    });
+    expect(result).toMatchObject({
+      variables: { model: "text-to-motion-1.0" },
     });
   });
 
@@ -131,11 +173,10 @@ describe("_prepareTextToMotion", () => {
     });
   });
 
-  it("throws for unknown model", () => {
-    expect(() =>
-      (client as unknown as { _prepareTextToMotion: (o: unknown) => unknown })._prepareTextToMotion(
-        { model: "unknown-model", prompt: "x" },
-      ),
-    ).toThrow("Unknown model");
+  it("passes unknown model strings through to the API unchanged", () => {
+    const result = (
+      client as unknown as { _prepareTextToMotion: (o: unknown) => unknown }
+    )._prepareTextToMotion({ model: "some-future-model-4.0", prompt: "x" });
+    expect(result).toMatchObject({ variables: { model: "some-future-model-4.0" } });
   });
 });

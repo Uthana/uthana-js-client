@@ -29,6 +29,7 @@ export type {
   Org,
   OutputFormat,
   TextToMotionResult,
+  TtmJobModelType,
   TtmModelType,
   User,
   VideoToMotionResult,

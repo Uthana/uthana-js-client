@@ -53,6 +53,7 @@ export interface Job {
   id?: string;
   status: string;
   method?: string | null;
+  model?: string | null;
   created?: string | null;
   started?: string | null;
   ended?: string | null;
@@ -104,19 +105,23 @@ export interface CreateFromGeneratedImageResult {
 /** Alias for vtm.create return type */
 export type VideoToMotionResult = Job;
 
-/** TTM model types. Friendly names (vqvae-v1, diffusion-v2) or server aliases (text-to-motion, text-to-motion-bucmd). */
+/** TTM model types. Canonical X.Y names or legacy aliases accepted for backward compatibility. */
 export type TtmModelType =
+  | "text-to-motion-1.0"
+  | "text-to-motion-2.0"
   | "vqvae-v1"
   | "diffusion-v2"
-  | "flow-matching-v1"
   | "text-to-motion"
   | "text-to-motion-bucmd";
 
 /** VTM model types */
-export type VtmModelType = "video-to-motion-v1" | "video-to-motion-v2";
+export type VtmModelType = "video-to-motion-2.0" | "video-to-motion-2.1" | "video-to-motion-v2";
+
+/** TTM job model types (async job API) */
+export type TtmJobModelType = "text-to-motion-3.0";
 
 /** Combined model type */
-export type ModelType = "auto" | TtmModelType | VtmModelType;
+export type ModelType = "auto" | TtmModelType | TtmJobModelType | VtmModelType;
 
 /** Output format for motion/character files */
 export type OutputFormat = "glb" | "fbx";
