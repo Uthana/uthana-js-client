@@ -59,7 +59,7 @@ export class TtmModule extends BaseModule {
 
   /**
    * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
-   * Access is org-gated server-side; the server returns an error if the caller's org is not whitelisted.
+   * Available to any account on the pay-as-you-go plan. See https://uthana.com/docs/api/pricing.
    */
   async createJob(
     prompt: string,
