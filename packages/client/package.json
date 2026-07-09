@@ -19,6 +19,7 @@
   "scripts": {
     "build": "rollup -c rollup.config.mjs",
     "dev": "rollup -c rollup.config.mjs --watch",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run --root ../.. tests/test_modules tests/test_jobs_wait tests/test_ttm_mapping tests/test_unit tests/test_utils",
     "test:integration": "vitest run --root ../.. tests/test_client"
   },

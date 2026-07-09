@@ -10,6 +10,7 @@
     "build": "npm run build --workspaces --if-present",
     "codegen": "npx graffle",
     "dev": "npm run dev --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

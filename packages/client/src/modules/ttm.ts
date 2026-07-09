@@ -5,7 +5,7 @@
 import type { UthanaClient } from "../client";
 import { CREATE_TEXT_TO_MOTION_JOB } from "../graphql";
 import { normalizeModelName } from "../models";
-import type { Job, TextToMotionResult, TtmJobModelType, TtmModelType } from "../types";
+import type { Job, ModelType, TextToMotionResult, TtmJobModelType, TtmModelType } from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
@@ -32,7 +32,8 @@ export class TtmModule extends BaseModule {
   ): Promise<TextToMotionResult> {
     const opts = options ?? {};
     const rawModel = opts.model ?? "auto";
-    const model = rawModel === "auto" ? rawModel : normalizeModelName(rawModel);
+    const model: ModelType =
+      rawModel === "auto" ? rawModel : (normalizeModelName(rawModel) as ModelType);
     const { mutation, variables } = this._client._prepareTextToMotion({
       model,
       prompt,
