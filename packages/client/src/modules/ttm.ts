@@ -32,7 +32,9 @@ export class TtmModule extends BaseModule {
   ): Promise<TextToMotionResult> {
     const opts = options ?? {};
     const rawModel = opts.model ?? "auto";
-    const model = rawModel === "auto" ? rawModel : normalizeModelName(rawModel);
+    const model = (rawModel === "auto" ? rawModel : normalizeModelName(rawModel)) as
+      | "auto"
+      | TtmModelType;
     const { mutation, variables } = this._client._prepareTextToMotion({
       model,
       prompt,
@@ -59,6 +61,8 @@ export class TtmModule extends BaseModule {
 
   /**
    * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
+   * `fast: true` uses the faster TTM 3.0 variant.
+   * `fast: false` / omit uses standard TTM 3.0.
    * Available to any account on the pay-as-you-go plan. See https://uthana.com/docs/api/pricing.
    */
   async createJob(
@@ -68,6 +72,8 @@ export class TtmModule extends BaseModule {
       character_id?: string | null;
       length?: number | null;
       rewrite_prompt?: boolean | null;
+      /** Uses the faster TTM 3.0 variant. Default false (standard TTM 3.0). */
+      fast?: boolean | null;
     },
   ): Promise<Job> {
     const variables: Record<string, unknown> = {
@@ -76,6 +82,7 @@ export class TtmModule extends BaseModule {
       character_id: options.character_id ?? null,
       length: options.length ?? null,
       rewrite_prompt: options.rewrite_prompt ?? null,
+      fast: options.fast ?? false,
     };
 
     return this._client._graphql<Job>(CREATE_TEXT_TO_MOTION_JOB, variables, {

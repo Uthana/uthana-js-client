@@ -59,6 +59,7 @@ mutation CreateCharacter(
       name
     }
     auto_rig_confidence
+    message
   }
 }
 `;
@@ -81,14 +82,16 @@ mutation CreateTextToMotionJob(
   $model: String!,
   $character_id: String,
   $length: Float,
-  $rewrite_prompt: Boolean
+  $rewrite_prompt: Boolean,
+  $fast: Boolean
 ) {
   create_text_to_motion_job(
     prompt: $prompt,
     model: $model,
     character_id: $character_id,
     length: $length,
-    rewrite_prompt: $rewrite_prompt
+    rewrite_prompt: $rewrite_prompt,
+    fast: $fast
   ) {
     job {
       id
@@ -156,7 +159,72 @@ query GetMotionById($motionId: String!) {
       created
     }
     tags
+    assets {
+      id
+      uid
+      type
+      sha256
+      metadata
+    }
   }
+}
+`;
+
+export const MOTION_CATALOG = `
+query MotionCatalog {
+  org { id }
+  motions(app_ids: ["motion_viewer"]) { id org_id name created tags }
+}
+`;
+
+export const TRIM_MOTION = `
+mutation TrimMotion($motion_id: String!, $name: String!, $start: Float!, $end: Float!) {
+  trim_and_loop_motion(
+    motion_id: $motion_id, motion_name: $name, start: $start, end: $end, loop: false
+  ) {
+    motion { id name }
+  }
+}
+`;
+
+export const CREATE_ENHANCED_STITCHED_MOTION = `
+mutation CreateEnhancedStitchedMotion($stitch_input: MotionStitchInput!) {
+  create_enhanced_stitched_motion(stitch_input: $stitch_input) {
+    motion { id name }
+  }
+}
+`;
+
+export const CREATE_LOOPED_MOTION = `
+mutation CreateLoopedMotion(
+  $character_id: String!, $motion_id: String!,
+  $trim_start_pct: Float, $trim_end_pct: Float, $zone_duration: Float,
+  $loop_mode: String!, $zone_mode: String, $zone_end_position: ZoneEndPositionInput
+) {
+  create_looped_motion(
+    character_id: $character_id, motion_id: $motion_id,
+    trim_start_pct: $trim_start_pct, trim_end_pct: $trim_end_pct,
+    zone_duration: $zone_duration, loop_mode: $loop_mode,
+    zone_mode: $zone_mode, zone_end_position: $zone_end_position
+  ) { motion { id name } }
+}
+`;
+
+export const GET_USAGE = `
+query Usage {
+  org {
+    motion_download_secs_per_month motion_download_secs_per_month_remaining
+    characters_allowed characters_allowed_remaining
+    payg_enabled payg_total_usd payg_auto_recharge_enabled
+  }
+  subscription { status secs_per_month characters }
+  payg_prices { model_key billing_unit unit_price }
+}
+`;
+
+export const GET_PRICES = `
+query Prices {
+  payg_prices { model_key billing_unit unit_price }
 }
 `;
 
@@ -208,8 +276,22 @@ mutation CreateImageFromImage($file: Upload!) {
 `;
 
 export const CREATE_CHARACTER_FROM_IMAGE = `
-mutation CreateCharacterFromImage($character_id: String!, $image_key: String!, $prompt: String!, $name: String) {
-  create_character_from_image(character_id: $character_id, image_key: $image_key, prompt: $prompt, name: $name) {
+mutation CreateCharacterFromImage(
+  $character_id: String!,
+  $image_key: String!,
+  $prompt: String!,
+  $name: String,
+  $rerig_target: String,
+  $include_fingers: Boolean
+) {
+  create_character_from_image(
+    character_id: $character_id,
+    image_key: $image_key,
+    prompt: $prompt,
+    name: $name,
+    rerig_target: $rerig_target,
+    include_fingers: $include_fingers
+  ) {
     character {
       id
       name
@@ -264,8 +346,13 @@ query {
 `;
 
 export const CREATE_MOTION_FROM_GLTF = `
-mutation create_motion_from_gltf($gltf: String!, $motionName: String!, $characterId: String) {
-  create_motion_from_gltf(gltf: $gltf, motion_name: $motionName, character_id: $characterId) {
+mutation create_motion_from_gltf(
+  $gltf: String!, $motionName: String!, $characterId: String, $sourceMotionId: String
+) {
+  create_motion_from_gltf(
+    gltf: $gltf, motion_name: $motionName,
+    character_id: $characterId, motion_id: $sourceMotionId
+  ) {
     motion { id }
   }
 }
@@ -349,6 +436,7 @@ export const MOTION_DOWNLOAD_ALLOWED = `
 query motion_download_allowed($characterId: String, $motionId: String) {
   motion_download_allowed(character_id: $characterId, motion_id: $motionId) {
     allowed
+    reason
   }
 }
 `;

@@ -27,3 +27,23 @@ export function useUthanaOrg() {
   });
   return { org, ...rest };
 }
+
+/** Hook for quotas, subscription, PAYG balance, and nested prices. */
+export function useUthanaUsage() {
+  const client = useUthanaClient();
+  const { data: usage, ...rest } = useQuery({
+    queryKey: ["uthana", "usage"] as const,
+    queryFn: () => client.org.getUsage(),
+  });
+  return { usage, ...rest };
+}
+
+/** Hook for current PAYG model prices. */
+export function useUthanaPrices() {
+  const client = useUthanaClient();
+  const { data: prices, ...rest } = useQuery({
+    queryKey: ["uthana", "prices"] as const,
+    queryFn: () => client.org.getPrices(),
+  });
+  return { prices, ...rest };
+}

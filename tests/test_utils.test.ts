@@ -5,6 +5,7 @@
 import { UthanaError } from "@uthana/client";
 import {
   basename,
+  camelToSnake,
   extname,
   prepareCreateCharacter,
   prepareVideoToMotion,
@@ -33,9 +34,31 @@ describe("extname", () => {
   });
 });
 
+describe("camelToSnake", () => {
+  it("renames camelCase keys and leaves values in place", () => {
+    const snake = camelToSnake({
+      name: "character",
+      autoRig: true,
+      autoRigFrontFacing: false,
+      includeFingers: null,
+    });
+    expect(snake).toEqual({
+      name: "character",
+      auto_rig: true,
+      auto_rig_front_facing: false,
+      include_fingers: null,
+    });
+  });
+});
+
 describe("prepareCreateCharacter", () => {
   it("builds variables with path and options", () => {
-    const result = prepareCreateCharacter("/path/to/character.glb", true, false, null, true);
+    const result = prepareCreateCharacter({
+      filePathOrName: "/path/to/character.glb",
+      autoRig: true,
+      autoRigFrontFacing: false,
+      includeFingers: true,
+    });
     expect(result.name).toBe("character");
     expect(result.ext).toBe("glb");
     expect(result.filename).toBe("character.glb");
@@ -50,14 +73,18 @@ describe("prepareCreateCharacter", () => {
   });
 
   it("uses detected format when provided", () => {
-    const result = prepareCreateCharacter("character.xyz", null, null, null, true, "fbx");
+    const result = prepareCreateCharacter({
+      filePathOrName: "character.xyz",
+      includeFingers: true,
+      detectedFormat: "fbx",
+    });
     expect(result.ext).toBe("fbx");
   });
 
   it("uses extension when present, falls back to glb when no extension", () => {
-    const withExt = prepareCreateCharacter("character.xyz", null, null, null, null);
+    const withExt = prepareCreateCharacter({ filePathOrName: "character.xyz" });
     expect(withExt.ext).toBe("xyz");
-    const noExt = prepareCreateCharacter("character", null, null, null, null);
+    const noExt = prepareCreateCharacter({ filePathOrName: "character" });
     expect(noExt.ext).toBe("glb");
   });
 });

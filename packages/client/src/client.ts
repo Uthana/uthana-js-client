@@ -23,6 +23,13 @@ export interface UthanaClientOptions {
   domain?: string;
   /** Request timeout in seconds. */
   timeout?: number;
+  /** Maximum decoded GraphQL query response size; omit for unlimited. */
+  maxResponseBytes?: number | null;
+  /**
+   * Optional bound for GraphQL mutation responses. Overflow after a successful HTTP
+   * response raises kind="uncertain" (do not blindly resubmit).
+   */
+  maxMutationResponseBytes?: number | null;
 }
 
 /**
@@ -38,6 +45,8 @@ export class UthanaClient {
   readonly baseUrl: string;
   readonly graphqlUrl: string;
   readonly timeout: number;
+  private readonly _maxResponseBytes: number | null;
+  private readonly _maxMutationResponseBytes: number | null;
 
   readonly ttm: TtmModule;
   readonly vtm: VtmModule;
@@ -60,6 +69,8 @@ export class UthanaClient {
     this.baseUrl = `https://${domain}`;
     this.graphqlUrl = `${this.baseUrl}/graphql`;
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
+    this._maxResponseBytes = options.maxResponseBytes ?? null;
+    this._maxMutationResponseBytes = options.maxMutationResponseBytes ?? null;
     this._authHeader =
       "Basic " +
       (typeof globalThis.btoa !== "undefined"
@@ -88,10 +99,27 @@ export class UthanaClient {
   async _graphql<T = unknown>(
     query: string,
     variables: Record<string, unknown> = {},
-    options?: { path?: string; pathDefault?: unknown },
+    options?: {
+      path?: string;
+      pathDefault?: unknown;
+      /** Override request timeout in seconds. */
+      timeoutSeconds?: number;
+    },
   ): Promise<T> {
+    const mutating = /^\s*mutation\b/i.test(query);
     const doc = this._graffle.gql(query);
     const result = (await doc.$send(variables)) as Record<string, unknown>;
+    const encoded = JSON.stringify(result);
+    const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
+    if (limit != null && encoded.length > limit) {
+      throw new UthanaError(
+        502,
+        mutating
+          ? "Mutation response exceeded maxMutationResponseBytes; the operation may have succeeded. Inspect existing work before resubmitting."
+          : "Query response exceeded maxResponseBytes",
+        mutating ? "uncertain" : "response_too_large",
+      );
+    }
     const data = (result?.data ?? result) as Record<string, unknown>;
 
     if (options?.path) {
@@ -100,7 +128,10 @@ export class UthanaClient {
       for (const key of parts) {
         out = (out as Record<string, unknown>)?.[key];
       }
-      return (out ?? options.pathDefault ?? {}) as T;
+      if (out === undefined) {
+        return (options.pathDefault ?? {}) as T;
+      }
+      return out as T;
     }
     return data as T;
   }
@@ -115,39 +146,53 @@ export class UthanaClient {
     variables: Record<string, unknown>,
     variablePath: string,
     blob: Blob,
-    options?: { path?: string; pathDefault?: unknown; filename?: string },
+    {
+      path,
+      pathDefault,
+      filename,
+      timeoutSeconds = this.timeout,
+    }: {
+      path?: string;
+      pathDefault?: unknown;
+      filename?: string;
+      /** Override request timeout in seconds. */
+      timeoutSeconds?: number;
+    } = {},
   ): Promise<T> {
     const nulledVars = { ...variables, [variablePath]: null };
     const form = new FormData();
     form.append("operations", JSON.stringify({ query, variables: nulledVars }));
     form.append("map", JSON.stringify({ "0": [`variables.${variablePath}`] }));
-    form.append("0", blob, options?.filename);
+    form.append("0", blob, filename);
 
     const res = await fetch(this.graphqlUrl, {
       method: "POST",
       headers: { Authorization: this._authHeader },
       body: form,
-      signal: AbortSignal.timeout(this.timeout * 1000),
+      signal: AbortSignal.timeout(timeoutSeconds * 1000),
     });
 
     if (!res.ok) {
-      throw new UthanaError(res.status, await res.text());
+      throw new UthanaError(res.status, await res.text(), "http");
     }
 
     const json = (await res.json()) as Record<string, unknown>;
     if (json.errors) {
       const errs = json.errors as Array<{ message: string }>;
-      throw new UthanaError(400, errs[0]?.message ?? "GraphQL error");
+      throw new UthanaError(400, errs[0]?.message ?? "GraphQL error", "graphql");
     }
 
     const data = (json.data ?? json) as Record<string, unknown>;
-    if (options?.path) {
-      const parts = options.path.split(".");
+    if (path) {
+      const parts = path.split(".");
       let out: unknown = data;
       for (const key of parts) {
         out = (out as Record<string, unknown>)?.[key];
       }
-      return (out ?? options.pathDefault ?? {}) as T;
+      if (out === undefined) {
+        return (pathDefault ?? {}) as T;
+      }
+      return out as T;
     }
     return data as T;
   }
@@ -158,12 +203,25 @@ export class UthanaClient {
     output_format: OutputFormat;
     fps?: number | null;
     no_mesh?: boolean | null;
+    in_place?: boolean | null;
+    roblox_compatible?: boolean | null;
+    speed_multiplier?: number | null;
+    torso_only?: boolean | null;
   }): string {
     const ext = options.output_format.toLowerCase();
     let url = `${this.baseUrl}/motion/file/motion_viewer/${options.character_id}/${options.motion_id}/${ext}/${options.character_id}-${options.motion_id}.${ext}`;
     const params: string[] = [];
     if (options.fps != null) params.push(`fps=${options.fps}`);
     if (options.no_mesh != null) params.push(`no_mesh=${options.no_mesh ? "true" : "false"}`);
+    for (const [key, value] of [
+      ["in_place", options.in_place],
+      ["roblox_compatible", options.roblox_compatible],
+      ["torso_only", options.torso_only],
+    ] as const) {
+      if (value != null) params.push(`${key}=${value ? "true" : "false"}`);
+    }
+    if (options.speed_multiplier != null)
+      params.push(`speed_multiplier=${options.speed_multiplier}`);
     if (params.length) url += `?${params.join("&")}`;
     return url;
   }
@@ -176,11 +234,13 @@ export class UthanaClient {
     const character = createChar?.character as Record<string, unknown>;
     const characterId = character?.id as string;
     const autoRigConf = createChar?.auto_rig_confidence as number | undefined;
+    const message = createChar?.message as string | undefined;
     const url = `${this.baseUrl}/motion/bundle/${characterId}/character.${ext}`;
     return {
       url,
       character_id: characterId,
       auto_rig_confidence: autoRigConf ?? null,
+      message: message ?? null,
     };
   }
 
@@ -222,22 +282,36 @@ export class UthanaClient {
   /** Raw fetch for non-GraphQL requests (e.g. file downloads). Throws UthanaError on !ok. */
   async _fetch(
     url: string,
-    init?: RequestInit,
-  ): Promise<{ arrayBuffer: () => Promise<ArrayBuffer> }> {
+    { timeoutSeconds = this.timeout, ...rest }: RequestInit & { timeoutSeconds?: number } = {},
+  ): Promise<{ arrayBuffer: () => Promise<ArrayBuffer>; text: () => Promise<string> }> {
     const res = await fetch(url, {
-      ...init,
+      ...rest,
       headers: {
         Authorization: this._authHeader,
-        ...init?.headers,
+        ...rest.headers,
       },
-      signal: AbortSignal.timeout(this.timeout * 1000),
+      signal: AbortSignal.timeout(timeoutSeconds * 1000),
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new UthanaError(res.status, text);
+      throw new UthanaError(res.status, text, "http");
     }
     return {
       arrayBuffer: () => res.arrayBuffer(),
+      text: () => res.text(),
     };
+  }
+
+  /** Fetch bytes with an optional response size bound. */
+  async _requestBytes(
+    url: string,
+    options?: { maxBytes?: number | null; timeoutSeconds?: number },
+  ): Promise<ArrayBuffer> {
+    const res = await this._fetch(url, { timeoutSeconds: options?.timeoutSeconds });
+    const buf = await res.arrayBuffer();
+    if (options?.maxBytes != null && buf.byteLength > options.maxBytes) {
+      throw new UthanaError(502, "Response exceeded maxBytes", "response_too_large");
+    }
+    return buf;
   }
 }

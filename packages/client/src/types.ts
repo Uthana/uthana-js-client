@@ -36,7 +36,33 @@ export interface Motion {
   deleted?: string | null;
   favorite?: { user_id?: string; label_id?: string; created?: string; updated?: string } | null;
   rating?: { user_id?: string; label_id?: string; score?: number; created?: string } | null;
-  tags?: string[] | null;
+  tags?: Record<string, unknown> | string[] | null;
+  assets?: Array<{
+    id?: string;
+    uid?: string;
+    type?: string;
+    sha256?: string;
+    metadata?: Record<string, unknown> | null;
+  }> | null;
+}
+
+/** Motion catalog response from motions.catalog. */
+export interface MotionCatalog {
+  org?: { id?: string } | null;
+  motions?: Motion[];
+}
+
+/** Download eligibility from motions.downloadAllowed. */
+export interface DownloadAllowed {
+  allowed?: boolean;
+  reason?: string | null;
+}
+
+/** PAYG price row from org.getPrices. */
+export interface PaygPrice {
+  model_key?: string;
+  billing_unit?: string;
+  unit_price?: string;
 }
 
 /** Motion download record from motion_downloads query. */
@@ -83,6 +109,7 @@ export interface CreateCharacterResult {
   url: string;
   character_id: string;
   auto_rig_confidence?: number | null;
+  message?: string | null;
 }
 
 /**
@@ -124,10 +151,11 @@ export type TtmJobModelType = "text-to-motion-3.0";
 export type ModelType = "auto" | TtmModelType | TtmJobModelType | VtmModelType;
 
 /** Output format for motion/character files */
-export type OutputFormat = "glb" | "fbx";
+export type OutputFormat = "glb" | "fbx" | "bvh";
 
 export const DEFAULT_OUTPUT_FORMAT: OutputFormat = "glb";
 export const DEFAULT_TIMEOUT = 120.0;
+export const DEFAULT_BYTE_UPLOAD_MAX = 128 * 1024 * 1024;
 export const SUPPORTED_VIDEO_FORMATS = new Set([".mp4", ".mov", ".avi"]);
 
 /** Pre-built character IDs. Use these without uploading your own character. */

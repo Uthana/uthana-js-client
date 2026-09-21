@@ -20,7 +20,8 @@ import type {
   CreateFromGeneratedImageResult,
   OutputFormat,
 } from "../types";
-import { detectMeshFormat, prepareCreateCharacter } from "../utils";
+import { DEFAULT_BYTE_UPLOAD_MAX } from "../types";
+import { basename, detectMeshFormat, prepareCreateCharacter, validateUploadLimit } from "../utils";
 import { BaseModule } from "./base";
 
 type OnPreviewsReady = (
@@ -49,18 +50,103 @@ export class CharactersModule extends BaseModule {
       front_facing?: boolean | null;
       rerig_target?: string | null;
       include_fingers?: boolean | null;
+      name?: string | null;
+      timeoutSeconds?: number;
+      maxBytes?: number | null;
     },
   ): Promise<CreateCharacterResult> {
     if (file === "" || (typeof file === "string" && !file.trim())) {
-      throw new UthanaError(400, "file is required (.glb or .fbx)");
+      throw new UthanaError(400, "file is required (.glb or .fbx)", "client");
     }
-    return this._createFromFile(
-      file,
-      options?.auto_rig,
-      options?.front_facing,
-      options?.rerig_target,
-      options?.include_fingers,
+    validateUploadLimit(options?.maxBytes);
+    return this._createFromFile(file, {
+      autoRig: options?.auto_rig,
+      frontFacing: options?.front_facing,
+      rerigTarget: options?.rerig_target,
+      includeFingers: options?.include_fingers,
+      name: options?.name,
+      timeoutSeconds: options?.timeoutSeconds,
+      maxBytes: options?.maxBytes,
+    });
+  }
+
+  /** Upload an existing byte snapshot without reopening its source file. */
+  async createFromBytes(
+    filename: string,
+    content: ArrayBuffer | Uint8Array | Buffer,
+    {
+      timeoutSeconds = 360,
+      ...options
+    }: {
+      name?: string | null;
+      auto_rig?: boolean | null;
+      front_facing?: boolean | null;
+      rerig_target?: string | null;
+      include_fingers?: boolean | null;
+      timeoutSeconds?: number;
+      maxBytes?: number | null;
+    } = {},
+  ): Promise<CreateCharacterResult> {
+    const maxBytes = options?.maxBytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.maxBytes;
+    validateUploadLimit(maxBytes);
+    const bytes =
+      content instanceof ArrayBuffer
+        ? new Uint8Array(content)
+        : content instanceof Uint8Array
+          ? content
+          : new Uint8Array(content);
+    if (!bytes.byteLength) {
+      throw new Error("Character upload content must be nonempty bytes");
+    }
+    if (maxBytes != null && bytes.byteLength > maxBytes) {
+      throw new Error("Character upload exceeds maxBytes");
+    }
+    const name = basename(filename);
+    const header = bytes.slice(0, 20);
+    const detectedFormat = detectMeshFormat(header);
+    const prepared = prepareCreateCharacter({
+      filePathOrName: name,
+      autoRig: options?.auto_rig,
+      autoRigFrontFacing: options?.front_facing,
+      rerigTarget: options?.rerig_target,
+      includeFingers: options?.include_fingers,
+      detectedFormat,
+    });
+    if (options?.name != null) {
+      prepared.variables.name = options.name;
+    }
+    const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
+    const result = await this._client._graphqlUpload<Record<string, unknown>>(
+      CREATE_CHARACTER,
+      prepared.variables,
+      "file",
+      blob,
+      {
+        filename: prepared.filename,
+        timeoutSeconds,
+      },
     );
+    return this._client._buildCharacterOutput(result, prepared.ext);
+  }
+
+  /** Get character rig metadata used to validate character-specific edits. */
+  async metadata(
+    characterId: string,
+    options?: { maxBytes?: number | null },
+  ): Promise<Record<string, unknown>> {
+    const url = `${this._client.baseUrl}/motion/metadata/${encodeURIComponent(characterId)}`;
+    const buf = await this._client._requestBytes(url, { maxBytes: options?.maxBytes });
+    try {
+      const text = new TextDecoder().decode(buf);
+      const result = JSON.parse(text) as unknown;
+      if (result == null || typeof result !== "object" || Array.isArray(result)) {
+        throw new UthanaError(502, "Invalid character metadata response", "invalid_response");
+      }
+      return result as Record<string, unknown>;
+    } catch (err) {
+      if (err instanceof UthanaError) throw err;
+      throw new UthanaError(502, "Invalid character metadata response", "invalid_response");
+    }
   }
 
   async createFromPrompt(
@@ -73,7 +159,7 @@ export class CharactersModule extends BaseModule {
     params: CreateFromPromptParams,
   ): Promise<CharacterPreviewResult | CreateFromGeneratedImageResult> {
     if (!params.prompt?.trim()) {
-      throw new UthanaError(400, "prompt is required");
+      throw new UthanaError(400, "prompt is required", "client");
     }
     return this._generateFromText(params.prompt, params.name, params.onPreviewsReady);
   }
@@ -87,7 +173,7 @@ export class CharactersModule extends BaseModule {
     options?: { name?: string | null },
   ): Promise<CreateFromGeneratedImageResult> {
     if (file === "" || (typeof file === "string" && !file.trim())) {
-      throw new UthanaError(400, "file is required (.png, .jpg, .jpeg)");
+      throw new UthanaError(400, "file is required (.png, .jpg, .jpeg)", "client");
     }
     return this._generateFromImage(file, options?.name);
   }
@@ -100,9 +186,86 @@ export class CharactersModule extends BaseModule {
   async generateFromImage(
     pending: CharacterPreviewResult,
     imageKey: string,
-    name?: string | null,
+    nameOrOptions?:
+      | string
+      | null
+      | {
+          name?: string | null;
+          include_fingers?: boolean | null;
+          timeoutSeconds?: number;
+        },
   ): Promise<CreateFromGeneratedImageResult> {
-    return this._finalizeFromImage(pending.character_id, imageKey, name, pending.prompt);
+    const {
+      name = null,
+      include_fingers: includeFingers,
+      timeoutSeconds = 660,
+    } = nameOrOptions == null || typeof nameOrOptions === "string"
+      ? { name: nameOrOptions ?? null }
+      : nameOrOptions;
+    return this._finalizeFromImage(
+      pending.character_id,
+      imageKey,
+      name,
+      pending.prompt,
+      includeFingers,
+      timeoutSeconds,
+    );
+  }
+
+  /**
+   * Upload an image snapshot and prepare a reference for character generation.
+   * Persist the returned character ID and image key before calling generateFromImage.
+   */
+  async prepareFromImageBytes(
+    filename: string,
+    content: ArrayBuffer | Uint8Array | Buffer,
+    {
+      maxBytes: maxBytesOption,
+      timeoutSeconds = 360,
+    }: { maxBytes?: number; timeoutSeconds?: number } = {},
+  ): Promise<CharacterPreviewResult> {
+    const maxBytes = maxBytesOption ?? 16 * 1024 * 1024;
+    if (!Number.isInteger(maxBytes) || maxBytes < 1) {
+      throw new Error("Image snapshots require a positive maxBytes limit");
+    }
+    const lower = filename.toLowerCase();
+    if (!lower.endsWith(".png") && !lower.endsWith(".jpg") && !lower.endsWith(".jpeg")) {
+      throw new Error("Choose a PNG or JPEG filename");
+    }
+    const bytes =
+      content instanceof ArrayBuffer
+        ? new Uint8Array(content)
+        : content instanceof Uint8Array
+          ? content
+          : new Uint8Array(content);
+    if (!bytes.byteLength || bytes.byteLength > maxBytes) {
+      throw new Error("Image snapshot must be nonempty bytes and fit maxBytes");
+    }
+    const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
+    const data = await this._client._graphqlUpload<{
+      character_id?: string;
+      image?: { key?: string; url?: string };
+    }>(CREATE_IMAGE_FROM_IMAGE, {}, "file", blob, {
+      path: "create_image_from_image",
+      filename: basename(filename),
+      timeoutSeconds,
+    });
+    const characterId = data?.character_id;
+    const image = data?.image;
+    if (
+      typeof characterId !== "string" ||
+      !characterId ||
+      !image ||
+      typeof image.key !== "string" ||
+      !image.key
+    ) {
+      throw new UthanaError(502, "Invalid prepared image response", "invalid_response");
+    }
+    return {
+      character_id: characterId,
+      previews: [image as { key: string; url: string }],
+      prompt: "",
+    };
   }
 
   /** List all characters for the authenticated user. */
@@ -117,12 +280,11 @@ export class CharactersModule extends BaseModule {
   /** Download a character model in the requested format. */
   async download(
     character_id: string,
-    options?: { output_format?: OutputFormat },
+    options?: { output_format?: OutputFormat; maxBytes?: number | null },
   ): Promise<ArrayBuffer> {
     const fmt = (options?.output_format ?? "glb").toLowerCase();
-    const url = `${this._client.baseUrl}/motion/bundle/${character_id}/character.${fmt}`;
-    const res = await this._client._fetch(url);
-    return res.arrayBuffer();
+    const url = `${this._client.baseUrl}/motion/bundle/${encodeURIComponent(character_id)}/character.${fmt}`;
+    return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
   /** Rename a character by ID. */
@@ -149,10 +311,23 @@ export class CharactersModule extends BaseModule {
 
   private async _createFromFile(
     file: File | Blob | string,
-    auto_rig?: boolean | null,
-    front_facing?: boolean | null,
-    rerig_target?: string | null,
-    include_fingers?: boolean | null,
+    {
+      autoRig,
+      frontFacing,
+      rerigTarget,
+      includeFingers,
+      name,
+      timeoutSeconds = 360,
+      maxBytes,
+    }: {
+      autoRig?: boolean | null;
+      frontFacing?: boolean | null;
+      rerigTarget?: string | null;
+      includeFingers?: boolean | null;
+      name?: string | null;
+      timeoutSeconds?: number;
+      maxBytes?: number | null;
+    } = {},
   ): Promise<CreateCharacterResult> {
     let variables: Record<string, unknown>;
     let ext: string;
@@ -165,20 +340,24 @@ export class CharactersModule extends BaseModule {
       try {
         const mod = await import("node:fs/promises");
         const buf = await mod.readFile(file);
+        if (maxBytes != null && buf.byteLength > maxBytes) {
+          throw new Error("Character upload exceeds maxBytes");
+        }
         const header = new Uint8Array(buf.buffer, buf.byteOffset, 20);
         detectedFormat = detectMeshFormat(header);
         blob = new Blob([buf], { type: "application/octet-stream" });
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("maxBytes")) throw err;
         blob = new Blob([], { type: "application/octet-stream" });
       }
-      const prepared = prepareCreateCharacter(
-        file,
-        auto_rig ?? null,
-        front_facing ?? null,
-        rerig_target ?? null,
-        include_fingers ?? null,
+      const prepared = prepareCreateCharacter({
+        filePathOrName: file,
+        autoRig,
+        autoRigFrontFacing: frontFacing,
+        rerigTarget,
+        includeFingers,
         detectedFormat,
-      );
+      });
       variables = prepared.variables;
       ext = prepared.ext;
       uploadFilename = prepared.filename;
@@ -186,29 +365,34 @@ export class CharactersModule extends BaseModule {
       const filename = file instanceof File ? file.name : "character.glb";
       let detectedFormat: "glb" | "fbx" | null = null;
       if (file instanceof Blob) {
+        if (maxBytes != null && file.size > maxBytes) {
+          throw new Error("Character upload exceeds maxBytes");
+        }
         const header = new Uint8Array(await file.slice(0, 20).arrayBuffer());
         detectedFormat = detectMeshFormat(header);
       }
       blob = file instanceof Blob ? file : new Blob([], { type: "application/octet-stream" });
-      const prepared = prepareCreateCharacter(
-        filename,
-        auto_rig ?? null,
-        front_facing ?? null,
-        rerig_target ?? null,
-        include_fingers ?? null,
+      const prepared = prepareCreateCharacter({
+        filePathOrName: filename,
+        autoRig,
+        autoRigFrontFacing: frontFacing,
+        rerigTarget,
+        includeFingers,
         detectedFormat,
-      );
+      });
       variables = prepared.variables;
       ext = prepared.ext;
       uploadFilename = prepared.filename;
     }
+
+    if (name != null) variables.name = name;
 
     const result = await this._client._graphqlUpload<Record<string, unknown>>(
       CREATE_CHARACTER,
       variables,
       "file",
       blob,
-      { filename: uploadFilename },
+      { filename: uploadFilename, timeoutSeconds },
     );
 
     return this._client._buildCharacterOutput(result, ext);
@@ -228,7 +412,7 @@ export class CharactersModule extends BaseModule {
       return { character_id, previews: images ?? [], prompt };
     }
     const key = await onPreviewsReady(images ?? []);
-    if (!key) throw new UthanaError(400, "No preview image selected");
+    if (!key) throw new UthanaError(400, "No preview image selected", "client");
     return this._finalizeFromImage(character_id, key, name, prompt);
   }
 
@@ -264,15 +448,23 @@ export class CharactersModule extends BaseModule {
 
   /** CREATE_CHARACTER_FROM_IMAGE — shared finalization step. */
   private async _finalizeFromImage(
-    character_id: string,
-    image_key: string,
+    characterId: string,
+    imageKey: string,
     name?: string | null,
     prompt?: string | null,
+    includeFingers?: boolean | null,
+    timeoutSeconds?: number,
   ): Promise<CreateFromGeneratedImageResult> {
     const result = await this._client._graphql<CreateFromGeneratedImageResult>(
       CREATE_CHARACTER_FROM_IMAGE,
-      { character_id, image_key, prompt: prompt ?? "", name: name ?? null },
-      { path: "create_character_from_image" },
+      {
+        character_id: characterId,
+        image_key: imageKey,
+        prompt: prompt ?? "",
+        name: name ?? null,
+        include_fingers: includeFingers ?? null,
+      },
+      { path: "create_character_from_image", timeoutSeconds },
     );
     return { character: result.character, auto_rig_confidence: result.auto_rig_confidence ?? null };
   }

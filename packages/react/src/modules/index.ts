@@ -13,12 +13,16 @@ export { useUthanaIsMotionDownloadAllowed, useUthanaMotionDownloads } from "./mo
 export {
   useUthanaBakeWithChanges,
   useUthanaCreateLocomotion,
+  useUthanaCreateLoopedMotion,
+  useUthanaCreateStitchedMotion,
   useUthanaLocomotionStyles,
   useUthanaMotion,
+  useUthanaMotionCatalog,
   useUthanaMotionPreview,
   useUthanaMotions,
   useUthanaRateMotion,
+  useUthanaTrimMotion,
 } from "./motions";
-export { useUthanaOrg, useUthanaUser } from "./org";
-export { useUthanaTtm, useUthanaCreateTtmJob } from "./ttm";
+export { useUthanaOrg, useUthanaPrices, useUthanaUsage, useUthanaUser } from "./org";
+export { useUthanaCreateTtmJob, useUthanaTtm } from "./ttm";
 export { useUthanaVtm } from "./vtm";

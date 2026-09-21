@@ -17,6 +17,15 @@ npm install @uthana/client
 npm install @uthana/react @uthana/client @tanstack/react-query
 ```
 
+## Breaking changes in 0.5.1
+
+Compared with 0.4.1:
+
+- `motionDownloads.isAllowed` returns `{ allowed, reason }` instead of a boolean. Do not use the return value as a condition directly; read `allowed`. `useUthanaIsMotionDownloadAllowed` still returns a boolean `isAllowed` and adds `reason`.
+- `motions.get` throws `UthanaError` with status 404 when the motion is missing. It used to resolve `null`.
+- `OutputFormat` includes `"bvh"`. Exhaustive switches on `"glb" | "fbx"` need a `"bvh"` case.
+- `Motion.tags` may be a record or a string array.
+
 ## API key
 
 You need an Uthana account and API key. [Sign up for free](https://uthana.com), then get your API key from [account settings](https://uthana.com/app/settings) once logged in.
@@ -205,6 +214,7 @@ const job = await client.ttm.createJob("a person doing jumping jacks", {
   model: "text-to-motion-3.0",
   length: 8, // optional, 4–10 seconds
   rewrite_prompt: true, // optional, default true
+  fast: true, // optional; omit or false for standard TTM 3.0
   character_id: UthanaCharacters.tar, // optional
 });
 
@@ -463,7 +473,7 @@ function CharacterList() {
 // List all motions
 const motions = await client.motions.list();
 
-// Get single motion
+// Get a single motion. Throws UthanaError 404 when the motion is missing.
 const motion = await client.motions.get(motionId);
 
 // Download motion (GLB or FBX)
@@ -569,7 +579,7 @@ Check download quota and list downloaded motions.
 const downloads = await client.motionDownloads.list();
 
 // Check if download is allowed before downloading
-const allowed = await client.motionDownloads.isAllowed(characterId, motionId);
+const { allowed, reason } = await client.motionDownloads.isAllowed(characterId, motionId);
 if (allowed) {
   const buffer = await client.motions.download(characterId, motionId);
 }

@@ -54,7 +54,7 @@ const { mockClient } = vi.hoisted(() => {
   const mockJobsList = vi.fn().mockResolvedValue([{ id: "j1", status: "FINISHED" }]);
   const mockJobGet = vi.fn().mockResolvedValue({ id: "j1", status: "FINISHED" });
   const mockMotionDownloadsList = vi.fn().mockResolvedValue([]);
-  const mockMotionDownloadAllowed = vi.fn().mockResolvedValue(true);
+  const mockMotionDownloadAllowed = vi.fn().mockResolvedValue({ allowed: true, reason: null });
   const mockTtmCreate = vi.fn().mockResolvedValue({ character_id: "tar", motion_id: "m99" });
   const mockVtmCreate = vi.fn().mockResolvedValue({ id: "job1", status: "RESERVED" });
 
