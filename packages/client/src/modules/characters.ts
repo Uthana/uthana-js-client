@@ -113,7 +113,7 @@ export class CharactersModule extends BaseModule {
     if (options?.name != null) {
       prepared.variables.name = options.name;
     }
-    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
     const result = await this._client._graphqlUpload<Record<string, unknown>>(
       CREATE_CHARACTER,
       prepared.variables,
@@ -233,7 +233,7 @@ export class CharactersModule extends BaseModule {
     if (!bytes.byteLength || bytes.byteLength > maxBytes) {
       throw new Error("Image snapshot must be nonempty bytes and fit max_bytes");
     }
-    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
     const data = await this._client._graphqlUpload<{
       character_id?: string;
       image?: { key?: string; url?: string };

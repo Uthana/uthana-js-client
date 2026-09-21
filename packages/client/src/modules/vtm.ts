@@ -92,7 +92,7 @@ export class VtmModule extends BaseModule {
       ...prepared.variables,
       model: normalizeModelName(options?.model ?? models.vtm.default),
     };
-    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
     const raw = await this._client._graphqlUpload<
       VideoToMotionResult & { created_at?: string | null }
     >(CREATE_VIDEO_TO_MOTION, variables, "file", blob, {

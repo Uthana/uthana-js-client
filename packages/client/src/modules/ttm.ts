@@ -32,7 +32,9 @@ export class TtmModule extends BaseModule {
   ): Promise<TextToMotionResult> {
     const opts = options ?? {};
     const rawModel = opts.model ?? "auto";
-    const model = rawModel === "auto" ? rawModel : normalizeModelName(rawModel);
+    const model = (rawModel === "auto" ? rawModel : normalizeModelName(rawModel)) as
+      | "auto"
+      | TtmModelType;
     const { mutation, variables } = this._client._prepareTextToMotion({
       model,
       prompt,
