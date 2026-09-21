@@ -198,7 +198,7 @@ export class CharactersModule extends BaseModule {
   ): Promise<CreateFromGeneratedImageResult> {
     const {
       name = null,
-      include_fingers,
+      include_fingers: includeFingers,
       timeoutSeconds = 660,
     } = nameOrOptions == null || typeof nameOrOptions === "string"
       ? { name: nameOrOptions ?? null }
@@ -208,7 +208,7 @@ export class CharactersModule extends BaseModule {
       imageKey,
       name,
       pending.prompt,
-      include_fingers,
+      includeFingers,
       timeoutSeconds,
     );
   }
@@ -439,21 +439,21 @@ export class CharactersModule extends BaseModule {
 
   /** CREATE_CHARACTER_FROM_IMAGE — shared finalization step. */
   private async _finalizeFromImage(
-    character_id: string,
-    image_key: string,
+    characterId: string,
+    imageKey: string,
     name?: string | null,
     prompt?: string | null,
-    include_fingers?: boolean | null,
+    includeFingers?: boolean | null,
     timeoutSeconds?: number,
   ): Promise<CreateFromGeneratedImageResult> {
     const result = await this._client._graphql<CreateFromGeneratedImageResult>(
       CREATE_CHARACTER_FROM_IMAGE,
       {
-        character_id,
-        image_key,
+        character_id: characterId,
+        image_key: imageKey,
         prompt: prompt ?? "",
         name: name ?? null,
-        include_fingers: include_fingers ?? null,
+        include_fingers: includeFingers ?? null,
       },
       { path: "create_character_from_image", timeoutSeconds },
     );
