@@ -146,21 +146,25 @@ export class UthanaClient {
     variables: Record<string, unknown>,
     variablePath: string,
     blob: Blob,
-    options?: {
+    {
+      path,
+      pathDefault,
+      filename,
+      timeoutSeconds = this.timeout,
+    }: {
       path?: string;
       pathDefault?: unknown;
       filename?: string;
       /** Override request timeout in seconds. */
       timeoutSeconds?: number;
-    },
+    } = {},
   ): Promise<T> {
     const nulledVars = { ...variables, [variablePath]: null };
     const form = new FormData();
     form.append("operations", JSON.stringify({ query, variables: nulledVars }));
     form.append("map", JSON.stringify({ "0": [`variables.${variablePath}`] }));
-    form.append("0", blob, options?.filename);
+    form.append("0", blob, filename);
 
-    const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
     const res = await fetch(this.graphqlUrl, {
       method: "POST",
       headers: { Authorization: this._authHeader },
@@ -179,14 +183,14 @@ export class UthanaClient {
     }
 
     const data = (json.data ?? json) as Record<string, unknown>;
-    if (options?.path) {
-      const parts = options.path.split(".");
+    if (path) {
+      const parts = path.split(".");
       let out: unknown = data;
       for (const key of parts) {
         out = (out as Record<string, unknown>)?.[key];
       }
       if (out === undefined) {
-        return (options.pathDefault ?? {}) as T;
+        return (pathDefault ?? {}) as T;
       }
       return out as T;
     }
@@ -278,16 +282,15 @@ export class UthanaClient {
   /** Raw fetch for non-GraphQL requests (e.g. file downloads). Throws UthanaError on !ok. */
   async _fetch(
     url: string,
-    init?: RequestInit & { timeoutSeconds?: number },
+    { timeoutSeconds = this.timeout, ...rest }: RequestInit & { timeoutSeconds?: number } = {},
   ): Promise<{ arrayBuffer: () => Promise<ArrayBuffer>; text: () => Promise<string> }> {
-    const { timeoutSeconds, ...rest } = init ?? {};
     const res = await fetch(url, {
       ...rest,
       headers: {
         Authorization: this._authHeader,
-        ...rest?.headers,
+        ...rest.headers,
       },
-      signal: AbortSignal.timeout((timeoutSeconds ?? this.timeout) * 1000),
+      signal: AbortSignal.timeout(timeoutSeconds * 1000),
     });
     if (!res.ok) {
       const text = await res.text();

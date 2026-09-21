@@ -87,7 +87,7 @@ export class MotionsModule extends BaseModule {
     characterId: string,
     prefix: StitchParams,
     suffix: StitchParams,
-    options?: { timeoutSeconds?: number },
+    { timeoutSeconds = 360 }: { timeoutSeconds?: number } = {},
   ): Promise<Motion> {
     if (typeof characterId !== "string" || !characterId.trim()) {
       throw new Error("characterId is required");
@@ -103,7 +103,7 @@ export class MotionsModule extends BaseModule {
       },
       {
         path: "create_enhanced_stitched_motion.motion",
-        timeoutSeconds: options?.timeoutSeconds ?? 360,
+        timeoutSeconds,
       },
     );
     if (!motion || typeof motion.id !== "string" || !motion.id.trim()) {
@@ -123,7 +123,10 @@ export class MotionsModule extends BaseModule {
   async createLoopedMotion(
     characterId: string,
     motionId: string,
-    options?: {
+    {
+      timeoutSeconds = 360,
+      ...options
+    }: {
       trimStartPct?: number;
       trimEndPct?: number;
       zoneDuration?: number;
@@ -131,7 +134,7 @@ export class MotionsModule extends BaseModule {
       zoneMode?: "modify" | "extend";
       zoneEndPosition?: { x: number; y: number; facingAngle?: number } | null;
       timeoutSeconds?: number;
-    },
+    } = {},
   ): Promise<Motion> {
     const trimStartPct = options?.trimStartPct ?? 0;
     const trimEndPct = options?.trimEndPct ?? 1;
@@ -199,7 +202,7 @@ export class MotionsModule extends BaseModule {
       },
       {
         path: "create_looped_motion.motion",
-        timeoutSeconds: options?.timeoutSeconds ?? 360,
+        timeoutSeconds,
       },
     );
     if (!motion || typeof motion.id !== "string" || !motion.id.trim()) {
@@ -267,11 +270,14 @@ export class MotionsModule extends BaseModule {
   async preview(
     character_id: string,
     motion_id: string,
-    options?: {
+    {
+      timeoutSeconds = 60,
+      ...options
+    }: {
       format?: "webm" | "apng";
       maxBytes?: number | null;
       timeoutSeconds?: number;
-    },
+    } = {},
   ): Promise<ArrayBuffer> {
     const format = options?.format ?? "webm";
     if (format !== "webm" && format !== "apng") {
@@ -281,7 +287,7 @@ export class MotionsModule extends BaseModule {
     const url = `${this._client.baseUrl}/app/preview/${encodeURIComponent(character_id)}/${encodeURIComponent(motion_id)}/preview.${suffix}`;
     return this._client._requestBytes(url, {
       maxBytes: options?.maxBytes,
-      timeoutSeconds: options?.timeoutSeconds ?? 60,
+      timeoutSeconds,
     });
   }
 

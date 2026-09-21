@@ -75,7 +75,10 @@ export class CharactersModule extends BaseModule {
   async createFromBytes(
     filename: string,
     content: ArrayBuffer | Uint8Array | Buffer,
-    options?: {
+    {
+      timeoutSeconds = 360,
+      ...options
+    }: {
       name?: string | null;
       auto_rig?: boolean | null;
       front_facing?: boolean | null;
@@ -83,7 +86,7 @@ export class CharactersModule extends BaseModule {
       include_fingers?: boolean | null;
       timeoutSeconds?: number;
       maxBytes?: number | null;
-    },
+    } = {},
   ): Promise<CreateCharacterResult> {
     const maxBytes = options?.maxBytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.maxBytes;
     validateUploadLimit(maxBytes);
@@ -121,7 +124,7 @@ export class CharactersModule extends BaseModule {
       blob,
       {
         filename: prepared.filename,
-        timeoutSeconds: options?.timeoutSeconds ?? 360,
+        timeoutSeconds,
       },
     );
     return this._client._buildCharacterOutput(result, prepared.ext);
@@ -193,17 +196,20 @@ export class CharactersModule extends BaseModule {
           timeoutSeconds?: number;
         },
   ): Promise<CreateFromGeneratedImageResult> {
-    const options =
-      nameOrOptions == null || typeof nameOrOptions === "string"
-        ? { name: nameOrOptions ?? null }
-        : nameOrOptions;
+    const {
+      name = null,
+      include_fingers,
+      timeoutSeconds = 660,
+    } = nameOrOptions == null || typeof nameOrOptions === "string"
+      ? { name: nameOrOptions ?? null }
+      : nameOrOptions;
     return this._finalizeFromImage(
       pending.character_id,
       imageKey,
-      options.name,
+      name,
       pending.prompt,
-      options.include_fingers,
-      options.timeoutSeconds ?? 660,
+      include_fingers,
+      timeoutSeconds,
     );
   }
 
@@ -214,9 +220,12 @@ export class CharactersModule extends BaseModule {
   async prepareFromImageBytes(
     filename: string,
     content: ArrayBuffer | Uint8Array | Buffer,
-    options?: { maxBytes?: number; timeoutSeconds?: number },
+    {
+      maxBytes: maxBytesOption,
+      timeoutSeconds = 360,
+    }: { maxBytes?: number; timeoutSeconds?: number } = {},
   ): Promise<CharacterPreviewResult> {
-    const maxBytes = options?.maxBytes ?? 16 * 1024 * 1024;
+    const maxBytes = maxBytesOption ?? 16 * 1024 * 1024;
     if (!Number.isInteger(maxBytes) || maxBytes < 1) {
       throw new Error("Image snapshots require a positive maxBytes limit");
     }
@@ -240,7 +249,7 @@ export class CharactersModule extends BaseModule {
     }>(CREATE_IMAGE_FROM_IMAGE, {}, "file", blob, {
       path: "create_image_from_image",
       filename: basename(filename),
-      timeoutSeconds: options?.timeoutSeconds ?? 360,
+      timeoutSeconds,
     });
     const characterId = data?.character_id;
     const image = data?.image;
@@ -308,7 +317,7 @@ export class CharactersModule extends BaseModule {
     rerig_target?: string | null,
     include_fingers?: boolean | null,
     name?: string | null,
-    timeoutSeconds?: number,
+    timeoutSeconds = 360,
     maxBytes?: number | null,
   ): Promise<CreateCharacterResult> {
     let variables: Record<string, unknown>;
@@ -374,7 +383,7 @@ export class CharactersModule extends BaseModule {
       variables,
       "file",
       blob,
-      { filename: uploadFilename, timeoutSeconds: timeoutSeconds ?? 360 },
+      { filename: uploadFilename, timeoutSeconds },
     );
 
     return this._client._buildCharacterOutput(result, ext);
