@@ -30,6 +30,10 @@ export class OrgModule extends BaseModule {
 
   /** Get current PAYG model prices with their billing units. */
   async getPrices(): Promise<PaygPrice[]> {
-    return this._client._graphql<PaygPrice[]>(GET_PRICES, {}, { path: "payg_prices", pathDefault: [] });
+    return this._client._graphql<PaygPrice[]>(
+      GET_PRICES,
+      {},
+      { path: "payg_prices", pathDefault: [] },
+    );
   }
 }

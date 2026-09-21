@@ -153,10 +153,16 @@ export class MotionsModule extends BaseModule {
     if (!finite(trim_start_pct) || !finite(trim_end_pct) || !finite(zone_duration)) {
       throw new Error("Trim fractions and zone_duration must be finite numbers");
     }
-    if (!(0 <= trim_start_pct && trim_start_pct < trim_end_pct && trim_end_pct <= 1) || zone_duration <= 0) {
+    if (
+      !(0 <= trim_start_pct && trim_start_pct < trim_end_pct && trim_end_pct <= 1) ||
+      zone_duration <= 0
+    ) {
       throw new Error("Require 0 <= trim_start_pct < trim_end_pct <= 1 and zone_duration > 0");
     }
-    if ((loop_mode !== "closed" && loop_mode !== "open") || (zone_mode !== "modify" && zone_mode !== "extend")) {
+    if (
+      (loop_mode !== "closed" && loop_mode !== "open") ||
+      (zone_mode !== "modify" && zone_mode !== "extend")
+    ) {
       throw new Error("Invalid loop_mode or zone_mode");
     }
     if (zone_end_position != null) {

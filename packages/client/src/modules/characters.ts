@@ -253,7 +253,11 @@ export class CharactersModule extends BaseModule {
     ) {
       throw new UthanaError(502, "Invalid prepared image response", "invalid_response");
     }
-    return { character_id: characterId, previews: [image as { key: string; url: string }], prompt: "" };
+    return {
+      character_id: characterId,
+      previews: [image as { key: string; url: string }],
+      prompt: "",
+    };
   }
 
   /** List all characters for the authenticated user. */

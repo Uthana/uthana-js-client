@@ -38,9 +38,9 @@ describe("validateStitchParams", () => {
   });
 
   it("rejects mismatched trim fractions", () => {
-    expect(() =>
-      validateStitchParams({ ...valid, motion_lower_trim_fraction: 0.5 }),
-    ).toThrow(/trim fractions/i);
+    expect(() => validateStitchParams({ ...valid, motion_lower_trim_fraction: 0.5 })).toThrow(
+      /trim fractions/i,
+    );
   });
 
   it("rejects non-unit quaternions", () => {

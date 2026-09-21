@@ -216,7 +216,8 @@ export class UthanaClient {
     ] as const) {
       if (value != null) params.push(`${key}=${value ? "true" : "false"}`);
     }
-    if (options.speed_multiplier != null) params.push(`speed_multiplier=${options.speed_multiplier}`);
+    if (options.speed_multiplier != null)
+      params.push(`speed_multiplier=${options.speed_multiplier}`);
     if (params.length) url += `?${params.join("&")}`;
     return url;
   }

@@ -114,13 +114,21 @@ export const validateStitchParams = (params: StitchParams): StitchParams => {
   const end = finite(params.motion_upper_trim_time);
   const lower = finite(params.motion_lower_trim_fraction);
   const upper = finite(params.motion_upper_trim_fraction);
-  if (duration <= 0 || !(0 <= start && start < end && end <= duration) || finite(params.stitch_duration) <= 0) {
+  if (
+    duration <= 0 ||
+    !(0 <= start && start < end && end <= duration) ||
+    finite(params.stitch_duration) <= 0
+  ) {
     throw new Error(
       "Stitch trims need 0 <= start < end <= duration and positive transition duration",
     );
   }
   const close = (a: number, b: number) => Math.abs(a - b) <= Math.max(1e-8, 1e-7 * Math.abs(b));
-  if (!(0 <= lower && lower < upper && upper <= 1) || !close(lower, start / duration) || !close(upper, end / duration)) {
+  if (
+    !(0 <= lower && lower < upper && upper <= 1) ||
+    !close(lower, start / duration) ||
+    !close(upper, end / duration)
+  ) {
     throw new Error("Stitch trim fractions must agree with times divided by motion duration");
   }
   vector(params.root_node_world_pos);
