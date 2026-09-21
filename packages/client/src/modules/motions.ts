@@ -5,21 +5,34 @@
 import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
+  CREATE_ENHANCED_STITCHED_MOTION,
   CREATE_LOCOMOTION,
+  CREATE_LOOPED_MOTION,
   CREATE_MOTION_FAVORITE,
   CREATE_MOTION_FROM_GLTF,
   DELETE_MOTION_FAVORITE,
   GET_MOTION_BY_ID,
   LIST_LOCOMOTION_STYLES,
   LIST_MOTIONS,
+  MOTION_CATALOG,
+  MOTION_DOWNLOAD_ALLOWED,
   RATE_MOTION,
+  TRIM_MOTION,
   UPDATE_MOTION,
 } from "../graphql";
-import type { CreateLocomotionOptions, Motion, OutputFormat, TextToMotionResult } from "../types";
+import { type StitchParams, validateStitchParams } from "../stitch";
+import type {
+  CreateLocomotionOptions,
+  DownloadAllowed,
+  Motion,
+  MotionCatalog,
+  OutputFormat,
+  TextToMotionResult,
+} from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
-/** Motion management: list, download, delete, rename, favorite. */
+/** Motion management: list, download, delete, rename, favorite, stitch, loop. */
 export class MotionsModule extends BaseModule {
   constructor(client: UthanaClient) {
     super(client);
@@ -27,24 +40,173 @@ export class MotionsModule extends BaseModule {
 
   /** List all motions for the authenticated user. */
   async list(): Promise<Motion[]> {
-    return this._client._graphql<Motion[]>(
-      LIST_MOTIONS,
-      {},
-      {
-        path: "motions",
-        pathDefault: [],
-      },
-    );
+    return this._client._graphql<Motion[]>(LIST_MOTIONS, {}, { path: "motions", pathDefault: [] });
   }
 
-  /** Get a single motion by ID. */
-  async get(motion_id: string): Promise<Motion | null> {
+  /** Get a motion and its asset metadata. Throws 404 if missing. */
+  async get(motion_id: string): Promise<Motion> {
     const motion = await this._client._graphql<Motion | null>(
       GET_MOTION_BY_ID,
       { motionId: motion_id },
       { path: "motion", pathDefault: null },
     );
+    if (!motion) {
+      throw new UthanaError(404, "Motion not found", "http");
+    }
     return motion;
+  }
+
+  /** Motion-viewer catalog with tags and owning organization IDs. */
+  async catalog(): Promise<MotionCatalog> {
+    return this._client._graphql<MotionCatalog>(MOTION_CATALOG);
+  }
+
+  /** Create a trimmed motion from normalized start/end fractions (no looping). */
+  async trim(motion_id: string, start: number, end: number, name: string): Promise<Motion> {
+    if (
+      typeof start !== "number" ||
+      typeof end !== "number" ||
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      !(0 <= start && start < end && end <= 1)
+    ) {
+      throw new Error("Trim fractions must be finite and satisfy 0 <= start < end <= 1");
+    }
+    return this._client._graphql<Motion>(
+      TRIM_MOTION,
+      { motion_id, start, end, name },
+      { path: "trim_and_loop_motion.motion" },
+    );
+  }
+
+  /**
+   * Join two sampled clips through the enhanced stitch preview API.
+   * Default timeout 360s. Missing motion ID raises kind="uncertain".
+   */
+  async createStitchedMotion(
+    character_id: string,
+    prefix: StitchParams,
+    suffix: StitchParams,
+    options?: { timeoutSeconds?: number },
+  ): Promise<Motion> {
+    if (typeof character_id !== "string" || !character_id.trim()) {
+      throw new Error("character_id is required");
+    }
+    const motion = await this._client._graphql<Motion | null>(
+      CREATE_ENHANCED_STITCHED_MOTION,
+      {
+        stitch_input: {
+          character_id,
+          prefix: validateStitchParams(prefix),
+          suffix: validateStitchParams(suffix),
+        },
+      },
+      {
+        path: "create_enhanced_stitched_motion.motion",
+        timeoutSeconds: options?.timeoutSeconds ?? 360,
+      },
+    );
+    if (!motion || typeof motion.id !== "string" || !motion.id.trim()) {
+      throw new UthanaError(
+        502,
+        "The operation returned no motion ID and may have succeeded. Inspect existing work before resubmitting.",
+        "uncertain",
+      );
+    }
+    return motion;
+  }
+
+  /**
+   * Create a looped motion through the simplified preview API.
+   * Default timeout 360s. Missing motion ID raises kind="uncertain".
+   */
+  async createLoopedMotion(
+    character_id: string,
+    motion_id: string,
+    options?: {
+      trim_start_pct?: number;
+      trim_end_pct?: number;
+      zone_duration?: number;
+      loop_mode?: "closed" | "open";
+      zone_mode?: "modify" | "extend";
+      zone_end_position?: { x: number; y: number; facing_angle?: number } | null;
+      timeoutSeconds?: number;
+    },
+  ): Promise<Motion> {
+    const trim_start_pct = options?.trim_start_pct ?? 0;
+    const trim_end_pct = options?.trim_end_pct ?? 1;
+    const zone_duration = options?.zone_duration ?? 2;
+    const loop_mode = options?.loop_mode ?? "closed";
+    const zone_mode = options?.zone_mode ?? "modify";
+    const zone_end_position = options?.zone_end_position ?? null;
+
+    const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+    if (
+      typeof character_id !== "string" ||
+      !character_id.trim() ||
+      typeof motion_id !== "string" ||
+      !motion_id.trim()
+    ) {
+      throw new Error("character_id and motion_id are required");
+    }
+    if (!finite(trim_start_pct) || !finite(trim_end_pct) || !finite(zone_duration)) {
+      throw new Error("Trim fractions and zone_duration must be finite numbers");
+    }
+    if (!(0 <= trim_start_pct && trim_start_pct < trim_end_pct && trim_end_pct <= 1) || zone_duration <= 0) {
+      throw new Error("Require 0 <= trim_start_pct < trim_end_pct <= 1 and zone_duration > 0");
+    }
+    if ((loop_mode !== "closed" && loop_mode !== "open") || (zone_mode !== "modify" && zone_mode !== "extend")) {
+      throw new Error("Invalid loop_mode or zone_mode");
+    }
+    if (zone_end_position != null) {
+      const keys = Object.keys(zone_end_position);
+      const allowed = new Set(["x", "y", "facing_angle"]);
+      if (
+        loop_mode !== "open" ||
+        !("x" in zone_end_position) ||
+        !("y" in zone_end_position) ||
+        !keys.every((k) => allowed.has(k)) ||
+        !Object.values(zone_end_position).every(finite)
+      ) {
+        throw new Error("An open-loop target requires finite x/y and optional facing_angle");
+      }
+    }
+
+    const motion = await this._client._graphql<Motion | null>(
+      CREATE_LOOPED_MOTION,
+      {
+        character_id,
+        motion_id,
+        trim_start_pct,
+        trim_end_pct,
+        zone_duration,
+        loop_mode,
+        zone_mode,
+        zone_end_position,
+      },
+      {
+        path: "create_looped_motion.motion",
+        timeoutSeconds: options?.timeoutSeconds ?? 360,
+      },
+    );
+    if (!motion || typeof motion.id !== "string" || !motion.id.trim()) {
+      throw new UthanaError(
+        502,
+        "The operation returned no motion ID and may have succeeded. Inspect existing work before resubmitting.",
+        "uncertain",
+      );
+    }
+    return motion;
+  }
+
+  /** Check download eligibility without downloading. */
+  async downloadAllowed(motion_id: string, character_id: string): Promise<DownloadAllowed> {
+    return this._client._graphql<DownloadAllowed>(
+      MOTION_DOWNLOAD_ALLOWED,
+      { motionId: motion_id, characterId: character_id },
+      { path: "motion_download_allowed", pathDefault: { allowed: false } },
+    );
   }
 
   /** Rate a motion (thumbs up/down). score: 1 = thumbs up, 0 = thumbs down. */
@@ -60,7 +222,7 @@ export class MotionsModule extends BaseModule {
     });
   }
 
-  /** Download a motion animation file, retargeted to the given character. */
+  /** Download a GLB, FBX, or BVH animation retargeted to the given character. */
   async download(
     character_id: string,
     motion_id: string,
@@ -68,6 +230,11 @@ export class MotionsModule extends BaseModule {
       output_format?: OutputFormat;
       fps?: number | null;
       no_mesh?: boolean | null;
+      in_place?: boolean | null;
+      roblox_compatible?: boolean | null;
+      speed_multiplier?: number | null;
+      torso_only?: boolean | null;
+      maxBytes?: number | null;
     },
   ): Promise<ArrayBuffer> {
     const url = this._client._motionUrl({
@@ -76,16 +243,34 @@ export class MotionsModule extends BaseModule {
       output_format: options?.output_format ?? "glb",
       fps: options?.fps,
       no_mesh: options?.no_mesh,
+      in_place: options?.in_place,
+      roblox_compatible: options?.roblox_compatible,
+      speed_multiplier: options?.speed_multiplier,
+      torso_only: options?.torso_only,
     });
-    const res = await this._client._fetch(url);
-    return res.arrayBuffer();
+    return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
-  /** Download motion preview WebM (does not charge download seconds). */
-  async preview(character_id: string, motion_id: string): Promise<ArrayBuffer> {
-    const url = `${this._client.baseUrl}/app/preview/${character_id}/${motion_id}/preview.webm`;
-    const res = await this._client._fetch(url);
-    return res.arrayBuffer();
+  /** Download a WebM or APNG preview (does not charge download seconds). */
+  async preview(
+    character_id: string,
+    motion_id: string,
+    options?: {
+      format?: "webm" | "apng";
+      maxBytes?: number | null;
+      timeoutSeconds?: number;
+    },
+  ): Promise<ArrayBuffer> {
+    const format = options?.format ?? "webm";
+    if (format !== "webm" && format !== "apng") {
+      throw new Error("Preview format must be webm or apng");
+    }
+    const suffix = format === "apng" ? "png" : "webm";
+    const url = `${this._client.baseUrl}/app/preview/${encodeURIComponent(character_id)}/${encodeURIComponent(motion_id)}/preview.${suffix}`;
+    return this._client._requestBytes(url, {
+      maxBytes: options?.maxBytes,
+      timeoutSeconds: options?.timeoutSeconds ?? 60,
+    });
   }
 
   /** Soft-delete a motion by ID. */
@@ -109,41 +294,40 @@ export class MotionsModule extends BaseModule {
   /** Set or unset a motion as favorite. */
   async favorite(motion_id: string, favorite: boolean): Promise<void> {
     if (favorite) {
-      await this._client._graphql(CREATE_MOTION_FAVORITE, {
-        motion_id,
-      });
+      await this._client._graphql(CREATE_MOTION_FAVORITE, { motion_id });
     } else {
-      await this._client._graphql(DELETE_MOTION_FAVORITE, {
-        motion_id,
-      });
+      await this._client._graphql(DELETE_MOTION_FAVORITE, { motion_id });
     }
   }
 
   /**
    * Bake GLTF content as a new motion for an existing character.
-   * Use this to submit custom or edited GLTF animation data to the platform.
-   * Returns the resulting motion_id and character_id.
+   * Optionally associate with a source motion via `source_motion_id`.
    */
   async bakeWithChanges(
     gltf_content: string,
     motion_name: string,
-    options?: { character_id?: string | null },
+    options?: { character_id?: string | null; source_motion_id?: string | null },
   ): Promise<TextToMotionResult> {
     const charId = options?.character_id ?? UthanaCharacters.tar;
+    const variables: Record<string, unknown> = {
+      gltf: gltf_content,
+      motionName: motion_name,
+      characterId: charId,
+    };
+    if (options?.source_motion_id != null) {
+      variables.sourceMotionId = options.source_motion_id;
+    }
     const result = (await this._client._graphql<Record<string, unknown>>(
       CREATE_MOTION_FROM_GLTF,
-      {
-        gltf: gltf_content,
-        motionName: motion_name,
-        characterId: charId,
-      },
+      variables,
       { path: "create_motion_from_gltf" },
     )) as Record<string, unknown>;
 
     const motion = result?.motion as Record<string, unknown> | undefined;
     const motionId = motion?.id as string | undefined;
     if (!motionId) {
-      throw new UthanaError(400, "create_motion_from_gltf did not return motion id");
+      throw new UthanaError(400, "create_motion_from_gltf did not return motion id", "client");
     }
     return { character_id: charId, motion_id: motionId };
   }
@@ -171,7 +355,7 @@ export class MotionsModule extends BaseModule {
     const motion = result?.motion as Record<string, unknown> | undefined;
     const motionId = motion?.id as string | undefined;
     if (!motionId) {
-      throw new UthanaError(400, "create_locomotion did not return motion id");
+      throw new UthanaError(400, "create_locomotion did not return motion id", "client");
     }
     return { character_id, motion_id: motionId };
   }
@@ -181,10 +365,7 @@ export class MotionsModule extends BaseModule {
     return this._client._graphql<string[]>(
       LIST_LOCOMOTION_STYLES,
       {},
-      {
-        path: "locomotion_styles",
-        pathDefault: [],
-      },
+      { path: "locomotion_styles", pathDefault: [] },
     );
   }
 }

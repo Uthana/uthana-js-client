@@ -178,6 +178,80 @@ describe("module methods with mocked _graphql", () => {
       const styles = await client.motions.listLocomotionStyles();
       expect(styles).toEqual(["neutral_male_a", "neutral_female_a"]);
     });
+
+    it("get throws 404 when motion missing", async () => {
+      mockGql.mockResolvedValue({ data: { motion: null } });
+      await expect(client.motions.get("missing")).rejects.toThrow(/404/);
+    });
+
+    it("trim validates fractions and sends variables", async () => {
+      mockGql.mockResolvedValue({
+        data: { trim_and_loop_motion: { motion: { id: "m2", name: "Trimmed" } } },
+      });
+      const motion = await client.motions.trim("m1", 0.1, 0.9, "Trimmed");
+      expect(motion.id).toBe("m2");
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({ motion_id: "m1", start: 0.1, end: 0.9, name: "Trimmed" }),
+      );
+    });
+
+    it("catalog returns org and motions", async () => {
+      mockGql.mockResolvedValue({
+        data: { org: { id: "o1" }, motions: [{ id: "m1", tags: { Model: "x" } }] },
+      });
+      const catalog = await client.motions.catalog();
+      expect(catalog.org?.id).toBe("o1");
+      expect(catalog.motions?.[0]?.id).toBe("m1");
+    });
+  });
+
+  describe("ttm", () => {
+    it("createJob includes fast variable", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_text_to_motion_job: { job: { id: "j1", status: "QUEUED" } } },
+      });
+      const job = await client.ttm.createJob("wave", {
+        model: "text-to-motion-3.0",
+        fast: true,
+        length: 8,
+      });
+      expect(job.id).toBe("j1");
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: "text-to-motion-3.0",
+          fast: true,
+          length: 8,
+        }),
+      );
+    });
+
+    it("createJob defaults fast to false", async () => {
+      mockGql.mockResolvedValue({
+        data: { create_text_to_motion_job: { job: { id: "j2", status: "QUEUED" } } },
+      });
+      await client.ttm.createJob("dance", { model: "text-to-motion-3.0" });
+      expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ fast: false }));
+    });
+  });
+
+  describe("org usage", () => {
+    it("getUsage and getPrices", async () => {
+      mockGql
+        .mockResolvedValueOnce({
+          data: {
+            org: { payg_enabled: true },
+            subscription: { status: "active" },
+            payg_prices: [{ model_key: "text-to-motion-3.0", unit_price: "0.10" }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: { payg_prices: [{ model_key: "text-to-motion-3.0", unit_price: "0.10" }] },
+        });
+      const usage = await client.org.getUsage();
+      expect(usage.org).toEqual({ payg_enabled: true });
+      const prices = await client.org.getPrices();
+      expect(prices[0]?.model_key).toBe("text-to-motion-3.0");
+    });
   });
 
   describe("characters", () => {
@@ -410,20 +484,20 @@ describe("module methods with mocked _graphql", () => {
       expect(mockGql).toHaveBeenCalledTimes(1);
     });
 
-    it("checkIsAllowed returns boolean", async () => {
+    it("checkIsAllowed returns eligibility object", async () => {
       mockGql.mockResolvedValue({
-        data: { motion_download_allowed: { allowed: true } },
+        data: { motion_download_allowed: { allowed: true, reason: null } },
       });
       const allowed = await client.motionDownloads.isAllowed("c1", "m1");
-      expect(allowed).toBe(true);
+      expect(allowed).toEqual({ allowed: true, reason: null });
     });
 
     it("checkIsAllowed returns false when not allowed", async () => {
       mockGql.mockResolvedValue({
-        data: { motion_download_allowed: { allowed: false } },
+        data: { motion_download_allowed: { allowed: false, reason: "quota" } },
       });
       const allowed = await client.motionDownloads.isAllowed("c1", "m1");
-      expect(allowed).toBe(false);
+      expect(allowed).toEqual({ allowed: false, reason: "quota" });
     });
   });
 });

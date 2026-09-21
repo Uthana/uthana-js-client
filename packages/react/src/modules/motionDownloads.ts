@@ -23,10 +23,10 @@ export function useUthanaIsMotionDownloadAllowed(
   motionId: string | null,
 ) {
   const client = useUthanaClient();
-  const { data: isAllowed, ...rest } = useQuery({
+  const { data, ...rest } = useQuery({
     queryKey: ["uthana", "motion_download_allowed", characterId, motionId] as const,
     queryFn: () => client.motionDownloads.isAllowed(characterId ?? "", motionId ?? ""),
     enabled: characterId != null && characterId !== "" && motionId != null && motionId !== "",
   });
-  return { isAllowed, ...rest };
+  return { isAllowed: data?.allowed ?? false, reason: data?.reason ?? null, ...rest };
 }

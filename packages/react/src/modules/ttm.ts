@@ -33,6 +33,7 @@ export function useUthanaCreateTtmJob() {
       character_id?: string | null;
       length?: number | null;
       rewrite_prompt?: boolean | null;
+      fast?: boolean | null;
     }) => client.ttm.createJob(params.prompt, params),
   });
 }

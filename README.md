@@ -205,6 +205,7 @@ const job = await client.ttm.createJob("a person doing jumping jacks", {
   model: "text-to-motion-3.0",
   length: 8, // optional, 4–10 seconds
   rewrite_prompt: true, // optional, default true
+  fast: true, // optional; omit or false for standard TTM 3.0
   character_id: UthanaCharacters.tar, // optional
 });
 

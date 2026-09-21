@@ -22,12 +22,15 @@ export type {
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
   CreateLocomotionOptions,
+  DownloadAllowed,
   Job,
   ModelType,
   Motion,
+  MotionCatalog,
   MotionDownloadRecord,
   Org,
   OutputFormat,
+  PaygPrice,
   TextToMotionResult,
   TtmJobModelType,
   TtmModelType,
@@ -35,7 +38,10 @@ export type {
   VideoToMotionResult,
   VtmModelType,
 } from "./types";
+export type { PelvisState, Quaternion, StitchParams, Vector3 } from "./stitch";
+export { validateStitchParams } from "./stitch";
 export {
+  DEFAULT_BYTE_UPLOAD_MAX,
   DEFAULT_OUTPUT_FORMAT,
   DEFAULT_TIMEOUT,
   SUPPORTED_VIDEO_FORMATS,

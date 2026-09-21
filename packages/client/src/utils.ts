@@ -81,11 +81,23 @@ export function prepareVideoToMotion(
   const ext = extname(filename);
   if (!SUPPORTED_VIDEO_FORMATS.has(ext)) {
     const supported = [...SUPPORTED_VIDEO_FORMATS].sort().join(", ");
-    throw new UthanaError(400, `Unsupported video format '${ext}'. Supported: ${supported}`);
+    throw new UthanaError(
+      400,
+      `Unsupported video format '${ext}'. Supported: ${supported}`,
+      "client",
+    );
   }
   const name = motionName ?? stem(filename);
   return {
     variables: { motion_name: name, file: null },
     filename,
   };
+}
+
+/** Reject non-positive or non-integer upload bounds. */
+export function validateUploadLimit(maxBytes: number | null | undefined): void {
+  if (maxBytes == null) return;
+  if (!Number.isInteger(maxBytes) || maxBytes < 1) {
+    throw new Error("Upload max_bytes must be a positive integer when supplied");
+  }
 }

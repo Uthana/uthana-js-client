@@ -4,7 +4,7 @@
 
 import type { UthanaClient } from "../client";
 import { GET_MOTION_DOWNLOADS, MOTION_DOWNLOAD_ALLOWED } from "../graphql";
-import type { MotionDownloadRecord } from "../types";
+import type { DownloadAllowed, MotionDownloadRecord } from "../types";
 import { BaseModule } from "./base";
 
 /** Motion downloads: list downloaded motions and check if download is allowed. */
@@ -23,12 +23,11 @@ export class MotionDownloadsModule extends BaseModule {
   }
 
   /** Check if downloading a motion for a character is allowed (quota, permissions). */
-  async isAllowed(character_id: string, motion_id: string): Promise<boolean> {
-    const result = await this._client._graphql<{ allowed: boolean }>(
+  async isAllowed(character_id: string, motion_id: string): Promise<DownloadAllowed> {
+    return this._client._graphql<DownloadAllowed>(
       MOTION_DOWNLOAD_ALLOWED,
       { characterId: character_id, motionId: motion_id },
       { path: "motion_download_allowed", pathDefault: { allowed: false } },
     );
-    return result?.allowed ?? false;
   }
 }
