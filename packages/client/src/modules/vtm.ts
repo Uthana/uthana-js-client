@@ -23,10 +23,10 @@ export class VtmModule extends BaseModule {
     options?: {
       motion_name?: string | null;
       model?: VtmModelType | null;
-      max_bytes?: number | null;
+      maxBytes?: number | null;
     },
   ): Promise<VideoToMotionResult> {
-    validateUploadLimit(options?.max_bytes);
+    validateUploadLimit(options?.maxBytes);
     let variables: Record<string, unknown>;
     let blob: Blob;
     let uploadFilename: string;
@@ -35,8 +35,8 @@ export class VtmModule extends BaseModule {
       const prepared = prepareVideoToMotion(file, options?.motion_name ?? null);
       const mod = await import("node:fs/promises");
       const buf = await mod.readFile(file);
-      if (options?.max_bytes != null && buf.byteLength > options.max_bytes) {
-        throw new Error("Video upload exceeds max_bytes");
+      if (options?.maxBytes != null && buf.byteLength > options.maxBytes) {
+        throw new Error("Video upload exceeds maxBytes");
       }
       blob = new Blob([buf], { type: "application/octet-stream" });
       variables = prepared.variables;
@@ -45,8 +45,8 @@ export class VtmModule extends BaseModule {
       const filename = file instanceof File ? file.name : "video.mp4";
       const prepared = prepareVideoToMotion(filename, options?.motion_name ?? null);
       blob = file instanceof Blob ? file : new Blob([], { type: "application/octet-stream" });
-      if (options?.max_bytes != null && blob.size > options.max_bytes) {
-        throw new Error("Video upload exceeds max_bytes");
+      if (options?.maxBytes != null && blob.size > options.maxBytes) {
+        throw new Error("Video upload exceeds maxBytes");
       }
       variables = prepared.variables;
       uploadFilename = prepared.filename;
@@ -70,10 +70,10 @@ export class VtmModule extends BaseModule {
     options?: {
       motion_name?: string | null;
       model?: VtmModelType | null;
-      max_bytes?: number | null;
+      maxBytes?: number | null;
     },
   ): Promise<VideoToMotionResult> {
-    const maxBytes = options?.max_bytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.max_bytes;
+    const maxBytes = options?.maxBytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.maxBytes;
     validateUploadLimit(maxBytes);
     const bytes =
       content instanceof ArrayBuffer
@@ -85,7 +85,7 @@ export class VtmModule extends BaseModule {
       throw new Error("Video upload content must be nonempty bytes");
     }
     if (maxBytes != null && bytes.byteLength > maxBytes) {
-      throw new Error("Video upload exceeds max_bytes");
+      throw new Error("Video upload exceeds maxBytes");
     }
     const prepared = prepareVideoToMotion(filename, options?.motion_name ?? null);
     const variables = {

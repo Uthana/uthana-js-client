@@ -98,6 +98,6 @@ export function prepareVideoToMotion(
 export function validateUploadLimit(maxBytes: number | null | undefined): void {
   if (maxBytes == null) return;
   if (!Number.isInteger(maxBytes) || maxBytes < 1) {
-    throw new Error("Upload max_bytes must be a positive integer when supplied");
+    throw new Error("Upload maxBytes must be a positive integer when supplied");
   }
 }

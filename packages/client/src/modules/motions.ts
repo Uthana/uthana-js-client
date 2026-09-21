@@ -62,7 +62,7 @@ export class MotionsModule extends BaseModule {
   }
 
   /** Create a trimmed motion from normalized start/end fractions (no looping). */
-  async trim(motion_id: string, start: number, end: number, name: string): Promise<Motion> {
+  async trim(motionId: string, start: number, end: number, name: string): Promise<Motion> {
     if (
       typeof start !== "number" ||
       typeof end !== "number" ||
@@ -74,7 +74,7 @@ export class MotionsModule extends BaseModule {
     }
     return this._client._graphql<Motion>(
       TRIM_MOTION,
-      { motion_id, start, end, name },
+      { motion_id: motionId, start, end, name },
       { path: "trim_and_loop_motion.motion" },
     );
   }
@@ -84,19 +84,19 @@ export class MotionsModule extends BaseModule {
    * Default timeout 360s. Missing motion ID raises kind="uncertain".
    */
   async createStitchedMotion(
-    character_id: string,
+    characterId: string,
     prefix: StitchParams,
     suffix: StitchParams,
     options?: { timeoutSeconds?: number },
   ): Promise<Motion> {
-    if (typeof character_id !== "string" || !character_id.trim()) {
-      throw new Error("character_id is required");
+    if (typeof characterId !== "string" || !characterId.trim()) {
+      throw new Error("characterId is required");
     }
     const motion = await this._client._graphql<Motion | null>(
       CREATE_ENHANCED_STITCHED_MOTION,
       {
         stitch_input: {
-          character_id,
+          character_id: characterId,
           prefix: validateStitchParams(prefix),
           suffix: validateStitchParams(suffix),
         },
@@ -121,75 +121,81 @@ export class MotionsModule extends BaseModule {
    * Default timeout 360s. Missing motion ID raises kind="uncertain".
    */
   async createLoopedMotion(
-    character_id: string,
-    motion_id: string,
+    characterId: string,
+    motionId: string,
     options?: {
-      trim_start_pct?: number;
-      trim_end_pct?: number;
-      zone_duration?: number;
-      loop_mode?: "closed" | "open";
-      zone_mode?: "modify" | "extend";
-      zone_end_position?: { x: number; y: number; facing_angle?: number } | null;
+      trimStartPct?: number;
+      trimEndPct?: number;
+      zoneDuration?: number;
+      loopMode?: "closed" | "open";
+      zoneMode?: "modify" | "extend";
+      zoneEndPosition?: { x: number; y: number; facingAngle?: number } | null;
       timeoutSeconds?: number;
     },
   ): Promise<Motion> {
-    const trim_start_pct = options?.trim_start_pct ?? 0;
-    const trim_end_pct = options?.trim_end_pct ?? 1;
-    const zone_duration = options?.zone_duration ?? 2;
-    const loop_mode = options?.loop_mode ?? "closed";
-    const zone_mode = options?.zone_mode ?? "modify";
-    const zone_end_position = options?.zone_end_position ?? null;
+    const trimStartPct = options?.trimStartPct ?? 0;
+    const trimEndPct = options?.trimEndPct ?? 1;
+    const zoneDuration = options?.zoneDuration ?? 2;
+    const loopMode = options?.loopMode ?? "closed";
+    const zoneMode = options?.zoneMode ?? "modify";
+    const zoneEndPosition = options?.zoneEndPosition ?? null;
 
     const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
     if (
-      typeof character_id !== "string" ||
-      !character_id.trim() ||
-      typeof motion_id !== "string" ||
-      !motion_id.trim()
+      typeof characterId !== "string" ||
+      !characterId.trim() ||
+      typeof motionId !== "string" ||
+      !motionId.trim()
     ) {
-      throw new Error("character_id and motion_id are required");
+      throw new Error("characterId and motionId are required");
     }
-    if (!finite(trim_start_pct) || !finite(trim_end_pct) || !finite(zone_duration)) {
-      throw new Error("Trim fractions and zone_duration must be finite numbers");
+    if (!finite(trimStartPct) || !finite(trimEndPct) || !finite(zoneDuration)) {
+      throw new Error("Trim fractions and zoneDuration must be finite numbers");
+    }
+    if (!(0 <= trimStartPct && trimStartPct < trimEndPct && trimEndPct <= 1) || zoneDuration <= 0) {
+      throw new Error("Require 0 <= trimStartPct < trimEndPct <= 1 and zoneDuration > 0");
     }
     if (
-      !(0 <= trim_start_pct && trim_start_pct < trim_end_pct && trim_end_pct <= 1) ||
-      zone_duration <= 0
+      (loopMode !== "closed" && loopMode !== "open") ||
+      (zoneMode !== "modify" && zoneMode !== "extend")
     ) {
-      throw new Error("Require 0 <= trim_start_pct < trim_end_pct <= 1 and zone_duration > 0");
+      throw new Error("Invalid loopMode or zoneMode");
     }
-    if (
-      (loop_mode !== "closed" && loop_mode !== "open") ||
-      (zone_mode !== "modify" && zone_mode !== "extend")
-    ) {
-      throw new Error("Invalid loop_mode or zone_mode");
-    }
-    if (zone_end_position != null) {
-      const keys = Object.keys(zone_end_position);
-      const allowed = new Set(["x", "y", "facing_angle"]);
+    if (zoneEndPosition != null) {
+      const keys = Object.keys(zoneEndPosition);
+      const allowed = new Set(["x", "y", "facingAngle"]);
       if (
-        loop_mode !== "open" ||
-        !("x" in zone_end_position) ||
-        !("y" in zone_end_position) ||
+        loopMode !== "open" ||
+        !("x" in zoneEndPosition) ||
+        !("y" in zoneEndPosition) ||
         !keys.every((k) => allowed.has(k)) ||
-        !Object.values(zone_end_position).every(finite)
+        !Object.values(zoneEndPosition).every(finite)
       ) {
-        throw new Error("An open-loop target requires finite x/y and optional facing_angle");
+        throw new Error("An open-loop target requires finite x/y and optional facingAngle");
       }
     }
 
     const motion = await this._client._graphql<Motion | null>(
       CREATE_LOOPED_MOTION,
       {
-        character_id,
-        motion_id,
-        trim_start_pct,
-        trim_end_pct,
-        zone_duration,
-        loop_mode,
-        zone_mode,
-        zone_end_position,
+        character_id: characterId,
+        motion_id: motionId,
+        trim_start_pct: trimStartPct,
+        trim_end_pct: trimEndPct,
+        zone_duration: zoneDuration,
+        loop_mode: loopMode,
+        zone_mode: zoneMode,
+        zone_end_position:
+          zoneEndPosition == null
+            ? null
+            : {
+                x: zoneEndPosition.x,
+                y: zoneEndPosition.y,
+                ...(zoneEndPosition.facingAngle != null
+                  ? { facing_angle: zoneEndPosition.facingAngle }
+                  : {}),
+              },
       },
       {
         path: "create_looped_motion.motion",
@@ -207,10 +213,10 @@ export class MotionsModule extends BaseModule {
   }
 
   /** Check download eligibility without downloading. */
-  async downloadAllowed(motion_id: string, character_id: string): Promise<DownloadAllowed> {
+  async downloadAllowed(motionId: string, characterId: string): Promise<DownloadAllowed> {
     return this._client._graphql<DownloadAllowed>(
       MOTION_DOWNLOAD_ALLOWED,
-      { motionId: motion_id, characterId: character_id },
+      { motionId, characterId },
       { path: "motion_download_allowed", pathDefault: { allowed: false } },
     );
   }
@@ -308,12 +314,12 @@ export class MotionsModule extends BaseModule {
 
   /**
    * Bake GLTF content as a new motion for an existing character.
-   * Optionally associate with a source motion via `source_motion_id`.
+   * Optionally associate with a source motion via `sourceMotionId`.
    */
   async bakeWithChanges(
     gltf_content: string,
     motion_name: string,
-    options?: { character_id?: string | null; source_motion_id?: string | null },
+    options?: { character_id?: string | null; sourceMotionId?: string | null },
   ): Promise<TextToMotionResult> {
     const charId = options?.character_id ?? UthanaCharacters.tar;
     const variables: Record<string, unknown> = {
@@ -321,8 +327,8 @@ export class MotionsModule extends BaseModule {
       motionName: motion_name,
       characterId: charId,
     };
-    if (options?.source_motion_id != null) {
-      variables.sourceMotionId = options.source_motion_id;
+    if (options?.sourceMotionId != null) {
+      variables.sourceMotionId = options.sourceMotionId;
     }
     const result = (await this._client._graphql<Record<string, unknown>>(
       CREATE_MOTION_FROM_GLTF,

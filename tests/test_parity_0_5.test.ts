@@ -68,7 +68,7 @@ describe("motions loop validation", () => {
   it("rejects invalid trim range", async () => {
     const client = new UthanaClient("test-key");
     await expect(
-      client.motions.createLoopedMotion("c1", "m1", { trim_start_pct: 0.8, trim_end_pct: 0.2 }),
-    ).rejects.toThrow(/trim_start_pct/);
+      client.motions.createLoopedMotion("c1", "m1", { trimStartPct: 0.8, trimEndPct: 0.2 }),
+    ).rejects.toThrow(/trimStartPct/);
   });
 });

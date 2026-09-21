@@ -44,8 +44,8 @@ export function useUthanaTrimMotion() {
   const client = useUthanaClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { motion_id: string; start: number; end: number; name: string }) =>
-      client.motions.trim(params.motion_id, params.start, params.end, params.name),
+    mutationFn: (params: { motionId: string; start: number; end: number; name: string }) =>
+      client.motions.trim(params.motionId, params.start, params.end, params.name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
     },
@@ -58,12 +58,12 @@ export function useUthanaCreateStitchedMotion() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (params: {
-      character_id: string;
+      characterId: string;
       prefix: Parameters<typeof client.motions.createStitchedMotion>[1];
       suffix: Parameters<typeof client.motions.createStitchedMotion>[2];
       timeoutSeconds?: number;
     }) =>
-      client.motions.createStitchedMotion(params.character_id, params.prefix, params.suffix, {
+      client.motions.createStitchedMotion(params.characterId, params.prefix, params.suffix, {
         timeoutSeconds: params.timeoutSeconds,
       }),
     onSuccess: () => {
@@ -78,23 +78,23 @@ export function useUthanaCreateLoopedMotion() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (params: {
-      character_id: string;
-      motion_id: string;
-      trim_start_pct?: number;
-      trim_end_pct?: number;
-      zone_duration?: number;
-      loop_mode?: "closed" | "open";
-      zone_mode?: "modify" | "extend";
-      zone_end_position?: { x: number; y: number; facing_angle?: number } | null;
+      characterId: string;
+      motionId: string;
+      trimStartPct?: number;
+      trimEndPct?: number;
+      zoneDuration?: number;
+      loopMode?: "closed" | "open";
+      zoneMode?: "modify" | "extend";
+      zoneEndPosition?: { x: number; y: number; facingAngle?: number } | null;
       timeoutSeconds?: number;
     }) =>
-      client.motions.createLoopedMotion(params.character_id, params.motion_id, {
-        trim_start_pct: params.trim_start_pct,
-        trim_end_pct: params.trim_end_pct,
-        zone_duration: params.zone_duration,
-        loop_mode: params.loop_mode,
-        zone_mode: params.zone_mode,
-        zone_end_position: params.zone_end_position,
+      client.motions.createLoopedMotion(params.characterId, params.motionId, {
+        trimStartPct: params.trimStartPct,
+        trimEndPct: params.trimEndPct,
+        zoneDuration: params.zoneDuration,
+        loopMode: params.loopMode,
+        zoneMode: params.zoneMode,
+        zoneEndPosition: params.zoneEndPosition,
         timeoutSeconds: params.timeoutSeconds,
       }),
     onSuccess: () => {
@@ -141,11 +141,11 @@ export function useUthanaBakeWithChanges() {
       gltf_content: string;
       motion_name: string;
       character_id?: string | null;
-      source_motion_id?: string | null;
+      sourceMotionId?: string | null;
     }) =>
       client.motions.bakeWithChanges(params.gltf_content, params.motion_name, {
         character_id: params.character_id,
-        source_motion_id: params.source_motion_id,
+        sourceMotionId: params.sourceMotionId,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });

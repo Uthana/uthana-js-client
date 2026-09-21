@@ -52,13 +52,13 @@ export class CharactersModule extends BaseModule {
       include_fingers?: boolean | null;
       name?: string | null;
       timeoutSeconds?: number;
-      max_bytes?: number | null;
+      maxBytes?: number | null;
     },
   ): Promise<CreateCharacterResult> {
     if (file === "" || (typeof file === "string" && !file.trim())) {
       throw new UthanaError(400, "file is required (.glb or .fbx)", "client");
     }
-    validateUploadLimit(options?.max_bytes);
+    validateUploadLimit(options?.maxBytes);
     return this._createFromFile(
       file,
       options?.auto_rig,
@@ -67,7 +67,7 @@ export class CharactersModule extends BaseModule {
       options?.include_fingers,
       options?.name,
       options?.timeoutSeconds,
-      options?.max_bytes,
+      options?.maxBytes,
     );
   }
 
@@ -82,10 +82,10 @@ export class CharactersModule extends BaseModule {
       rerig_target?: string | null;
       include_fingers?: boolean | null;
       timeoutSeconds?: number;
-      max_bytes?: number | null;
+      maxBytes?: number | null;
     },
   ): Promise<CreateCharacterResult> {
-    const maxBytes = options?.max_bytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.max_bytes;
+    const maxBytes = options?.maxBytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.maxBytes;
     validateUploadLimit(maxBytes);
     const bytes =
       content instanceof ArrayBuffer
@@ -97,7 +97,7 @@ export class CharactersModule extends BaseModule {
       throw new Error("Character upload content must be nonempty bytes");
     }
     if (maxBytes != null && bytes.byteLength > maxBytes) {
-      throw new Error("Character upload exceeds max_bytes");
+      throw new Error("Character upload exceeds maxBytes");
     }
     const name = basename(filename);
     const header = bytes.slice(0, 20);
@@ -129,11 +129,11 @@ export class CharactersModule extends BaseModule {
 
   /** Get character rig metadata used to validate character-specific edits. */
   async metadata(
-    character_id: string,
-    options?: { max_bytes?: number | null },
+    characterId: string,
+    options?: { maxBytes?: number | null },
   ): Promise<Record<string, unknown>> {
-    const url = `${this._client.baseUrl}/motion/metadata/${encodeURIComponent(character_id)}`;
-    const buf = await this._client._requestBytes(url, { maxBytes: options?.max_bytes });
+    const url = `${this._client.baseUrl}/motion/metadata/${encodeURIComponent(characterId)}`;
+    const buf = await this._client._requestBytes(url, { maxBytes: options?.maxBytes });
     try {
       const text = new TextDecoder().decode(buf);
       const result = JSON.parse(text) as unknown;
@@ -214,11 +214,11 @@ export class CharactersModule extends BaseModule {
   async prepareFromImageBytes(
     filename: string,
     content: ArrayBuffer | Uint8Array | Buffer,
-    options?: { max_bytes?: number; timeoutSeconds?: number },
+    options?: { maxBytes?: number; timeoutSeconds?: number },
   ): Promise<CharacterPreviewResult> {
-    const maxBytes = options?.max_bytes ?? 16 * 1024 * 1024;
+    const maxBytes = options?.maxBytes ?? 16 * 1024 * 1024;
     if (!Number.isInteger(maxBytes) || maxBytes < 1) {
-      throw new Error("Image snapshots require a positive max_bytes limit");
+      throw new Error("Image snapshots require a positive maxBytes limit");
     }
     const lower = filename.toLowerCase();
     if (!lower.endsWith(".png") && !lower.endsWith(".jpg") && !lower.endsWith(".jpeg")) {
@@ -231,7 +231,7 @@ export class CharactersModule extends BaseModule {
           ? content
           : new Uint8Array(content);
     if (!bytes.byteLength || bytes.byteLength > maxBytes) {
-      throw new Error("Image snapshot must be nonempty bytes and fit max_bytes");
+      throw new Error("Image snapshot must be nonempty bytes and fit maxBytes");
     }
     const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
     const data = await this._client._graphqlUpload<{
@@ -272,11 +272,11 @@ export class CharactersModule extends BaseModule {
   /** Download a character model in the requested format. */
   async download(
     character_id: string,
-    options?: { output_format?: OutputFormat; max_bytes?: number | null },
+    options?: { output_format?: OutputFormat; maxBytes?: number | null },
   ): Promise<ArrayBuffer> {
     const fmt = (options?.output_format ?? "glb").toLowerCase();
     const url = `${this._client.baseUrl}/motion/bundle/${encodeURIComponent(character_id)}/character.${fmt}`;
-    return this._client._requestBytes(url, { maxBytes: options?.max_bytes });
+    return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
   /** Rename a character by ID. */
@@ -309,7 +309,7 @@ export class CharactersModule extends BaseModule {
     include_fingers?: boolean | null,
     name?: string | null,
     timeoutSeconds?: number,
-    max_bytes?: number | null,
+    maxBytes?: number | null,
   ): Promise<CreateCharacterResult> {
     let variables: Record<string, unknown>;
     let ext: string;
@@ -322,14 +322,14 @@ export class CharactersModule extends BaseModule {
       try {
         const mod = await import("node:fs/promises");
         const buf = await mod.readFile(file);
-        if (max_bytes != null && buf.byteLength > max_bytes) {
-          throw new Error("Character upload exceeds max_bytes");
+        if (maxBytes != null && buf.byteLength > maxBytes) {
+          throw new Error("Character upload exceeds maxBytes");
         }
         const header = new Uint8Array(buf.buffer, buf.byteOffset, 20);
         detectedFormat = detectMeshFormat(header);
         blob = new Blob([buf], { type: "application/octet-stream" });
       } catch (err) {
-        if (err instanceof Error && err.message.includes("max_bytes")) throw err;
+        if (err instanceof Error && err.message.includes("maxBytes")) throw err;
         blob = new Blob([], { type: "application/octet-stream" });
       }
       const prepared = prepareCreateCharacter(
@@ -347,8 +347,8 @@ export class CharactersModule extends BaseModule {
       const filename = file instanceof File ? file.name : "character.glb";
       let detectedFormat: "glb" | "fbx" | null = null;
       if (file instanceof Blob) {
-        if (max_bytes != null && file.size > max_bytes) {
-          throw new Error("Character upload exceeds max_bytes");
+        if (maxBytes != null && file.size > maxBytes) {
+          throw new Error("Character upload exceeds maxBytes");
         }
         const header = new Uint8Array(await file.slice(0, 20).arrayBuffer());
         detectedFormat = detectMeshFormat(header);
