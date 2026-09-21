@@ -59,16 +59,15 @@ export class CharactersModule extends BaseModule {
       throw new UthanaError(400, "file is required (.glb or .fbx)", "client");
     }
     validateUploadLimit(options?.maxBytes);
-    return this._createFromFile(
-      file,
-      options?.auto_rig,
-      options?.front_facing,
-      options?.rerig_target,
-      options?.include_fingers,
-      options?.name,
-      options?.timeoutSeconds,
-      options?.maxBytes,
-    );
+    return this._createFromFile(file, {
+      autoRig: options?.auto_rig,
+      frontFacing: options?.front_facing,
+      rerigTarget: options?.rerig_target,
+      includeFingers: options?.include_fingers,
+      name: options?.name,
+      timeoutSeconds: options?.timeoutSeconds,
+      maxBytes: options?.maxBytes,
+    });
   }
 
   /** Upload an existing byte snapshot without reopening its source file. */
@@ -105,14 +104,14 @@ export class CharactersModule extends BaseModule {
     const name = basename(filename);
     const header = bytes.slice(0, 20);
     const detectedFormat = detectMeshFormat(header);
-    const prepared = prepareCreateCharacter(
-      name,
-      options?.auto_rig ?? null,
-      options?.front_facing ?? null,
-      options?.rerig_target ?? null,
-      options?.include_fingers ?? null,
+    const prepared = prepareCreateCharacter({
+      filePathOrName: name,
+      autoRig: options?.auto_rig,
+      autoRigFrontFacing: options?.front_facing,
+      rerigTarget: options?.rerig_target,
+      includeFingers: options?.include_fingers,
       detectedFormat,
-    );
+    });
     if (options?.name != null) {
       prepared.variables.name = options.name;
     }
@@ -312,13 +311,23 @@ export class CharactersModule extends BaseModule {
 
   private async _createFromFile(
     file: File | Blob | string,
-    auto_rig?: boolean | null,
-    front_facing?: boolean | null,
-    rerig_target?: string | null,
-    include_fingers?: boolean | null,
-    name?: string | null,
-    timeoutSeconds = 360,
-    maxBytes?: number | null,
+    {
+      autoRig,
+      frontFacing,
+      rerigTarget,
+      includeFingers,
+      name,
+      timeoutSeconds = 360,
+      maxBytes,
+    }: {
+      autoRig?: boolean | null;
+      frontFacing?: boolean | null;
+      rerigTarget?: string | null;
+      includeFingers?: boolean | null;
+      name?: string | null;
+      timeoutSeconds?: number;
+      maxBytes?: number | null;
+    } = {},
   ): Promise<CreateCharacterResult> {
     let variables: Record<string, unknown>;
     let ext: string;
@@ -341,14 +350,14 @@ export class CharactersModule extends BaseModule {
         if (err instanceof Error && err.message.includes("maxBytes")) throw err;
         blob = new Blob([], { type: "application/octet-stream" });
       }
-      const prepared = prepareCreateCharacter(
-        file,
-        auto_rig ?? null,
-        front_facing ?? null,
-        rerig_target ?? null,
-        include_fingers ?? null,
+      const prepared = prepareCreateCharacter({
+        filePathOrName: file,
+        autoRig,
+        autoRigFrontFacing: frontFacing,
+        rerigTarget,
+        includeFingers,
         detectedFormat,
-      );
+      });
       variables = prepared.variables;
       ext = prepared.ext;
       uploadFilename = prepared.filename;
@@ -363,14 +372,14 @@ export class CharactersModule extends BaseModule {
         detectedFormat = detectMeshFormat(header);
       }
       blob = file instanceof Blob ? file : new Blob([], { type: "application/octet-stream" });
-      const prepared = prepareCreateCharacter(
-        filename,
-        auto_rig ?? null,
-        front_facing ?? null,
-        rerig_target ?? null,
-        include_fingers ?? null,
+      const prepared = prepareCreateCharacter({
+        filePathOrName: filename,
+        autoRig,
+        autoRigFrontFacing: frontFacing,
+        rerigTarget,
+        includeFingers,
         detectedFormat,
-      );
+      });
       variables = prepared.variables;
       ext = prepared.ext;
       uploadFilename = prepared.filename;

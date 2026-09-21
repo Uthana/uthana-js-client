@@ -36,6 +36,27 @@ export function extname(filename: string): string {
   return i >= 0 ? filename.slice(i).toLowerCase() : "";
 }
 
+/** `autoRigFrontFacing` -> `auto_rig_front_facing`. Keys with no capitals are unchanged. */
+export type CamelToSnake<S extends string> = S extends `${infer Head}${infer Tail}`
+  ? Tail extends Uncapitalize<Tail>
+    ? `${Lowercase<Head>}${CamelToSnake<Tail>}`
+    : `${Lowercase<Head>}_${CamelToSnake<Uncapitalize<Tail>>}`
+  : S;
+
+/** One-level key rename. Nested values are left as-is. */
+export type SnakeCaseKeys<T extends Record<string, unknown>> = {
+  [K in keyof T as K extends string ? CamelToSnake<K> : K]: T[K];
+};
+
+/** Rename camelCase keys to snake_case for a GraphQL variables object. */
+export function camelToSnake<T extends Record<string, unknown>>(value: T): SnakeCaseKeys<T> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) {
+    out[key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)] = value[key];
+  }
+  return out as SnakeCaseKeys<T>;
+}
+
 export interface PrepareCreateCharacterResult {
   variables: Record<string, unknown>;
   name: string;
@@ -44,26 +65,26 @@ export interface PrepareCreateCharacterResult {
 }
 
 /** Prepare variables and metadata for create_character mutation. */
-export function prepareCreateCharacter(
-  filePathOrName: string,
-  autoRig: boolean | null,
-  frontFacing: boolean | null,
-  rerigTarget: string | null,
-  includeFingers: boolean | null,
-  detectedFormat?: "glb" | "fbx" | null,
-): PrepareCreateCharacterResult {
-  const filename = basename(filePathOrName);
+export function prepareCreateCharacter(options: {
+  filePathOrName: string;
+  autoRig?: boolean | null;
+  autoRigFrontFacing?: boolean | null;
+  rerigTarget?: string | null;
+  includeFingers?: boolean | null;
+  detectedFormat?: "glb" | "fbx" | null;
+}): PrepareCreateCharacterResult {
+  const filename = basename(options.filePathOrName);
   const name = stem(filename);
-  const ext = detectedFormat ?? (extname(filename).replace(".", "") || "glb");
+  const ext = options.detectedFormat ?? (extname(filename).replace(".", "") || "glb");
 
-  const variables: Record<string, unknown> = {
+  const variables = camelToSnake({
     name,
     file: null,
-    auto_rig: autoRig,
-    auto_rig_front_facing: frontFacing,
-    rerig_target: rerigTarget,
-    include_fingers: includeFingers,
-  };
+    autoRig: options.autoRig ?? null,
+    autoRigFrontFacing: options.autoRigFrontFacing ?? null,
+    rerigTarget: options.rerigTarget ?? null,
+    includeFingers: options.includeFingers ?? null,
+  });
   return { variables, name, ext, filename };
 }
 
