@@ -6,6 +6,7 @@ import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
   CREATE_ENHANCED_STITCHED_MOTION,
+  STITCH_MOTIONS,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
   CREATE_MOTION_FAVORITE,
@@ -20,7 +21,12 @@ import {
   TRIM_MOTION,
   UPDATE_MOTION,
 } from "../graphql";
-import { type StitchParams, validateStitchParams } from "../stitch";
+import {
+  type AutoStitchInput,
+  validateAutoStitchInput,
+  type StitchParams,
+  validateStitchParams,
+} from "../stitch";
 import type {
   CreateLocomotionOptions,
   DownloadAllowed,
@@ -77,6 +83,28 @@ export class MotionsModule extends BaseModule {
       { motion_id: motionId, start, end, name },
       { path: "trim_and_loop_motion.motion" },
     );
+  }
+
+  /** Server-prepared stitching; offsets use meters and facing uses degrees right.
+   * Requires AutomaticStitchInput support. No automatic retries of uncertain requests.
+   */
+  async stitchMotions(
+    options: AutoStitchInput,
+    timeoutSeconds = 360,
+  ): Promise<{ motion: Motion; preparation: unknown }> {
+    const result = await this._client._graphql<{ motion: Motion; preparation: unknown }>(
+      STITCH_MOTIONS,
+      { auto_input: validateAutoStitchInput(options) },
+      { path: "create_enhanced_stitched_motion", timeoutSeconds },
+    );
+    if (typeof result?.motion?.id !== "string" || !result.motion.id.trim()) {
+      throw new UthanaError(
+        200,
+        "Stitch returned no motion ID; inspect existing work before resubmitting",
+        "uncertain",
+      );
+    }
+    return result;
   }
 
   /**

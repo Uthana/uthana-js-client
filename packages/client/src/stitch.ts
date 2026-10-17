@@ -141,3 +141,78 @@ export const validateStitchParams = (params: StitchParams): StitchParams => {
   }
   return structuredClone(params);
 };
+
+/** Relative to prefix ending facing. Omitted forward continues recent travel. */
+export interface StitchPlacement {
+  forward_m?: number;
+  right_m?: number;
+  facing_degrees?: number;
+}
+
+export interface AutoStitchInput {
+  character_id: string;
+  prefix_motion_id: string;
+  suffix_motion_id: string;
+  stitch_duration?: number;
+  prefix_start_seconds?: number;
+  prefix_end_seconds?: number;
+  suffix_start_seconds?: number;
+  suffix_end_seconds?: number;
+  placement?: StitchPlacement;
+}
+
+export function validateAutoStitchInput(value: AutoStitchInput): AutoStitchInput {
+  const required = ["character_id", "prefix_motion_id", "suffix_motion_id"] as const;
+  const allowed = [
+    ...required,
+    "stitch_duration",
+    "prefix_start_seconds",
+    "prefix_end_seconds",
+    "suffix_start_seconds",
+    "suffix_end_seconds",
+    "placement",
+  ];
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((k) => !allowed.includes(k))
+  ) {
+    throw new Error("Automatic stitch input has unsupported fields");
+  }
+  for (const key of required) {
+    if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 128) {
+      throw new Error(`${key} must be a nonempty ID of at most 128 characters`);
+    }
+  }
+  const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+  const duration = value.stitch_duration === undefined ? 1 : value.stitch_duration;
+  if (!finite(duration) || duration < 0.1 || duration > 3)
+    throw new Error("Invalid stitch_duration");
+  for (const label of ["prefix", "suffix"] as const) {
+    const start =
+      value[`${label}_start_seconds`] === undefined ? 0 : value[`${label}_start_seconds`];
+    const end = value[`${label}_end_seconds`];
+    if (!finite(start) || start < 0 || (end !== undefined && (!finite(end) || end <= start))) {
+      throw new Error("Trim end must exceed nonnegative start");
+    }
+  }
+  if (value.placement !== undefined) {
+    if (!value.placement || typeof value.placement !== "object" || Array.isArray(value.placement))
+      throw new Error("Invalid placement");
+    for (const [key, number] of Object.entries(value.placement)) {
+      const limit = key === "facing_degrees" ? 180 : 100;
+      if (
+        !["forward_m", "right_m", "facing_degrees"].includes(key) ||
+        !finite(number) ||
+        Math.abs(number) > limit
+      ) {
+        throw new Error(`Invalid placement ${key}`);
+      }
+    }
+  }
+  return {
+    ...value,
+    ...(value.placement === undefined ? {} : { placement: { ...value.placement } }),
+  };
+}

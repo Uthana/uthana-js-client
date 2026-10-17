@@ -813,3 +813,23 @@ The release workflow uses npm **Trusted Publishers** (OIDC) — no `NPM_TOKEN` s
 If OIDC is not yet configured, add `NPM_TOKEN` as a repository secret and uncomment the `NODE_AUTH_TOKEN` line in `.github/workflows/release.yml`.
 
 If `npm publish` fails with **`404`** / **`PUT ... /@uthana/... Not found`**, confirm `npm whoami`, that your account is a member of the `@uthana` org on [npmjs.com](https://www.npmjs.com/), and that `--access public` is in effect (already set in the script).
+
+### Server-prepared stitching (0.6.0)
+
+```ts
+const result = await client.motions.stitchMotions({
+  character_id: characterId,
+  prefix_motion_id: firstMotionId,
+  suffix_motion_id: secondMotionId,
+  stitch_duration: 1,
+  placement: { forward_m: 2, facing_degrees: 90 },
+});
+console.log(result.motion.id, result.preparation);
+```
+
+Omit placement for automatic continuation. Offsets use meters relative to the
+first clip's ending pelvis and facing; positive facing degrees turn right. Explicit
+forward zero requests no forward gap. Optional trim fields use seconds. The service
+returns effective trims and connection poses in `preparation`; review the output.
+Requires the additive `AutomaticStitchInput` backend deployed before client release.
+Existing sampled-pose stitching remains supported; uncertain writes are not retried.
