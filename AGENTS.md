@@ -9,6 +9,7 @@ Apply these conventions to new or changed code in the client and React packages.
 - Keep braces around new conditional branches, including single-statement branches. Use descriptive variables rather than shorthand names for domain values.
 - Use an options object when new helper arguments are numerous or easy to swap. Preserve existing public positional signatures.
 - The client supports browser consumers and Node 18+. Keep Node-only imports in scripts/tests, not shared runtime modules; do not introduce new runtime dependencies solely for stylistic consistency with Python.
+- Start boolean variable names with `is` or `has`, using the language’s casing: `is_valid_motion`, `has_frame_range` in Python; `isValidMotion`, `hasFrameRange` in TypeScript. Prefer names that read as a clear predicate. Preserve published parameter and field names for compatibility.
 - Name predicates for the domain rule they express, then combine names at a shared error, return, or continuation. Keep simple type-narrowing guards inline before field access. Do not compute an unsafe or expensive predicate eagerly just to give it a name.
 - Treat untrusted values as `object` in Python or `unknown` in TypeScript until validated. Build owned normalized records with declared types; a cast is not runtime validation. Keep any necessary assertion local to the checks that justify it.
 - Distinguish omitted fields from explicit null, zero, and false. Apply defaults only where the contract permits them. Validation must not mutate caller-owned nested data.

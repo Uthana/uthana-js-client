@@ -218,19 +218,19 @@ function validateRange(value: unknown): asserts value is StitchRange {
     required: [],
     allowed: ["start_frame", "end_frame", "start_seconds", "end_seconds"],
   });
-  const usesFrames = "start_frame" in selected || "end_frame" in selected;
-  const usesSeconds = "start_seconds" in selected || "end_seconds" in selected;
-  if (usesFrames && usesSeconds) {
+  const hasFrameRange = "start_frame" in selected || "end_frame" in selected;
+  const hasSecondRange = "start_seconds" in selected || "end_seconds" in selected;
+  if (hasFrameRange && hasSecondRange) {
     throw new Error("Use frames or seconds within a range, not both");
   }
   for (const [key, value] of Object.entries(selected)) {
     const number = finite(value);
-    const invalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(number);
-    if (number < 0 || invalidFrame) {
+    const isInvalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(number);
+    if (number < 0 || isInvalidFrame) {
       throw new Error("Invalid source range");
     }
   }
-  const unit = usesFrames ? "frame" : "seconds";
+  const unit = hasFrameRange ? "frame" : "seconds";
   const start = (selected[`start_${unit}`] as number | undefined) ?? 0;
   const end = selected[`end_${unit}`] as number | undefined;
   if (end !== undefined && end <= start) {
