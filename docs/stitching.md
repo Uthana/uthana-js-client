@@ -2,20 +2,68 @@
 
 `stitch` joins two existing motions on a selected character. Supply exactly three typed steps: `motion`, `transition`, `motion`. Uthana samples, retargets, and aligns the sources on the server and creates a separate motion. No local pose sampler is required.
 
+## Simple join
+
+Join two motions with automatic positioning. The server handles sampling and alignment.
+
 ```json
 {
   "character_id": "CHARACTER_ID",
   "steps": [
-    { "type": "motion", "motion_id": "WALK_ID", "range": { "start_frame": 12, "end_frame": 90 } },
-    { "type": "transition", "duration_seconds": 1.0 },
     {
       "type": "motion",
-      "motion_id": "WAVE_ID",
-      "placement": { "forward_m": 2, "turn_degrees": 45 }
+      "motion_id": "FIRST_MOTION_ID"
+    },
+    {
+      "type": "transition",
+      "duration_seconds": 1.0
+    },
+    {
+      "type": "motion",
+      "motion_id": "SECOND_MOTION_ID"
     }
   ]
 }
 ```
+
+## Join with ranges and positioning
+
+Select source intervals and place the second motion one meter forward and half a meter right of the first motion’s ending pelvis, turned 45 degrees right. Placement is relative to the first motion’s ending facing.
+
+```json
+{
+  "character_id": "CHARACTER_ID",
+  "steps": [
+    {
+      "type": "motion",
+      "motion_id": "FIRST_MOTION_ID",
+      "range": {
+        "start_frame": 12,
+        "end_frame": 60
+      }
+    },
+    {
+      "type": "transition",
+      "duration_seconds": 1.5
+    },
+    {
+      "type": "motion",
+      "motion_id": "SECOND_MOTION_ID",
+      "range": {
+        "start_seconds": 0.5,
+        "end_seconds": 3.0
+      },
+      "placement": {
+        "forward_m": 1.0,
+        "right_m": 0.5,
+        "turn_degrees": 45.0
+      }
+    }
+  ]
+}
+```
+
+Choose ranges that fit your source motions and leave the required transition context. Frame indices use each source’s native FPS; do not mix frames and seconds within one range. Inspect `resolved_steps` and review playback before accepting the result.
 
 ## Source ranges
 
