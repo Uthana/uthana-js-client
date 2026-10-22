@@ -53,3 +53,18 @@ it("treats missing motion as uncertain without retry", async () => {
   });
   expect(_graphql).toHaveBeenCalledTimes(1);
 });
+
+it("normalizes without mutating caller-owned nested records", () => {
+  const input = structuredClone(fixtures.valid[1].input);
+  input.steps[2].placement = { forward_m: 0, right_m: 0.5 };
+  const original = structuredClone(input);
+  const normalized = validateStitchInput(input);
+  expect(validateStitchInput(normalized)).toEqual(normalized);
+  if (normalized.steps[0].range && "end_frame" in normalized.steps[0].range) {
+    normalized.steps[0].range.end_frame = 50;
+  }
+  if (normalized.steps[2].placement) {
+    normalized.steps[2].placement.right_m = 10;
+  }
+  expect(input).toEqual(original);
+});

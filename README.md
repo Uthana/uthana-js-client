@@ -860,3 +860,7 @@ The release workflow uses npm **Trusted Publishers** (OIDC) — no `NPM_TOKEN` s
 If OIDC is not yet configured, add `NPM_TOKEN` as a repository secret and uncomment the `NODE_AUTH_TOKEN` line in `.github/workflows/release.yml`.
 
 If `npm publish` fails with **`404`** / **`PUT ... /@uthana/... Not found`**, confirm `npm whoami`, that your account is a member of the `@uthana` org on [npmjs.com](https://www.npmjs.com/), and that `--access public` is in effect (already set in the script).
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for code style, validation, testing, and review conventions.

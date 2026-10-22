@@ -1,9 +1,17 @@
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  *
- * Typed sampled-pose inputs for the enhanced stitch preview API.
- * Sampling and spatial placement belong to the caller's motion loader.
+ * Shared typed-step stitching and legacy sampled-pose compatibility.
+ * Ordinary stitching is prepared by the service; legacy callers supply poses.
  */
+
+import type { Motion } from "./types";
+
+const MAX_OFFSET_METERS = 100;
+const MAX_TURN_DEGREES = 180;
+const MIN_TRANSITION_SECONDS = 0.1;
+const MAX_TRANSITION_SECONDS = 3;
+const DEFAULT_TRANSITION_SECONDS = 1;
 
 export interface Vector3 {
   x: number;
@@ -179,14 +187,13 @@ export interface ResolvedMotionStep {
 }
 
 export interface StitchResult {
-  motion: import("./types").Motion;
+  motion: Motion;
   resolved_steps: [ResolvedMotionStep, Required<TransitionStep>, ResolvedMotionStep];
 }
 
 const allowedFields = (
   value: unknown,
-  required: string[],
-  allowed: string[],
+  { required, allowed }: { required: readonly string[]; allowed: readonly string[] },
 ): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Stitch objects must be records");
@@ -194,8 +201,9 @@ const allowedFields = (
   const row = value as Record<string, unknown>;
   const missingFields = required.some((key) => !Object.prototype.hasOwnProperty.call(row, key));
   const unsupportedFields = Object.keys(row).some((key) => !allowed.includes(key));
-  if (missingFields || unsupportedFields)
+  if (missingFields || unsupportedFields) {
     throw new Error("Stitch input has missing or unsupported fields");
+  }
   return row;
 };
 
@@ -206,74 +214,104 @@ function stitchId(value: unknown): asserts value is string {
 }
 
 function validateRange(value: unknown): asserts value is StitchRange {
-  const selected = allowedFields(
-    value,
-    [],
-    ["start_frame", "end_frame", "start_seconds", "end_seconds"],
-  );
-  const frames = "start_frame" in selected || "end_frame" in selected;
-  const seconds = "start_seconds" in selected || "end_seconds" in selected;
-  if (frames && seconds) throw new Error("Use frames or seconds within a range, not both");
-  for (const [key, number] of Object.entries(selected)) {
-    const n = finite(number);
-    const invalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(n);
-    if (n < 0 || invalidFrame) throw new Error("Invalid source range");
+  const selected = allowedFields(value, {
+    required: [],
+    allowed: ["start_frame", "end_frame", "start_seconds", "end_seconds"],
+  });
+  const usesFrames = "start_frame" in selected || "end_frame" in selected;
+  const usesSeconds = "start_seconds" in selected || "end_seconds" in selected;
+  if (usesFrames && usesSeconds) {
+    throw new Error("Use frames or seconds within a range, not both");
   }
-  const unit = frames ? "frame" : "seconds";
+  for (const [key, value] of Object.entries(selected)) {
+    const number = finite(value);
+    const invalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(number);
+    if (number < 0 || invalidFrame) {
+      throw new Error("Invalid source range");
+    }
+  }
+  const unit = usesFrames ? "frame" : "seconds";
   const start = (selected[`start_${unit}`] as number | undefined) ?? 0;
   const end = selected[`end_${unit}`] as number | undefined;
-  if (end !== undefined && end <= start) throw new Error("Range end must exceed start");
+  if (end !== undefined && end <= start) {
+    throw new Error("Range end must exceed start");
+  }
+}
+
+function validatePlacement(value: unknown): StitchPlacement {
+  const selected = allowedFields(value, {
+    required: [],
+    allowed: ["forward_m", "right_m", "turn_degrees", "absolute"],
+  });
+  if ("absolute" in selected && selected.absolute !== false) {
+    throw new Error("Absolute placement is unsupported");
+  }
+  const result: StitchPlacement = { absolute: false };
+  for (const key of ["forward_m", "right_m", "turn_degrees"] as const) {
+    const number = finite(key in selected ? selected[key] : 0);
+    const limit = key === "turn_degrees" ? MAX_TURN_DEGREES : MAX_OFFSET_METERS;
+    if (Math.abs(number) > limit) {
+      throw new Error(`Invalid placement ${key}`);
+    }
+    result[key] = number;
+  }
+  return result;
+}
+
+function validateMotionStep(value: unknown, { arriving }: { arriving: boolean }): MotionStep {
+  const selected = allowedFields(value, {
+    required: ["type", "motion_id"],
+    allowed: ["type", "motion_id", "range", "placement"],
+  });
+  if (selected.type !== "motion") {
+    throw new Error("Supported sequence is motion, transition, motion");
+  }
+  stitchId(selected.motion_id);
+  const range = "range" in selected ? selected.range : {};
+  validateRange(range);
+  const result: MotionStep = { type: "motion", motion_id: selected.motion_id, range: { ...range } };
+  if ("placement" in selected) {
+    if (!arriving) {
+      throw new Error("Placement is supported only on the arriving motion");
+    }
+    result.placement = validatePlacement(selected.placement);
+  }
+  return result;
+}
+
+function validateTransitionStep(value: unknown): Required<TransitionStep> {
+  const selected = allowedFields(value, {
+    required: ["type"],
+    allowed: ["type", "duration_seconds"],
+  });
+  if (selected.type !== "transition") {
+    throw new Error("Supported sequence is motion, transition, motion");
+  }
+  const duration = finite(
+    "duration_seconds" in selected ? selected.duration_seconds : DEFAULT_TRANSITION_SECONDS,
+  );
+  if (duration < MIN_TRANSITION_SECONDS || duration > MAX_TRANSITION_SECONDS) {
+    throw new Error("Invalid transition duration");
+  }
+  return { type: "transition", duration_seconds: duration };
 }
 
 /** Validate and copy the shared request before any potentially paid mutation. */
-export function validateStitchInput(value: StitchInput): StitchInput {
-  const request = allowedFields(value, ["character_id", "steps"], ["character_id", "steps"]);
+export function validateStitchInput(value: unknown): StitchInput {
+  const request = allowedFields(value, {
+    required: ["character_id", "steps"],
+    allowed: ["character_id", "steps"],
+  });
   stitchId(request.character_id);
   if (!Array.isArray(request.steps) || request.steps.length !== 3) {
     throw new Error("Supported sequence is motion, transition, motion");
   }
-  // Clone only after finite-number checks: JSON cloning would hide NaN/undefined.
-  const steps = request.steps.map((raw, index): MotionStep | TransitionStep => {
-    const expected = index === 1 ? "transition" : "motion";
-    const allowed =
-      index === 1 ? ["type", "duration_seconds"] : ["type", "motion_id", "range", "placement"];
-    const required = index === 1 ? ["type"] : ["type", "motion_id"];
-    const step = allowedFields(raw, required, allowed);
-    if (step.type !== expected) throw new Error("Supported sequence is motion, transition, motion");
-    if (index === 1) {
-      const duration = finite("duration_seconds" in step ? step.duration_seconds : 1);
-      if (duration < 0.1 || duration > 3) throw new Error("Invalid transition duration");
-      return { type: "transition", duration_seconds: duration };
-    }
-    stitchId(step.motion_id);
-    const range = "range" in step ? step.range : {};
-    validateRange(range);
-    const result: MotionStep = {
-      type: "motion",
-      motion_id: step.motion_id,
-      range: { ...range },
-    };
-    if (!("placement" in step)) return result;
-    if (index === 0) throw new Error("Placement is supported only on the arriving motion");
-    const placement = allowedFields(
-      step.placement,
-      [],
-      ["forward_m", "right_m", "turn_degrees", "absolute"],
-    );
-    if ("absolute" in placement && placement.absolute !== false)
-      throw new Error("Absolute placement is unsupported");
-    const normalized: StitchPlacement = { absolute: false };
-    for (const key of ["forward_m", "right_m", "turn_degrees"] as const) {
-      const n = finite(key in placement ? placement[key] : 0);
-      const limit = key === "turn_degrees" ? 180 : 100;
-      if (Math.abs(n) > limit) throw new Error(`Invalid placement ${key}`);
-      normalized[key] = n;
-    }
-    result.placement = normalized;
-    return result;
-  });
   return {
     character_id: request.character_id,
-    steps: steps as [MotionStep, TransitionStep, MotionStep],
+    steps: [
+      validateMotionStep(request.steps[0], { arriving: false }),
+      validateTransitionStep(request.steps[1]),
+      validateMotionStep(request.steps[2], { arriving: true }),
+    ],
   };
 }
