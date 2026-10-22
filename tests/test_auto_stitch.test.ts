@@ -30,7 +30,10 @@ describe("shared typed-step stitching", () => {
 });
 
 it("uses the shared mutation and timeout and returns resolved steps", async () => {
-  const _graphql = vi.fn().mockResolvedValue({ motion: { id: "m3" }, resolved_steps: [] });
+  const _graphql = vi.fn().mockResolvedValue({
+    motion: { id: "m3" },
+    resolved_steps: fixtures.valid[0].normalized.steps,
+  });
   const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
   const input = fixtures.valid[0].input as StitchInput;
   const result = await motions.stitch(input);
