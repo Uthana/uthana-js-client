@@ -441,11 +441,11 @@ query motion_download_allowed($characterId: String, $motionId: String) {
 }
 `;
 
-export const STITCH_MOTIONS = `
-  mutation StitchMotions($auto_input: AutomaticStitchInput!) {
-    create_enhanced_stitched_motion(auto_input: $auto_input) {
+export const STITCH = `
+  mutation Stitch($input: StitchInput!) {
+    stitch(input: $input) {
       motion { id name }
-      preparation
+      resolved_steps
     }
   }
 `;

@@ -570,25 +570,21 @@ function BakeGltf({ characterId }: { characterId: string }) {
 }
 ```
 
-### Server-prepared stitching (0.6.0)
+## Stitch motions
 
 ```ts
-const result = await client.motions.stitchMotions({
+const result = await client.motions.stitch({
   character_id: characterId,
-  prefix_motion_id: firstMotionId,
-  suffix_motion_id: secondMotionId,
-  stitch_duration: 1,
-  placement: { forward_m: 2, facing_degrees: 90 },
+  steps: [
+    { type: "motion", motion_id: firstMotionId },
+    { type: "transition", duration_seconds: 1 },
+    { type: "motion", motion_id: secondMotionId },
+  ],
 });
-console.log(result.motion.id, result.preparation);
+console.log(result.motion.id, result.resolved_steps);
 ```
 
-Omit placement for automatic continuation. Offsets use meters relative to the
-first clip's ending pelvis and facing; positive facing degrees turn right. Explicit
-forward zero requests no forward gap. Optional trim fields use seconds. The service
-returns effective trims and connection poses in `preparation`; review the output.
-Requires the additive `AutomaticStitchInput` backend deployed before client release.
-Existing sampled-pose stitching remains supported; uncertain writes are not retried.
+See [stitching](docs/stitching.md) for native frame/second ranges, relative placement, and recovery. The existing `createStitchedMotion(characterId, prefix, suffix)` method remains available for legacy callers supplying sampled poses.
 
 ## Motion downloads
 

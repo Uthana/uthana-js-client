@@ -1,52 +1,52 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { validateAutoStitchInput, type AutoStitchInput } from "../packages/client/src/stitch";
+import { validateStitchInput, type StitchInput } from "../packages/client/src/stitch";
 import { MotionsModule } from "../packages/client/src/modules/motions";
 import type { UthanaClient } from "../packages/client/src/client";
 
-const options: AutoStitchInput = {
-  character_id: "c1",
-  prefix_motion_id: "m1",
-  suffix_motion_id: "m2",
-};
-describe("automatic stitch", () => {
-  it("preserves explicit zero and does not mutate placement", () => {
-    const input = { ...options, placement: { forward_m: 0, right_m: 1, facing_degrees: 90 } };
-    const result = validateAutoStitchInput(input);
-    expect(result).toEqual(input);
-    expect(result.placement).not.toBe(input.placement);
-  });
-  it.each([
-    { stitch_duration: true },
-    { stitch_duration: Infinity },
-    { placement: { forward_m: 101 } },
-    { placement: { facing_degrees: 181 } },
-    { placement: { forward_m: "2" } },
-    { prefix_start_seconds: 2, prefix_end_seconds: 1 },
-    { placement: null },
-    { extra: 1 },
-  ])("rejects bad input %j", (bad) => {
-    expect(() =>
-      validateAutoStitchInput({ ...options, ...bad } as unknown as AutoStitchInput),
-    ).toThrow();
-  });
-  it("sends only automatic input with long timeout and keeps preparation", async () => {
-    const _graphql = vi.fn().mockResolvedValue({
-      motion: { id: "m3" },
-      preparation: { pose_samples_source: "server_sampled" },
+const fixtures = JSON.parse(
+  readFileSync(new URL("./fixtures/stitch_contract.json", import.meta.url), "utf8"),
+);
+
+describe("shared typed-step stitching", () => {
+  for (const test of fixtures.valid) {
+    it(`accepts ${test.name}`, () => {
+      const out = validateStitchInput(test.input);
+      expect(out.steps[1].duration_seconds).toBe(test.input.steps[1].duration_seconds ?? 1);
+      expect(out).not.toBe(test.input);
+      expect(out).toEqual(test.normalized);
     });
-    const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
-    const result = await motions.stitchMotions(options);
-    expect(result.motion.id).toBe("m3");
-    expect(_graphql).toHaveBeenCalledWith(
-      expect.stringContaining("AutomaticStitchInput"),
-      { auto_input: options },
-      { path: "create_enhanced_stitched_motion", timeoutSeconds: 360 },
-    );
+  }
+  for (const test of fixtures.invalid) {
+    it(`rejects ${test.name}`, () => expect(() => validateStitchInput(test.input)).toThrow());
+  }
+  for (const value of [NaN, Infinity, -Infinity]) {
+    it(`rejects ${value}`, () => {
+      const options = structuredClone(fixtures.valid[0].input);
+      options.steps[1].duration_seconds = value;
+      expect(() => validateStitchInput(options)).toThrow();
+    });
+  }
+});
+
+it("uses the shared mutation and timeout and returns resolved steps", async () => {
+  const _graphql = vi.fn().mockResolvedValue({ motion: { id: "m3" }, resolved_steps: [] });
+  const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
+  const input = fixtures.valid[0].input as StitchInput;
+  const result = await motions.stitch(input);
+  expect(result.motion.id).toBe("m3");
+  expect(_graphql).toHaveBeenCalledWith(
+    expect.stringContaining("stitch(input: $input)"),
+    { input: validateStitchInput(input) },
+    { path: "stitch", timeoutSeconds: 360 },
+  );
+});
+
+it("treats missing motion as uncertain without retry", async () => {
+  const _graphql = vi.fn().mockResolvedValue({ motion: null });
+  const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
+  await expect(motions.stitch(fixtures.valid[0].input)).rejects.toMatchObject({
+    kind: "uncertain",
   });
-  it("treats missing ID as uncertain and does not retry", async () => {
-    const _graphql = vi.fn().mockResolvedValue({ motion: null });
-    const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
-    await expect(motions.stitchMotions(options)).rejects.toMatchObject({ kind: "uncertain" });
-    expect(_graphql).toHaveBeenCalledTimes(1);
-  });
+  expect(_graphql).toHaveBeenCalledTimes(1);
 });

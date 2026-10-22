@@ -39,14 +39,19 @@ export type {
   VtmModelType,
 } from "./types";
 export type {
-  AutoStitchInput,
+  StitchInput,
+  StitchResult,
+  StitchRange,
+  MotionStep,
+  TransitionStep,
+  ResolvedMotionStep,
   StitchPlacement,
   PelvisState,
   Quaternion,
   StitchParams,
   Vector3,
 } from "./stitch";
-export { validateAutoStitchInput, validateStitchParams } from "./stitch";
+export { validateStitchInput, validateStitchParams } from "./stitch";
 export {
   DEFAULT_BYTE_UPLOAD_MAX,
   DEFAULT_OUTPUT_FORMAT,

@@ -142,77 +142,138 @@ export const validateStitchParams = (params: StitchParams): StitchParams => {
   return structuredClone(params);
 };
 
-/** Relative to prefix ending facing. Omitted forward continues recent travel. */
+/** Inclusive native-source sample ranges. Do not mix frame and second fields. */
+export type StitchRange =
+  | { start_frame?: number; end_frame?: number; start_seconds?: never; end_seconds?: never }
+  | { start_seconds?: number; end_seconds?: number; start_frame?: never; end_frame?: never };
+
 export interface StitchPlacement {
   forward_m?: number;
   right_m?: number;
-  facing_degrees?: number;
+  turn_degrees?: number;
+  absolute?: false;
 }
 
-export interface AutoStitchInput {
-  character_id: string;
-  prefix_motion_id: string;
-  suffix_motion_id: string;
-  stitch_duration?: number;
-  prefix_start_seconds?: number;
-  prefix_end_seconds?: number;
-  suffix_start_seconds?: number;
-  suffix_end_seconds?: number;
+export interface MotionStep {
+  type: "motion";
+  motion_id: string;
+  range?: StitchRange;
   placement?: StitchPlacement;
 }
 
-export function validateAutoStitchInput(value: AutoStitchInput): AutoStitchInput {
-  const required = ["character_id", "prefix_motion_id", "suffix_motion_id"] as const;
-  const allowed = [
-    ...required,
-    "stitch_duration",
-    "prefix_start_seconds",
-    "prefix_end_seconds",
-    "suffix_start_seconds",
-    "suffix_end_seconds",
-    "placement",
-  ];
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.keys(value).some((k) => !allowed.includes(k))
-  ) {
-    throw new Error("Automatic stitch input has unsupported fields");
+export interface TransitionStep {
+  type: "transition";
+  duration_seconds?: number;
+}
+
+export interface StitchInput {
+  character_id: string;
+  steps: [MotionStep, TransitionStep, MotionStep];
+}
+
+export interface ResolvedMotionStep {
+  type: "motion";
+  motion_id: string;
+  range: { start_frame: number; end_frame: number; start_seconds: number; end_seconds: number };
+  placement?: StitchPlacement | { mode: "automatic" };
+}
+
+export interface StitchResult {
+  motion: import("./types").Motion;
+  resolved_steps: [ResolvedMotionStep, Required<TransitionStep>, ResolvedMotionStep];
+}
+
+const allowedFields = (
+  value: unknown,
+  required: string[],
+  allowed: string[],
+): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Stitch objects must be records");
   }
-  for (const key of required) {
-    if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 128) {
-      throw new Error(`${key} must be a nonempty ID of at most 128 characters`);
+  const row = value as Record<string, unknown>;
+  const missingFields = required.some((key) => !Object.prototype.hasOwnProperty.call(row, key));
+  const unsupportedFields = Object.keys(row).some((key) => !allowed.includes(key));
+  if (missingFields || unsupportedFields)
+    throw new Error("Stitch input has missing or unsupported fields");
+  return row;
+};
+
+function stitchId(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    throw new Error("Invalid stitch identifier");
+  }
+}
+
+function validateRange(value: unknown): asserts value is StitchRange {
+  const selected = allowedFields(
+    value,
+    [],
+    ["start_frame", "end_frame", "start_seconds", "end_seconds"],
+  );
+  const frames = "start_frame" in selected || "end_frame" in selected;
+  const seconds = "start_seconds" in selected || "end_seconds" in selected;
+  if (frames && seconds) throw new Error("Use frames or seconds within a range, not both");
+  for (const [key, number] of Object.entries(selected)) {
+    const n = finite(number);
+    const invalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(n);
+    if (n < 0 || invalidFrame) throw new Error("Invalid source range");
+  }
+  const unit = frames ? "frame" : "seconds";
+  const start = (selected[`start_${unit}`] as number | undefined) ?? 0;
+  const end = selected[`end_${unit}`] as number | undefined;
+  if (end !== undefined && end <= start) throw new Error("Range end must exceed start");
+}
+
+/** Validate and copy the shared request before any potentially paid mutation. */
+export function validateStitchInput(value: StitchInput): StitchInput {
+  const request = allowedFields(value, ["character_id", "steps"], ["character_id", "steps"]);
+  stitchId(request.character_id);
+  if (!Array.isArray(request.steps) || request.steps.length !== 3) {
+    throw new Error("Supported sequence is motion, transition, motion");
+  }
+  // Clone only after finite-number checks: JSON cloning would hide NaN/undefined.
+  const steps = request.steps.map((raw, index): MotionStep | TransitionStep => {
+    const expected = index === 1 ? "transition" : "motion";
+    const allowed =
+      index === 1 ? ["type", "duration_seconds"] : ["type", "motion_id", "range", "placement"];
+    const required = index === 1 ? ["type"] : ["type", "motion_id"];
+    const step = allowedFields(raw, required, allowed);
+    if (step.type !== expected) throw new Error("Supported sequence is motion, transition, motion");
+    if (index === 1) {
+      const duration = finite("duration_seconds" in step ? step.duration_seconds : 1);
+      if (duration < 0.1 || duration > 3) throw new Error("Invalid transition duration");
+      return { type: "transition", duration_seconds: duration };
     }
-  }
-  const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
-  const duration = value.stitch_duration === undefined ? 1 : value.stitch_duration;
-  if (!finite(duration) || duration < 0.1 || duration > 3)
-    throw new Error("Invalid stitch_duration");
-  for (const label of ["prefix", "suffix"] as const) {
-    const start =
-      value[`${label}_start_seconds`] === undefined ? 0 : value[`${label}_start_seconds`];
-    const end = value[`${label}_end_seconds`];
-    if (!finite(start) || start < 0 || (end !== undefined && (!finite(end) || end <= start))) {
-      throw new Error("Trim end must exceed nonnegative start");
+    stitchId(step.motion_id);
+    const range = "range" in step ? step.range : {};
+    validateRange(range);
+    const result: MotionStep = {
+      type: "motion",
+      motion_id: step.motion_id,
+      range: { ...range },
+    };
+    if (!("placement" in step)) return result;
+    if (index === 0) throw new Error("Placement is supported only on the arriving motion");
+    const placement = allowedFields(
+      step.placement,
+      [],
+      ["forward_m", "right_m", "turn_degrees", "absolute"],
+    );
+    if ("absolute" in placement && placement.absolute !== false)
+      throw new Error("Absolute placement is unsupported");
+    const normalized: StitchPlacement = { absolute: false };
+    for (const key of ["forward_m", "right_m", "turn_degrees"] as const) {
+      const n = finite(key in placement ? placement[key] : 0);
+      const limit = key === "turn_degrees" ? 180 : 100;
+      if (Math.abs(n) > limit) throw new Error(`Invalid placement ${key}`);
+      normalized[key] = n;
     }
-  }
-  if (value.placement !== undefined) {
-    if (!value.placement || typeof value.placement !== "object" || Array.isArray(value.placement))
-      throw new Error("Invalid placement");
-    for (const [key, number] of Object.entries(value.placement)) {
-      const limit = key === "facing_degrees" ? 180 : 100;
-      if (
-        !["forward_m", "right_m", "facing_degrees"].includes(key) ||
-        !finite(number) ||
-        Math.abs(number) > limit
-      ) {
-        throw new Error(`Invalid placement ${key}`);
-      }
-    }
-  }
+    result.placement = normalized;
+    return result;
+  });
   return {
-    ...value,
-    ...(value.placement === undefined ? {} : { placement: { ...value.placement } }),
+    character_id: request.character_id,
+    steps: steps as [MotionStep, TransitionStep, MotionStep],
   };
 }

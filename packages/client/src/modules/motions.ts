@@ -6,7 +6,7 @@ import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
   CREATE_ENHANCED_STITCHED_MOTION,
-  STITCH_MOTIONS,
+  STITCH,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
   CREATE_MOTION_FAVORITE,
@@ -22,9 +22,10 @@ import {
   UPDATE_MOTION,
 } from "../graphql";
 import {
-  type AutoStitchInput,
-  validateAutoStitchInput,
+  type StitchInput,
+  validateStitchInput,
   type StitchParams,
+  type StitchResult,
   validateStitchParams,
 } from "../stitch";
 import type {
@@ -85,22 +86,22 @@ export class MotionsModule extends BaseModule {
     );
   }
 
-  /** Server-prepared stitching; offsets use meters and facing uses degrees right.
-   * Requires AutomaticStitchInput support. No automatic retries of uncertain requests.
+  /** Stitch typed motion/transition/motion steps with server preparation.
+   * Requires stitch(input: StitchInput!) support. No automatic retries of uncertain requests.
    */
-  async stitchMotions(
-    options: AutoStitchInput,
-    timeoutSeconds = 360,
-  ): Promise<{ motion: Motion; preparation: unknown }> {
-    const result = await this._client._graphql<{ motion: Motion; preparation: unknown }>(
-      STITCH_MOTIONS,
-      { auto_input: validateAutoStitchInput(options) },
-      { path: "create_enhanced_stitched_motion", timeoutSeconds },
+  async stitch(options: StitchInput, timeoutSeconds = 360): Promise<StitchResult> {
+    const result = await this._client._graphql<StitchResult>(
+      STITCH,
+      { input: validateStitchInput(options) },
+      { path: "stitch", timeoutSeconds },
     );
-    if (typeof result?.motion?.id !== "string" || !result.motion.id.trim()) {
+    const missingMotion = typeof result?.motion?.id !== "string" || !result.motion.id.trim();
+    const missingResolvedSteps =
+      !Array.isArray(result?.resolved_steps) || result.resolved_steps.length !== 3;
+    if (missingMotion || missingResolvedSteps) {
       throw new UthanaError(
         200,
-        "Stitch returned no motion ID; inspect existing work before resubmitting",
+        "Stitch returned an incomplete result; inspect existing work before resubmitting",
         "uncertain",
       );
     }
