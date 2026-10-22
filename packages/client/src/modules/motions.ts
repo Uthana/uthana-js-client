@@ -95,13 +95,21 @@ export class MotionsModule extends BaseModule {
       { input: validateStitchInput(options) },
       { path: "stitch", timeoutSeconds },
     );
-    const missingMotion = typeof result?.motion?.id !== "string" || !result.motion.id.trim();
-    const missingResolvedSteps =
-      !Array.isArray(result?.resolved_steps) || result.resolved_steps.length !== 3;
-    if (missingMotion || missingResolvedSteps) {
+    const isValidMotion =
+      typeof result?.motion?.id === "string" && Boolean(result.motion.id.trim());
+    const hasValidResolvedSteps =
+      Array.isArray(result?.resolved_steps) && result.resolved_steps.length === 3;
+    if (!isValidMotion) {
       throw new UthanaError(
         200,
-        "Stitch returned an incomplete result; inspect existing work before resubmitting",
+        "Stitch returned an invalid motion: expected a motion object with a nonempty id",
+        "uncertain",
+      );
+    }
+    if (!hasValidResolvedSteps) {
+      throw new UthanaError(
+        200,
+        "Stitch result must include exactly three resolved steps: a first motion, a middle transition, and a second motion",
         "uncertain",
       );
     }

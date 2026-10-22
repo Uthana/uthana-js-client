@@ -45,11 +45,17 @@ it("uses the shared mutation and timeout and returns resolved steps", async () =
   );
 });
 
-it("treats missing motion as uncertain without retry", async () => {
-  const _graphql = vi.fn().mockResolvedValue({ motion: null });
+it.each([
+  [{ motion: null }, "invalid motion"],
+  [{ motion: { id: " " } }, "invalid motion"],
+  [{ motion: { id: "m3" } }, "exactly three resolved steps"],
+  [{ motion: { id: "m3" }, resolved_steps: [] }, "exactly three resolved steps"],
+])("reports invalid stitch results without retry: %j", async (result, message) => {
+  const _graphql = vi.fn().mockResolvedValue(result);
   const motions = new MotionsModule({ _graphql } as unknown as UthanaClient);
   await expect(motions.stitch(fixtures.valid[0].input)).rejects.toMatchObject({
     kind: "uncertain",
+    message: expect.stringContaining(message as string),
   });
   expect(_graphql).toHaveBeenCalledTimes(1);
 });

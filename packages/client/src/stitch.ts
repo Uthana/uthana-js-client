@@ -199,9 +199,9 @@ const allowedFields = (
     throw new Error("Stitch objects must be records");
   }
   const row = value as Record<string, unknown>;
-  const missingFields = required.some((key) => !Object.prototype.hasOwnProperty.call(row, key));
-  const unsupportedFields = Object.keys(row).some((key) => !allowed.includes(key));
-  if (missingFields || unsupportedFields) {
+  const hasMissingFields = required.some((key) => !Object.prototype.hasOwnProperty.call(row, key));
+  const hasUnsupportedFields = Object.keys(row).some((key) => !allowed.includes(key));
+  if (hasMissingFields || hasUnsupportedFields) {
     throw new Error("Stitch input has missing or unsupported fields");
   }
   return row;
@@ -264,7 +264,9 @@ function validateMotionStep(value: unknown, { arriving }: { arriving: boolean })
     allowed: ["type", "motion_id", "range", "placement"],
   });
   if (selected.type !== "motion") {
-    throw new Error("Supported sequence is motion, transition, motion");
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
   }
   stitchId(selected.motion_id);
   const range = "range" in selected ? selected.range : {};
@@ -285,7 +287,9 @@ function validateTransitionStep(value: unknown): Required<TransitionStep> {
     allowed: ["type", "duration_seconds"],
   });
   if (selected.type !== "transition") {
-    throw new Error("Supported sequence is motion, transition, motion");
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
   }
   const duration = finite(
     "duration_seconds" in selected ? selected.duration_seconds : DEFAULT_TRANSITION_SECONDS,
@@ -304,7 +308,9 @@ export function validateStitchInput(value: unknown): StitchInput {
   });
   stitchId(request.character_id);
   if (!Array.isArray(request.steps) || request.steps.length !== 3) {
-    throw new Error("Supported sequence is motion, transition, motion");
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
   }
   return {
     character_id: request.character_id,
