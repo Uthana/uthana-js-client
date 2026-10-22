@@ -16,6 +16,8 @@ Apply these conventions to new or changed code in the client and React packages.
 - Name domain limits and non-obvious numeric tolerances, including units. Keep equivalent cross-language contracts aligned with shared acceptance, rejection, and normalization fixtures.
 - Keep runtime validation in normal control flow; do not use Python `assert` for caller input, permissions, or side-effect preconditions. Assertions may narrow already-proven internal invariants, but prefer a type design that avoids repeating the proof.
 - Use module-level imports, including TypeScript `import type`. Local imports need a circular-dependency or measurable startup-cost reason. Keep module summaries accurate when a file serves both current and legacy interfaces.
+- Let unexpected errors propagate. Catch an exception only when that failure is expected and recovery or another code path is required. Preserve useful error categories at external boundaries.
+- Write error messages that say what failed and what to do next. Identify the record, field, or operation and include safe lookup values when useful, for example, "No character_id found matching {character_id}." For validation errors, state the expected shape, range, or step order. Use distinct errors for distinct failures rather than a generic "incomplete result" or "No resource found." Never include credentials or private provider details, and do not suggest resubmitting a paid operation when its outcome is unknown.
 - Preserve published signatures, error categories, unknown-outcome recovery, and side-effect order during style changes. Do not retrofit unrelated existing code. Add tests for changed behavior or meaningful gaps, not for a cosmetic rewrite of the same implementation.
 
 ## Verification and review
