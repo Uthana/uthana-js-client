@@ -1,0 +1,806 @@
+{
+  "valid": [
+    {
+      "name": "defaults",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {}
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 1.0
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "range": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "frames",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 12,
+              "end_frame": 60
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 12,
+              "end_frame": 60
+            }
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 1.0
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "range": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "seconds",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "range": {
+              "start_seconds": 0.5,
+              "end_seconds": 3.0
+            }
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {}
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 1.0
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "range": {
+              "start_seconds": 0.5,
+              "end_seconds": 3.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {}
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {}
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 1.0
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "forward_m": 0.0,
+              "right_m": 0.0,
+              "turn_degrees": 0.0,
+              "absolute": false
+            },
+            "range": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "relative_turn",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "forward_m": 2,
+              "right_m": 1,
+              "turn_degrees": 90,
+              "absolute": false
+            }
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {}
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 1.0
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "forward_m": 2,
+              "right_m": 1,
+              "turn_degrees": 90,
+              "absolute": false
+            },
+            "range": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "transition_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 0.65
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {}
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 0.65
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "range": {}
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "mixed_units",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 1,
+              "end_seconds": 2
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "boolean_frame",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": true
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "fractional_frame",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 1.5
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsafe_frame",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 9007199254740992
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "negative_seconds",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_seconds": -1
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "reversed_range",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 20,
+              "end_frame": 10
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty_range",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "end_seconds": 0
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "null_range",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": null
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "null_endpoint",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "end_frame": null
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "numeric_string",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "range": {
+              "start_seconds": "1"
+            }
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "wrong_step_field",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "duration_seconds": 1
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "absolute": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "numeric_absolute",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "absolute": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "null_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "first_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1",
+            "placement": {}
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "offset_limit",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "forward_m": 101
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "turn_limit",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "turn_degrees": 181
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy_facing",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2",
+            "placement": {
+              "facing_degrees": 45
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "boolean_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition",
+            "duration_seconds": true
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duration_limit",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition",
+            "duration_seconds": 3.1
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "null_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition",
+            "duration_seconds": null
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "pose_type",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "pose",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "too_few",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "wrong_order",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "extra",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ],
+        "extra": 1
+      }
+    },
+    {
+      "name": "missing_character",
+      "input": {
+        "steps": [
+          {
+            "type": "motion",
+            "motion_id": "m1"
+          },
+          {
+            "type": "transition"
+          },
+          {
+            "type": "motion",
+            "motion_id": "m2"
+          }
+        ]
+      }
+    }
+  ]
+}

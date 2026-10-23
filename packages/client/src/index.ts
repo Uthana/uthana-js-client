@@ -38,8 +38,20 @@ export type {
   VideoToMotionResult,
   VtmModelType,
 } from "./types";
-export type { PelvisState, Quaternion, StitchParams, Vector3 } from "./stitch";
-export { validateStitchParams } from "./stitch";
+export type {
+  StitchInput,
+  StitchResult,
+  StitchRange,
+  MotionStep,
+  TransitionStep,
+  ResolvedMotionStep,
+  StitchPlacement,
+  PelvisState,
+  Quaternion,
+  StitchParams,
+  Vector3,
+} from "./stitch";
+export { validateStitchInput, validateStitchParams } from "./stitch";
 export {
   DEFAULT_BYTE_UPLOAD_MAX,
   DEFAULT_OUTPUT_FORMAT,

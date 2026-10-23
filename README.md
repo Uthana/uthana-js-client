@@ -570,6 +570,53 @@ function BakeGltf({ characterId }: { characterId: string }) {
 }
 ```
 
+## Stitch motions
+
+### Simple join
+
+Join two motions with automatic positioning. The server handles sampling and alignment.
+
+```ts
+const result = await client.motions.stitch({
+  character_id: characterId,
+  steps: [
+    { type: "motion", motion_id: firstMotionId },
+    { type: "transition", duration_seconds: 1 },
+    { type: "motion", motion_id: secondMotionId },
+  ],
+});
+console.log(result.motion.id, result.resolved_steps);
+```
+
+### Join with ranges and positioning
+
+Select source intervals and place the second motion one meter forward and half a meter right of the first motion’s ending pelvis, turned 45 degrees right. Placement is relative to the first motion’s ending facing.
+
+```ts
+const positioned = await client.motions.stitch({
+  character_id: characterId,
+  steps: [
+    {
+      type: "motion",
+      motion_id: firstMotionId,
+      range: { start_frame: 12, end_frame: 60 },
+    },
+    { type: "transition", duration_seconds: 1.5 },
+    {
+      type: "motion",
+      motion_id: secondMotionId,
+      range: { start_seconds: 0.5, end_seconds: 3 },
+      placement: { forward_m: 1, right_m: 0.5, turn_degrees: 45 },
+    },
+  ],
+});
+console.log(positioned.motion.id, positioned.resolved_steps);
+```
+
+Choose ranges that fit your source motions and leave the required transition context. Frame indices use each source’s native FPS; do not mix frames and seconds within one range. Inspect `resolved_steps` and review playback before accepting the result.
+
+See [stitching](docs/stitching.md) for native frame/second ranges, relative placement, and recovery. The existing `createStitchedMotion(characterId, prefix, suffix)` method remains available for legacy callers supplying sampled poses.
+
 ## Motion downloads
 
 Check download quota and list downloaded motions.
@@ -813,3 +860,7 @@ The release workflow uses npm **Trusted Publishers** (OIDC) — no `NPM_TOKEN` s
 If OIDC is not yet configured, add `NPM_TOKEN` as a repository secret and uncomment the `NODE_AUTH_TOKEN` line in `.github/workflows/release.yml`.
 
 If `npm publish` fails with **`404`** / **`PUT ... /@uthana/... Not found`**, confirm `npm whoami`, that your account is a member of the `@uthana` org on [npmjs.com](https://www.npmjs.com/), and that `--access public` is in effect (already set in the script).
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for code style, validation, testing, and review conventions.

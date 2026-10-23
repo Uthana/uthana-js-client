@@ -1,9 +1,17 @@
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  *
- * Typed sampled-pose inputs for the enhanced stitch preview API.
- * Sampling and spatial placement belong to the caller's motion loader.
+ * Shared typed-step stitching and legacy sampled-pose compatibility.
+ * Ordinary stitching is prepared by the service; legacy callers supply poses.
  */
+
+import type { Motion } from "./types";
+
+const MAX_OFFSET_METERS = 100;
+const MAX_TURN_DEGREES = 180;
+const MIN_TRANSITION_SECONDS = 0.1;
+const MAX_TRANSITION_SECONDS = 3;
+const DEFAULT_TRANSITION_SECONDS = 1;
 
 export interface Vector3 {
   x: number;
@@ -141,3 +149,175 @@ export const validateStitchParams = (params: StitchParams): StitchParams => {
   }
   return structuredClone(params);
 };
+
+/** Inclusive native-source sample ranges. Do not mix frame and second fields. */
+export type StitchRange =
+  | { start_frame?: number; end_frame?: number; start_seconds?: never; end_seconds?: never }
+  | { start_seconds?: number; end_seconds?: number; start_frame?: never; end_frame?: never };
+
+export interface StitchPlacement {
+  forward_m?: number;
+  right_m?: number;
+  turn_degrees?: number;
+  absolute?: false;
+}
+
+export interface MotionStep {
+  type: "motion";
+  motion_id: string;
+  range?: StitchRange;
+  placement?: StitchPlacement;
+}
+
+export interface TransitionStep {
+  type: "transition";
+  duration_seconds?: number;
+}
+
+export interface StitchInput {
+  character_id: string;
+  steps: [MotionStep, TransitionStep, MotionStep];
+}
+
+export interface ResolvedMotionStep {
+  type: "motion";
+  motion_id: string;
+  range: { start_frame: number; end_frame: number; start_seconds: number; end_seconds: number };
+  placement?: StitchPlacement | { mode: "automatic" };
+}
+
+export interface StitchResult {
+  motion: Motion;
+  resolved_steps: [ResolvedMotionStep, Required<TransitionStep>, ResolvedMotionStep];
+}
+
+const allowedFields = (
+  value: unknown,
+  { required, allowed }: { required: readonly string[]; allowed: readonly string[] },
+): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Stitch objects must be records");
+  }
+  const row = value as Record<string, unknown>;
+  const hasMissingFields = required.some((key) => !Object.prototype.hasOwnProperty.call(row, key));
+  const hasUnsupportedFields = Object.keys(row).some((key) => !allowed.includes(key));
+  if (hasMissingFields || hasUnsupportedFields) {
+    throw new Error("Stitch input has missing or unsupported fields");
+  }
+  return row;
+};
+
+function stitchId(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    throw new Error("Invalid stitch identifier");
+  }
+}
+
+function validateRange(value: unknown): asserts value is StitchRange {
+  const selected = allowedFields(value, {
+    required: [],
+    allowed: ["start_frame", "end_frame", "start_seconds", "end_seconds"],
+  });
+  const hasFrameRange = "start_frame" in selected || "end_frame" in selected;
+  const hasSecondRange = "start_seconds" in selected || "end_seconds" in selected;
+  if (hasFrameRange && hasSecondRange) {
+    throw new Error("Use frames or seconds within a range, not both");
+  }
+  for (const [key, value] of Object.entries(selected)) {
+    const number = finite(value);
+    const isInvalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(number);
+    if (number < 0 || isInvalidFrame) {
+      throw new Error("Invalid source range");
+    }
+  }
+  const unit = hasFrameRange ? "frame" : "seconds";
+  const start = (selected[`start_${unit}`] as number | undefined) ?? 0;
+  const end = selected[`end_${unit}`] as number | undefined;
+  if (end !== undefined && end <= start) {
+    throw new Error("Range end must exceed start");
+  }
+}
+
+function validatePlacement(value: unknown): StitchPlacement {
+  const selected = allowedFields(value, {
+    required: [],
+    allowed: ["forward_m", "right_m", "turn_degrees", "absolute"],
+  });
+  if ("absolute" in selected && selected.absolute !== false) {
+    throw new Error("Absolute placement is unsupported");
+  }
+  const result: StitchPlacement = { absolute: false };
+  for (const key of ["forward_m", "right_m", "turn_degrees"] as const) {
+    const number = finite(key in selected ? selected[key] : 0);
+    const limit = key === "turn_degrees" ? MAX_TURN_DEGREES : MAX_OFFSET_METERS;
+    if (Math.abs(number) > limit) {
+      throw new Error(`Invalid placement ${key}`);
+    }
+    result[key] = number;
+  }
+  return result;
+}
+
+function validateMotionStep(value: unknown, { arriving }: { arriving: boolean }): MotionStep {
+  const selected = allowedFields(value, {
+    required: ["type", "motion_id"],
+    allowed: ["type", "motion_id", "range", "placement"],
+  });
+  if (selected.type !== "motion") {
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
+  }
+  stitchId(selected.motion_id);
+  const range = "range" in selected ? selected.range : {};
+  validateRange(range);
+  const result: MotionStep = { type: "motion", motion_id: selected.motion_id, range: { ...range } };
+  if ("placement" in selected) {
+    if (!arriving) {
+      throw new Error("Placement is supported only on the arriving motion");
+    }
+    result.placement = validatePlacement(selected.placement);
+  }
+  return result;
+}
+
+function validateTransitionStep(value: unknown): Required<TransitionStep> {
+  const selected = allowedFields(value, {
+    required: ["type"],
+    allowed: ["type", "duration_seconds"],
+  });
+  if (selected.type !== "transition") {
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
+  }
+  const duration = finite(
+    "duration_seconds" in selected ? selected.duration_seconds : DEFAULT_TRANSITION_SECONDS,
+  );
+  if (duration < MIN_TRANSITION_SECONDS || duration > MAX_TRANSITION_SECONDS) {
+    throw new Error("Invalid transition duration");
+  }
+  return { type: "transition", duration_seconds: duration };
+}
+
+/** Validate and copy the shared request before any potentially paid mutation. */
+export function validateStitchInput(value: unknown): StitchInput {
+  const request = allowedFields(value, {
+    required: ["character_id", "steps"],
+    allowed: ["character_id", "steps"],
+  });
+  stitchId(request.character_id);
+  if (!Array.isArray(request.steps) || request.steps.length !== 3) {
+    throw new Error(
+      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
+    );
+  }
+  return {
+    character_id: request.character_id,
+    steps: [
+      validateMotionStep(request.steps[0], { arriving: false }),
+      validateTransitionStep(request.steps[1]),
+      validateMotionStep(request.steps[2], { arriving: true }),
+    ],
+  };
+}

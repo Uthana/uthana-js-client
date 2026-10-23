@@ -440,3 +440,12 @@ query motion_download_allowed($characterId: String, $motionId: String) {
   }
 }
 `;
+
+export const STITCH = `
+  mutation Stitch($input: StitchInput!) {
+    stitch(input: $input) {
+      motion { id name }
+      resolved_steps
+    }
+  }
+`;

@@ -6,6 +6,7 @@ import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
   CREATE_ENHANCED_STITCHED_MOTION,
+  STITCH,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
   CREATE_MOTION_FAVORITE,
@@ -20,7 +21,13 @@ import {
   TRIM_MOTION,
   UPDATE_MOTION,
 } from "../graphql";
-import { type StitchParams, validateStitchParams } from "../stitch";
+import {
+  type StitchInput,
+  validateStitchInput,
+  type StitchParams,
+  type StitchResult,
+  validateStitchParams,
+} from "../stitch";
 import type {
   CreateLocomotionOptions,
   DownloadAllowed,
@@ -77,6 +84,36 @@ export class MotionsModule extends BaseModule {
       { motion_id: motionId, start, end, name },
       { path: "trim_and_loop_motion.motion" },
     );
+  }
+
+  /** Stitch typed motion/transition/motion steps with server preparation.
+   * Requires stitch(input: StitchInput!) support. No automatic retries of uncertain requests.
+   */
+  async stitch(options: StitchInput, timeoutSeconds = 360): Promise<StitchResult> {
+    const result = await this._client._graphql<StitchResult>(
+      STITCH,
+      { input: validateStitchInput(options) },
+      { path: "stitch", timeoutSeconds },
+    );
+    const isValidMotion =
+      typeof result?.motion?.id === "string" && Boolean(result.motion.id.trim());
+    const hasValidResolvedSteps =
+      Array.isArray(result?.resolved_steps) && result.resolved_steps.length === 3;
+    if (!isValidMotion) {
+      throw new UthanaError(
+        200,
+        "Stitch returned an invalid motion: expected a motion object with a nonempty id",
+        "uncertain",
+      );
+    }
+    if (!hasValidResolvedSteps) {
+      throw new UthanaError(
+        200,
+        "Stitch result must include exactly three resolved steps: a first motion, a middle transition, and a second motion",
+        "uncertain",
+      );
+    }
+    return result;
   }
 
   /**
