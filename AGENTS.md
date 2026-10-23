@@ -38,3 +38,7 @@ Use ESLint's formatter integration as the authoritative check; if a standalone f
 Keep normal tests offline with mocked transport and include error/recovery behavior where relevant. Do not add tests that merely mirror a cosmetic rewrite or invent a coverage threshold. Validate documentation examples and local links for documentation-only changes.
 
 Review the complete PR diff for style, bugs, security, abstraction cost, and compatibility. Report actual checks and tooling limits. Keep long guides under `docs/`, make them self-contained, and show simple then advanced examples. Keep client/react versions synchronized through the existing release scripts. Never merge or publish without authorization.
+
+## Public project metadata
+
+Keep internal ticket identifiers, tracker links, and private planning references out of public content and metadata, including documentation, comments, examples, commit messages, branch/tag names, PRs, issues, and releases. Describe the public-facing behavior instead; track internal coordination in private systems with links to the public work.
