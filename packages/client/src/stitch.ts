@@ -163,32 +163,31 @@ export interface StitchPlacement {
 }
 
 export interface MotionStep {
-  type: "motion";
   motion_id: string;
   range?: StitchRange;
   placement?: StitchPlacement;
+  transition?: StitchTransition;
 }
 
-export interface TransitionStep {
-  type: "transition";
+export interface StitchTransition {
   duration_seconds?: number;
 }
 
 export interface StitchInput {
   character_id: string;
-  steps: [MotionStep, TransitionStep, MotionStep];
+  steps: [MotionStep, MotionStep];
 }
 
 export interface ResolvedMotionStep {
-  type: "motion";
   motion_id: string;
   range: { start_frame: number; end_frame: number; start_seconds: number; end_seconds: number };
   placement?: StitchPlacement | { mode: "automatic" };
+  transition?: Required<StitchTransition>;
 }
 
 export interface StitchResult {
   motion: Motion;
-  resolved_steps: [ResolvedMotionStep, Required<TransitionStep>, ResolvedMotionStep];
+  resolved_steps: [ResolvedMotionStep, ResolvedMotionStep];
 }
 
 const allowedFields = (
@@ -260,44 +259,46 @@ function validatePlacement(value: unknown): StitchPlacement {
 
 function validateMotionStep(value: unknown, { arriving }: { arriving: boolean }): MotionStep {
   const selected = allowedFields(value, {
-    required: ["type", "motion_id"],
-    allowed: ["type", "motion_id", "range", "placement"],
+    required: ["motion_id"],
+    allowed: ["motion_id", "range", "placement", "transition"],
   });
-  if (selected.type !== "motion") {
-    throw new Error(
-      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
-    );
-  }
   stitchId(selected.motion_id);
   const range = "range" in selected ? selected.range : {};
   validateRange(range);
-  const result: MotionStep = { type: "motion", motion_id: selected.motion_id, range: { ...range } };
+  const result: MotionStep = { motion_id: selected.motion_id, range: { ...range } };
   if ("placement" in selected) {
     if (!arriving) {
       throw new Error("Placement is supported only on the arriving motion");
     }
     result.placement = validatePlacement(selected.placement);
   }
+  if (arriving) {
+    if ("transition" in selected && selected.transition !== null) {
+      validateTransition(selected.transition, { outgoing: false });
+    }
+  } else {
+    result.transition = validateTransition("transition" in selected ? selected.transition : {}, {
+      outgoing: true,
+    });
+  }
   return result;
 }
 
-function validateTransitionStep(value: unknown): Required<TransitionStep> {
+function validateTransition(
+  value: unknown,
+  { outgoing }: { outgoing: boolean },
+): Required<StitchTransition> {
   const selected = allowedFields(value, {
-    required: ["type"],
-    allowed: ["type", "duration_seconds"],
+    required: [],
+    allowed: ["duration_seconds"],
   });
-  if (selected.type !== "transition") {
-    throw new Error(
-      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
-    );
-  }
   const duration = finite(
     "duration_seconds" in selected ? selected.duration_seconds : DEFAULT_TRANSITION_SECONDS,
   );
-  if (duration < MIN_TRANSITION_SECONDS || duration > MAX_TRANSITION_SECONDS) {
+  if (outgoing && (duration < MIN_TRANSITION_SECONDS || duration > MAX_TRANSITION_SECONDS)) {
     throw new Error("Invalid transition duration");
   }
-  return { type: "transition", duration_seconds: duration };
+  return { duration_seconds: duration };
 }
 
 /** Validate and copy the shared request before any potentially paid mutation. */
@@ -307,17 +308,14 @@ export function validateStitchInput(value: unknown): StitchInput {
     allowed: ["character_id", "steps"],
   });
   stitchId(request.character_id);
-  if (!Array.isArray(request.steps) || request.steps.length !== 3) {
-    throw new Error(
-      "Must include exactly three steps: a first motion, a middle transition, and a second motion",
-    );
+  if (!Array.isArray(request.steps) || request.steps.length !== 2) {
+    throw new Error("Must include exactly two motion objects");
   }
   return {
     character_id: request.character_id,
     steps: [
       validateMotionStep(request.steps[0], { arriving: false }),
-      validateTransitionStep(request.steps[1]),
-      validateMotionStep(request.steps[2], { arriving: true }),
+      validateMotionStep(request.steps[1], { arriving: true }),
     ],
   };
 }

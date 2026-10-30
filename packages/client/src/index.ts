@@ -43,7 +43,7 @@ export type {
   StitchResult,
   StitchRange,
   MotionStep,
-  TransitionStep,
+  StitchTransition,
   ResolvedMotionStep,
   StitchPlacement,
   PelvisState,
