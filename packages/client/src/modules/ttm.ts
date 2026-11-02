@@ -61,9 +61,9 @@ export class TtmModule extends BaseModule {
 
   /**
    * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
-   * `variant` selects regular (default), fast, or fast-mini.
+   * `variant` selects regular (default), light, or mini.
    * `fast` is an independent hint with no current scheduling effect.
-   * Migrate old `fast: true` selections to `variant: "fast"`.
+   * Migrate old `fast: true` selections to `variant: "light"`.
    * Available to any account on the pay-as-you-go plan. See https://uthana.com/docs/api/pricing.
    */
   async createJob(

@@ -113,14 +113,14 @@ describe("React hooks", () => {
       await result.current.mutateAsync({
         prompt: "wave",
         model: "text-to-motion-3.0",
-        variant: "fast-mini",
+        variant: "mini",
         fast: false,
       });
     });
     expect(mockClient.ttm.createJob).toHaveBeenCalledWith(
       "wave",
       expect.objectContaining({
-        variant: "fast-mini",
+        variant: "mini",
         fast: false,
       }),
     );

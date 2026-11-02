@@ -146,7 +146,7 @@ export type VtmModelType = "video-to-motion-2.0" | "video-to-motion-2.1" | "vide
 
 /** TTM job model types (async job API) */
 export type TtmJobModelType = "text-to-motion-3.0";
-export type TtmVariant = "regular" | "fast" | "fast-mini";
+export type TtmVariant = "regular" | "light" | "mini";
 
 /** Combined model type */
 export type ModelType = "auto" | TtmModelType | TtmJobModelType | VtmModelType;

@@ -206,7 +206,7 @@ describe("module methods with mocked _graphql", () => {
   });
 
   describe("ttm", () => {
-    it.each([undefined, null, "regular", "fast", "fast-mini"] as const)(
+    it.each([undefined, null, "regular", "light", "mini"] as const)(
       "keeps variant %s independent from the speed hint",
       async (variant) => {
         mockGql.mockResolvedValue({
