@@ -83,7 +83,8 @@ mutation CreateTextToMotionJob(
   $character_id: String,
   $length: Float,
   $rewrite_prompt: Boolean,
-  $fast: Boolean
+  $fast: Boolean,
+  $variant: String
 ) {
   create_text_to_motion_job(
     prompt: $prompt,
@@ -91,7 +92,8 @@ mutation CreateTextToMotionJob(
     character_id: $character_id,
     length: $length,
     rewrite_prompt: $rewrite_prompt,
-    fast: $fast
+    fast: $fast,
+    variant: $variant
   ) {
     job {
       id

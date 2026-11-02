@@ -19,6 +19,7 @@ import {
   useUthanaRateMotion,
   useUthanaRenameCharacter,
   useUthanaTtm,
+  useUthanaCreateTtmJob,
   useUthanaUser,
   useUthanaVtm,
 } from "@uthana/react";
@@ -84,7 +85,7 @@ const { mockClient } = vi.hoisted(() => {
         list: mockMotionDownloadsList,
         isAllowed: mockMotionDownloadAllowed,
       },
-      ttm: { create: mockTtmCreate },
+      ttm: { create: mockTtmCreate, createJob: vi.fn().mockResolvedValue({ id: "job3" }) },
       vtm: { create: mockVtmCreate },
     },
   };
@@ -104,6 +105,25 @@ function createWrapper() {
 describe("React hooks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("useUthanaCreateTtmJob forwards variant independently of the speed hint", async () => {
+    const { result } = renderHook(() => useUthanaCreateTtmJob(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync({
+        prompt: "wave",
+        model: "text-to-motion-3.0",
+        variant: "fast-mini",
+        fast: false,
+      });
+    });
+    expect(mockClient.ttm.createJob).toHaveBeenCalledWith(
+      "wave",
+      expect.objectContaining({
+        variant: "fast-mini",
+        fast: false,
+      }),
+    );
   });
 
   it("useUthanaMotions fetches and returns motions", async () => {

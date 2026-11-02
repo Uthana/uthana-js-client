@@ -206,6 +206,28 @@ describe("module methods with mocked _graphql", () => {
   });
 
   describe("ttm", () => {
+    it.each([undefined, null, "regular", "fast", "fast-mini"] as const)(
+      "keeps variant %s independent from the speed hint",
+      async (variant) => {
+        mockGql.mockResolvedValue({
+          data: { create_text_to_motion_job: { job: { id: "j3", status: "QUEUED" } } },
+        });
+        for (const isFast of [false, true]) {
+          await client.ttm.createJob("wave", {
+            model: "text-to-motion-3.0",
+            variant,
+            fast: isFast,
+          });
+          expect(mockGql).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+              variant: variant ?? "regular",
+              fast: isFast,
+            }),
+          );
+        }
+      },
+    );
+
     it("createJob includes fast variable", async () => {
       mockGql.mockResolvedValue({
         data: { create_text_to_motion_job: { job: { id: "j1", status: "QUEUED" } } },
