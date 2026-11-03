@@ -34,7 +34,6 @@ export type {
   TextToMotionResult,
   TtmJobModelType,
   TtmModelType,
-  TtmVariant,
   User,
   VideoToMotionResult,
   VtmModelType,

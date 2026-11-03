@@ -107,20 +107,19 @@ describe("React hooks", () => {
     vi.clearAllMocks();
   });
 
-  it("useUthanaCreateTtmJob forwards variant independently of the speed hint", async () => {
+  it("useUthanaCreateTtmJob forwards the selected model independently of the speed hint", async () => {
     const { result } = renderHook(() => useUthanaCreateTtmJob(), { wrapper: createWrapper() });
     await act(async () => {
       await result.current.mutateAsync({
         prompt: "wave",
-        model: "text-to-motion-3.0",
-        variant: "mini",
+        model: "text-to-motion-3.0-mini",
         fast: false,
       });
     });
     expect(mockClient.ttm.createJob).toHaveBeenCalledWith(
       "wave",
       expect.objectContaining({
-        variant: "mini",
+        model: "text-to-motion-3.0-mini",
         fast: false,
       }),
     );

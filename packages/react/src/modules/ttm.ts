@@ -3,7 +3,7 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import type { TtmJobModelType, TtmModelType, TtmVariant } from "@uthana/client";
+import type { TtmJobModelType, TtmModelType } from "@uthana/client";
 import { useUthanaClient } from "../UthanaProvider";
 
 /** Hook for text-to-motion mutations. */
@@ -34,7 +34,6 @@ export function useUthanaCreateTtmJob() {
       length?: number | null;
       rewrite_prompt?: boolean | null;
       fast?: boolean | null;
-      variant?: TtmVariant | null;
     }) => client.ttm.createJob(params.prompt, params),
   });
 }

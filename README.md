@@ -206,7 +206,7 @@ function GenerateButton() {
 
 ## Text to motion 3.0 async job (ttm.createJob)
 
-`variant` selects the TTM 3.0 offering. `fast` is an independent hint with no current scheduling effect. To retain the former Fast mode (now Light) when migrating an older `fast: true` request, pass `variant: "light"`. Mini uses `variant: "mini"` and accepts 5–10 seconds (default 5). Regular/Light accept 4–10 seconds (default 4). This client requires the API with `variant` support; older servers reject the new GraphQL argument.
+Use `model: "text-to-motion-3.0"` for Regular, `"text-to-motion-3.0-lite"` for Lite, or `"text-to-motion-3.0-mini"` for Mini. There is no separate variant argument. `fast` remains an independent hint with no current scheduling effect. Regular accepts 4–10 seconds (default 4); Lite and Mini accept 5–10 seconds (default 5). Regular/Lite cost $0.10 per output second; Mini costs $0.075. New Lite/Mini model values require the updated server; existing Regular requests keep the same mutation shape.
 
 `text-to-motion-3.0` runs as an async job and returns a `Job` to poll — the same pattern as video-to-motion. Available to any account on the [pay-as-you-go plan](https://uthana.com/docs/api/pricing).
 
@@ -216,7 +216,6 @@ const job = await client.ttm.createJob("a person doing jumping jacks", {
   model: "text-to-motion-3.0",
   length: 8, // optional, 4–10 seconds
   rewrite_prompt: true, // optional, default true
-  variant: "light", // optional: "regular" (default), "light", or "mini"
   character_id: UthanaCharacters.tar, // optional
 });
 

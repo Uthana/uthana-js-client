@@ -5,7 +5,7 @@
 import type { UthanaClient } from "../client";
 import { CREATE_TEXT_TO_MOTION_JOB } from "../graphql";
 import { normalizeModelName } from "../models";
-import type { Job, TextToMotionResult, TtmJobModelType, TtmModelType, TtmVariant } from "../types";
+import type { Job, TextToMotionResult, TtmJobModelType, TtmModelType } from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
@@ -61,9 +61,9 @@ export class TtmModule extends BaseModule {
 
   /**
    * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
-   * `variant` selects regular (default), light, or mini.
+   * `model` selects Regular, Lite (-lite), or Mini (-mini).
    * `fast` is an independent hint with no current scheduling effect.
-   * Migrate old `fast: true` selections to `variant: "light"`.
+   * Select Lite with `model: "text-to-motion-3.0-lite"`.
    * Available to any account on the pay-as-you-go plan. See https://uthana.com/docs/api/pricing.
    */
   async createJob(
@@ -73,7 +73,6 @@ export class TtmModule extends BaseModule {
       character_id?: string | null;
       length?: number | null;
       rewrite_prompt?: boolean | null;
-      variant?: TtmVariant | null;
       /** Independent speed hint; does not select a model or variant. */
       fast?: boolean | null;
     },
@@ -85,7 +84,6 @@ export class TtmModule extends BaseModule {
       length: options.length ?? null,
       rewrite_prompt: options.rewrite_prompt ?? null,
       fast: options.fast ?? false,
-      variant: options.variant ?? "regular",
     };
 
     return this._client._graphql<Job>(CREATE_TEXT_TO_MOTION_JOB, variables, {
