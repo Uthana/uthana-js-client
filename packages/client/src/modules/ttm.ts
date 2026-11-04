@@ -61,9 +61,8 @@ export class TtmModule extends BaseModule {
 
   /**
    * Submit an async text-to-motion job (TTM 3.0). Returns a Job to poll via jobs.wait().
-   * `model` selects Regular, Lite (-lite), or Mini (-mini).
-   * `fast` is an independent hint with no current scheduling effect.
-   * Select Lite with `model: "text-to-motion-3.0-lite"`.
+   * `fast: true` uses the faster TTM 3.0 variant.
+   * `fast: false` / omit uses standard TTM 3.0.
    * Available to any account on the pay-as-you-go plan. See https://uthana.com/docs/api/pricing.
    */
   async createJob(
@@ -73,7 +72,7 @@ export class TtmModule extends BaseModule {
       character_id?: string | null;
       length?: number | null;
       rewrite_prompt?: boolean | null;
-      /** Independent speed hint; does not select a model or variant. */
+      /** Uses the faster TTM 3.0 variant. Default false (standard TTM 3.0). */
       fast?: boolean | null;
     },
   ): Promise<Job> {
