@@ -862,3 +862,17 @@ If `npm publish` fails with **`404`** / **`PUT ... /@uthana/... Not found`**, co
 ## Contributing
 
 See [AGENTS.md](AGENTS.md) for code style, validation, testing, and review conventions.
+
+### Trial job limits
+
+Organizations without a valid saved payment method may have up to four queued,
+delayed, or running jobs per type, shared by every member. TTM and VTM have
+separate limits; selecting two VTM models uses two VTM slots. Pending generations
+reserve funds, reducing the balance available for new work.
+
+The API returns HTTP 429 and GraphQL error code `job_limit_exceeded` when the
+limit is reached. Upload errors retain `UthanaError.statusCode === 429` and the
+response in `apiMessage`; GraphQL errors are surfaced by the GraphQL transport.
+Wait for an existing job to finish before submitting again. The client does not
+retry automatically. Custom requests with multiple mutations can have earlier
+successful operations; inspect their results before retrying.
