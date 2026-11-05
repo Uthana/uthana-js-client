@@ -579,11 +579,7 @@ Join two motions with automatic positioning. The server handles sampling and ali
 ```ts
 const result = await client.motions.stitch({
   character_id: characterId,
-  steps: [
-    { type: "motion", motion_id: firstMotionId },
-    { type: "transition", duration_seconds: 1 },
-    { type: "motion", motion_id: secondMotionId },
-  ],
+  steps: [{ motion_id: firstMotionId }, { motion_id: secondMotionId }],
 });
 console.log(result.motion.id, result.resolved_steps);
 ```
@@ -597,16 +593,18 @@ const positioned = await client.motions.stitch({
   character_id: characterId,
   steps: [
     {
-      type: "motion",
       motion_id: firstMotionId,
-      range: { start_frame: 12, end_frame: 60 },
+      trim_start_frame: 12,
+      trim_end_frame: 60,
+      transition_duration_seconds: 1.5,
+      transition_forward_meters: 1,
+      transition_right_meters: 0.5,
+      transition_facing_degrees: 45,
     },
-    { type: "transition", duration_seconds: 1.5 },
     {
-      type: "motion",
       motion_id: secondMotionId,
-      range: { start_seconds: 0.5, end_seconds: 3 },
-      placement: { forward_m: 1, right_m: 0.5, turn_degrees: 45 },
+      trim_start_seconds: 0.5,
+      trim_end_seconds: 3,
     },
   ],
 });
