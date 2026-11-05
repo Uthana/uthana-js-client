@@ -12,8 +12,8 @@ describe("shared typed-step stitching", () => {
   for (const test of fixtures.valid) {
     it(`accepts ${test.name}`, () => {
       const out = validateStitchInput(test.input);
-      expect(out.steps[0].transition?.duration_seconds).toBe(
-        test.normalized.steps[0].transition.duration_seconds,
+      expect(out.steps[0].transition_duration_seconds).toBe(
+        test.normalized.steps[0].transition_duration_seconds,
       );
       expect(out).not.toBe(test.input);
       expect(out).toEqual(test.normalized);
@@ -25,7 +25,7 @@ describe("shared typed-step stitching", () => {
   for (const value of [NaN, Infinity, -Infinity]) {
     it(`rejects ${value}`, () => {
       const options = structuredClone(fixtures.valid[0].input);
-      options.steps[0].transition = { duration_seconds: value };
+      options.steps[0].transition_duration_seconds = value;
       expect(() => validateStitchInput(options)).toThrow();
     });
   }
@@ -64,15 +64,11 @@ it.each([
 
 it("normalizes without mutating caller-owned nested records", () => {
   const input = structuredClone(fixtures.valid[1].input);
-  input.steps[1].placement = { forward_m: 0, right_m: 0.5 };
+  input.steps[0].transition_right_meters = 0.5;
   const original = structuredClone(input);
   const normalized = validateStitchInput(input);
   expect(validateStitchInput(normalized)).toEqual(normalized);
-  if (normalized.steps[0].range && "end_frame" in normalized.steps[0].range) {
-    normalized.steps[0].range.end_frame = 50;
-  }
-  if (normalized.steps[1].placement) {
-    normalized.steps[1].placement.right_m = 10;
-  }
+  normalized.steps[0].trim_end_frame = 50;
+  normalized.steps[0].transition_right_meters = 10;
   expect(input).toEqual(original);
 });

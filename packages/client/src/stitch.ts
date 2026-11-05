@@ -1,12 +1,13 @@
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  *
- * Shared typed-step stitching and legacy sampled-pose compatibility.
+ * Flat motion-step stitching and legacy sampled-pose compatibility.
  * Ordinary stitching is prepared by the service; legacy callers supply poses.
  */
 
 import type { Motion } from "./types";
 
+const MAX_FRAME_INDEX = 2 ** 31 - 1;
 const MAX_OFFSET_METERS = 100;
 const MAX_TURN_DEGREES = 180;
 const MIN_TRANSITION_SECONDS = 0.1;
@@ -150,27 +151,17 @@ export const validateStitchParams = (params: StitchParams): StitchParams => {
   return structuredClone(params);
 };
 
-/** Inclusive native-source sample ranges. Do not mix frame and second fields. */
-export type StitchRange =
-  | { start_frame?: number; end_frame?: number; start_seconds?: never; end_seconds?: never }
-  | { start_seconds?: number; end_seconds?: number; start_frame?: never; end_frame?: never };
-
-export interface StitchPlacement {
-  forward_m?: number;
-  right_m?: number;
-  turn_degrees?: number;
-  absolute?: false;
-}
-
+/** Flat, inclusive native-source trims and outgoing transition settings. */
 export interface MotionStep {
   motion_id: string;
-  range?: StitchRange;
-  placement?: StitchPlacement;
-  transition?: StitchTransition;
-}
-
-export interface StitchTransition {
-  duration_seconds?: number;
+  trim_start_frame?: number;
+  trim_end_frame?: number;
+  trim_start_seconds?: number;
+  trim_end_seconds?: number;
+  transition_duration_seconds?: number;
+  transition_forward_meters?: number;
+  transition_right_meters?: number;
+  transition_facing_degrees?: number;
 }
 
 export interface StitchInput {
@@ -180,9 +171,14 @@ export interface StitchInput {
 
 export interface ResolvedMotionStep {
   motion_id: string;
-  range: { start_frame: number; end_frame: number; start_seconds: number; end_seconds: number };
-  placement?: StitchPlacement | { mode: "automatic" };
-  transition?: Required<StitchTransition>;
+  trim_start_frame: number;
+  trim_end_frame: number;
+  trim_start_seconds: number;
+  trim_end_seconds: number;
+  transition_duration_seconds?: number;
+  transition_forward_meters?: number;
+  transition_right_meters?: number;
+  transition_facing_degrees?: number;
 }
 
 export interface StitchResult {
@@ -212,96 +208,88 @@ function stitchId(value: unknown): asserts value is string {
   }
 }
 
-function validateRange(value: unknown): asserts value is StitchRange {
-  const selected = allowedFields(value, {
-    required: [],
-    allowed: ["start_frame", "end_frame", "start_seconds", "end_seconds"],
-  });
-  const hasFrameRange = "start_frame" in selected || "end_frame" in selected;
-  const hasSecondRange = "start_seconds" in selected || "end_seconds" in selected;
-  if (hasFrameRange && hasSecondRange) {
-    throw new Error("Use frames or seconds within a range, not both");
-  }
-  for (const [key, value] of Object.entries(selected)) {
-    const number = finite(value);
-    const isInvalidFrame = key.endsWith("_frame") && !Number.isSafeInteger(number);
-    if (number < 0 || isInvalidFrame) {
-      throw new Error("Invalid source range");
-    }
-  }
-  const unit = hasFrameRange ? "frame" : "seconds";
-  const start = (selected[`start_${unit}`] as number | undefined) ?? 0;
-  const end = selected[`end_${unit}`] as number | undefined;
-  if (end !== undefined && end <= start) {
-    throw new Error("Range end must exceed start");
-  }
-}
-
-function validatePlacement(value: unknown): StitchPlacement {
-  const selected = allowedFields(value, {
-    required: [],
-    allowed: ["forward_m", "right_m", "turn_degrees", "absolute"],
-  });
-  if ("absolute" in selected && selected.absolute !== false) {
-    throw new Error("Absolute placement is unsupported");
-  }
-  const result: StitchPlacement = { absolute: false };
-  for (const key of ["forward_m", "right_m", "turn_degrees"] as const) {
-    const number = finite(key in selected ? selected[key] : 0);
-    const limit = key === "turn_degrees" ? MAX_TURN_DEGREES : MAX_OFFSET_METERS;
-    if (Math.abs(number) > limit) {
-      throw new Error(`Invalid placement ${key}`);
-    }
-    result[key] = number;
-  }
-  return result;
-}
-
-function validateMotionStep(value: unknown, { arriving }: { arriving: boolean }): MotionStep {
+function validateMotionStep(value: unknown, { outgoing }: { outgoing: boolean }): MotionStep {
+  const frameFields = ["trim_start_frame", "trim_end_frame"] as const;
+  const secondFields = ["trim_start_seconds", "trim_end_seconds"] as const;
+  const placementFields = [
+    "transition_forward_meters",
+    "transition_right_meters",
+    "transition_facing_degrees",
+  ] as const;
+  const transitionFields = ["transition_duration_seconds", ...placementFields] as const;
   const selected = allowedFields(value, {
     required: ["motion_id"],
-    allowed: ["motion_id", "range", "placement", "transition"],
+    allowed: ["motion_id", ...frameFields, ...secondFields, ...transitionFields],
   });
   stitchId(selected.motion_id);
-  const range = "range" in selected ? selected.range : {};
-  validateRange(range);
-  const result: MotionStep = { motion_id: selected.motion_id, range: { ...range } };
-  if ("placement" in selected) {
-    if (!arriving) {
-      throw new Error("Placement is supported only on the arriving motion");
-    }
-    result.placement = validatePlacement(selected.placement);
+  const hasFrameRange = frameFields.some((key) => key in selected);
+  const hasSecondRange = secondFields.some((key) => key in selected);
+  if (hasFrameRange && hasSecondRange) {
+    throw new Error("Use frames or seconds within a trim, not both");
   }
-  if (arriving) {
-    if ("transition" in selected && selected.transition !== null) {
-      validateTransition(selected.transition, { outgoing: false });
+  const result: MotionStep = { motion_id: selected.motion_id };
+  for (const key of frameFields) {
+    if (key in selected) {
+      const number = finite(selected[key]);
+      if (!Number.isInteger(number) || number < 0 || number > MAX_FRAME_INDEX) {
+        throw new Error(`${key} must be a nonnegative GraphQL integer`);
+      }
+      result[key] = number;
+    }
+  }
+  for (const key of secondFields) {
+    if (key in selected) {
+      const number = finite(selected[key]);
+      if (number < 0) {
+        throw new Error(`${key} must be nonnegative`);
+      }
+      result[key] = number;
+    }
+  }
+  for (const key of transitionFields) {
+    if (key in selected) {
+      const number = finite(selected[key]);
+      if (outgoing) {
+        if (key === "transition_duration_seconds") {
+          if (number < MIN_TRANSITION_SECONDS || number > MAX_TRANSITION_SECONDS) {
+            throw new Error("Transition duration must be 0.1-3 seconds");
+          }
+        } else {
+          const limit = key === "transition_facing_degrees" ? MAX_TURN_DEGREES : MAX_OFFSET_METERS;
+          if (Math.abs(number) > limit) {
+            throw new Error(`Invalid placement ${key}`);
+          }
+        }
+        result[key] = number;
+      }
+    }
+  }
+  if (hasFrameRange) {
+    result.trim_start_frame ??= 0;
+    if (result.trim_end_frame !== undefined && result.trim_end_frame <= result.trim_start_frame) {
+      throw new Error("Trim end must exceed start");
     }
   } else {
-    result.transition = validateTransition("transition" in selected ? selected.transition : {}, {
-      outgoing: true,
-    });
+    result.trim_start_seconds ??= 0;
+    if (
+      result.trim_end_seconds !== undefined &&
+      result.trim_end_seconds <= result.trim_start_seconds
+    ) {
+      throw new Error("Trim end must exceed start");
+    }
+  }
+  if (outgoing) {
+    result.transition_duration_seconds ??= DEFAULT_TRANSITION_SECONDS;
+    if (placementFields.some((key) => key in selected)) {
+      for (const key of placementFields) {
+        result[key] ??= 0;
+      }
+    }
   }
   return result;
 }
 
-function validateTransition(
-  value: unknown,
-  { outgoing }: { outgoing: boolean },
-): Required<StitchTransition> {
-  const selected = allowedFields(value, {
-    required: [],
-    allowed: ["duration_seconds"],
-  });
-  const duration = finite(
-    "duration_seconds" in selected ? selected.duration_seconds : DEFAULT_TRANSITION_SECONDS,
-  );
-  if (outgoing && (duration < MIN_TRANSITION_SECONDS || duration > MAX_TRANSITION_SECONDS)) {
-    throw new Error("Invalid transition duration");
-  }
-  return { duration_seconds: duration };
-}
-
-/** Validate and copy the shared request before any potentially paid mutation. */
+/** Validate and copy the flat request before any potentially paid mutation. */
 export function validateStitchInput(value: unknown): StitchInput {
   const request = allowedFields(value, {
     required: ["character_id", "steps"],
@@ -314,8 +302,8 @@ export function validateStitchInput(value: unknown): StitchInput {
   return {
     character_id: request.character_id,
     steps: [
-      validateMotionStep(request.steps[0], { arriving: false }),
-      validateMotionStep(request.steps[1], { arriving: true }),
+      validateMotionStep(request.steps[0], { outgoing: true }),
+      validateMotionStep(request.steps[1], { outgoing: false }),
     ],
   };
 }

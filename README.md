@@ -594,13 +594,13 @@ const positioned = await client.motions.stitch({
   steps: [
     {
       motion_id: firstMotionId,
-      range: { start_frame: 12, end_frame: 60 },
-      transition: { duration_seconds: 1.5 },
+      trim_start_frame: 12, trim_end_frame: 60,
+      transition_duration_seconds: 1.5,
+      transition_forward_meters: 1, transition_right_meters: 0.5, transition_facing_degrees: 45,
     },
     {
       motion_id: secondMotionId,
-      range: { start_seconds: 0.5, end_seconds: 3 },
-      placement: { forward_m: 1, right_m: 0.5, turn_degrees: 45 },
+      trim_start_seconds: 0.5, trim_end_seconds: 3,
     },
   ],
 });
