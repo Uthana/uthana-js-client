@@ -6,14 +6,9 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1"
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -22,18 +17,13 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {}
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
           },
           {
-            "type": "transition",
-            "duration_seconds": 1.0
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "range": {}
+            "trim_start_seconds": 0
           }
         ]
       }
@@ -44,18 +34,11 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 12,
-              "end_frame": 60
-            }
+            "trim_start_frame": 12,
+            "trim_end_frame": 60
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -64,21 +47,14 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 12,
-              "end_frame": 60
-            }
+            "trim_start_frame": 12,
+            "trim_end_frame": 60,
+            "transition_duration_seconds": 1.0
           },
           {
-            "type": "transition",
-            "duration_seconds": 1.0
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "range": {}
+            "trim_start_seconds": 0
           }
         ]
       }
@@ -89,19 +65,12 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1"
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "range": {
-              "start_seconds": 0.5,
-              "end_seconds": 3.0
-            }
+            "trim_start_seconds": 0.5,
+            "trim_end_seconds": 3.0
           }
         ]
       },
@@ -109,21 +78,14 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {}
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
           },
           {
-            "type": "transition",
-            "duration_seconds": 1.0
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "range": {
-              "start_seconds": 0.5,
-              "end_seconds": 3.0
-            }
+            "trim_start_seconds": 0.5,
+            "trim_end_seconds": 3.0
           }
         ]
       }
@@ -134,16 +96,11 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_forward_meters": 0
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {}
+            "motion_id": "m2"
           }
         ]
       },
@@ -151,24 +108,16 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {}
+            "transition_forward_meters": 0,
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0,
+            "transition_right_meters": 0.0,
+            "transition_facing_degrees": 0.0
           },
           {
-            "type": "transition",
-            "duration_seconds": 1.0
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "placement": {
-              "forward_m": 0.0,
-              "right_m": 0.0,
-              "turn_degrees": 0.0,
-              "absolute": false
-            },
-            "range": {}
+            "trim_start_seconds": 0
           }
         ]
       }
@@ -179,21 +128,13 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_forward_meters": 2,
+            "transition_right_meters": 1,
+            "transition_facing_degrees": 90
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "forward_m": 2,
-              "right_m": 1,
-              "turn_degrees": 90,
-              "absolute": false
-            }
+            "motion_id": "m2"
           }
         ]
       },
@@ -201,24 +142,80 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {}
+            "transition_forward_meters": 2,
+            "transition_right_meters": 1,
+            "transition_facing_degrees": 90,
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
           },
           {
-            "type": "transition",
-            "duration_seconds": 1.0
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "placement": {
-              "forward_m": 2,
-              "right_m": 1,
-              "turn_degrees": 90,
-              "absolute": false
-            },
-            "range": {}
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "partial_right",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_right_meters": 0.5
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_right_meters": 0.5,
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0,
+            "transition_forward_meters": 0.0,
+            "transition_facing_degrees": 0.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "partial_facing",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_facing_degrees": -90
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_facing_degrees": -90,
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0,
+            "transition_forward_meters": 0.0,
+            "transition_right_meters": 0.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
           }
         ]
       }
@@ -229,15 +226,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_duration_seconds": 0.65
           },
           {
-            "type": "transition",
-            "duration_seconds": 0.65
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -246,18 +238,248 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {}
+            "transition_duration_seconds": 0.65,
+            "trim_start_seconds": 0
           },
           {
-            "type": "transition",
-            "duration_seconds": 0.65
-          },
-          {
-            "type": "motion",
             "motion_id": "m2",
-            "range": {}
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit_default",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 1
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 1,
+            "trim_start_seconds": 0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "minimum_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 0.1
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 0.1,
+            "trim_start_seconds": 0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "maximum_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 3
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_duration_seconds": 3,
+            "trim_start_seconds": 0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "ignored_final_negative",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1"
+          },
+          {
+            "motion_id": "m2",
+            "transition_duration_seconds": -10
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "ignored_final_huge",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1"
+          },
+          {
+            "motion_id": "m2",
+            "transition_duration_seconds": 1000000
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "ignored_final_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1"
+          },
+          {
+            "motion_id": "m2",
+            "transition_forward_meters": 1000000,
+            "transition_right_meters": -1000000,
+            "transition_facing_degrees": 999
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_start_seconds": 0,
+            "transition_duration_seconds": 1.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "end_only_frame",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_end_frame": 60
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_end_frame": 60,
+            "trim_start_frame": 0,
+            "transition_duration_seconds": 1.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "start_only_seconds",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_start_seconds": 0.5
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      },
+      "normalized": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "trim_start_seconds": 0.5,
+            "transition_duration_seconds": 1.0
+          },
+          {
+            "motion_id": "m2",
+            "trim_start_seconds": 0
           }
         ]
       }
@@ -270,18 +492,11 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 1,
-              "end_seconds": 2
-            }
+            "trim_start_frame": 1,
+            "trim_end_seconds": 2
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -293,17 +508,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": true
-            }
+            "trim_start_frame": true
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -315,17 +523,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 1.5
-            }
+            "trim_start_frame": 1.5
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -337,17 +538,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 9007199254740992
-            }
+            "trim_start_frame": 2147483648
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -359,17 +553,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_seconds": -1
-            }
+            "trim_start_seconds": -1
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -381,18 +568,11 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_frame": 20,
-              "end_frame": 10
-            }
+            "trim_start_frame": 20,
+            "trim_end_frame": 10
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -404,37 +584,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "end_seconds": 0
-            }
+            "trim_end_seconds": 0
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2"
-          }
-        ]
-      }
-    },
-    {
-      "name": "null_range",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1",
-            "range": null
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -446,17 +599,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "end_frame": null
-            }
+            "trim_end_frame": null
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -468,188 +614,11 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1",
-            "range": {
-              "start_seconds": "1"
-            }
+            "trim_start_seconds": "1"
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
-          }
-        ]
-      }
-    },
-    {
-      "name": "wrong_step_field",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1",
-            "duration_seconds": 1
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2"
-          }
-        ]
-      }
-    },
-    {
-      "name": "absolute",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "absolute": true
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "numeric_absolute",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "absolute": 0
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "null_placement",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": null
-          }
-        ]
-      }
-    },
-    {
-      "name": "first_placement",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1",
-            "placement": {}
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2"
-          }
-        ]
-      }
-    },
-    {
-      "name": "offset_limit",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "forward_m": 101
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "turn_limit",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "turn_degrees": 181
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "legacy_facing",
-      "input": {
-        "character_id": "c1",
-        "steps": [
-          {
-            "type": "motion",
-            "motion_id": "m1"
-          },
-          {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
-            "motion_id": "m2",
-            "placement": {
-              "facing_degrees": 45
-            }
           }
         ]
       }
@@ -660,15 +629,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_duration_seconds": true
           },
           {
-            "type": "transition",
-            "duration_seconds": true
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -680,15 +644,10 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_duration_seconds": 3.1
           },
           {
-            "type": "transition",
-            "duration_seconds": 3.1
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
@@ -700,35 +659,284 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
-            "motion_id": "m1"
+            "motion_id": "m1",
+            "transition_duration_seconds": null
           },
           {
-            "type": "transition",
-            "duration_seconds": null
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ]
       }
     },
     {
-      "name": "pose_type",
+      "name": "zero_duration",
       "input": {
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
+            "motion_id": "m1",
+            "transition_duration_seconds": 0
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "offset_limit",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_forward_meters": 101
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "turn_limit",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_facing_degrees": 181
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "null_placement_component",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_right_meters": null
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "boolean_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_right_meters": true
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid_identifier",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "../m1"
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "keyframe_source",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "keyframe_id": "k1"
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "image_source",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "image_path": "https://example.com/a.png"
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "redundant_type",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "type": "motion"
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested_range",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "range": {
+              "start_frame": 1
+            }
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested_transition",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition": {
+              "duration_seconds": 1
+            }
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested_placement",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "placement": {}
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "abbreviated_units",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "transition_forward_m": 1
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "absolute": true
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown_field",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1",
+            "unknown": 1
+          },
+          {
+            "motion_id": "m2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "final_string_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
             "motion_id": "m1"
           },
           {
-            "type": "transition"
+            "motion_id": "m2",
+            "transition_duration_seconds": "1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "final_boolean_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1"
           },
           {
-            "type": "pose",
-            "motion_id": "m2"
+            "motion_id": "m2",
+            "transition_duration_seconds": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "final_null_duration",
+      "input": {
+        "character_id": "c1",
+        "steps": [
+          {
+            "motion_id": "m1"
+          },
+          {
+            "motion_id": "m2",
+            "transition_duration_seconds": null
           }
         ]
       }
@@ -739,26 +947,36 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1"
           }
         ]
       }
     },
     {
-      "name": "wrong_order",
+      "name": "too_many_motions",
       "input": {
         "character_id": "c1",
         "steps": [
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m1"
           },
           {
-            "type": "motion",
+            "motion_id": "m2"
+          },
+          {
+            "motion_id": "m3"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing_character",
+      "input": {
+        "steps": [
+          {
+            "motion_id": "m1"
+          },
+          {
             "motion_id": "m2"
           }
         ]
@@ -770,14 +988,9 @@
         "character_id": "c1",
         "steps": [
           {
-            "type": "motion",
             "motion_id": "m1"
           },
           {
-            "type": "transition"
-          },
-          {
-            "type": "motion",
             "motion_id": "m2"
           }
         ],
@@ -785,8 +998,9 @@
       }
     },
     {
-      "name": "missing_character",
+      "name": "old_typed_steps",
       "input": {
+        "character_id": "c1",
         "steps": [
           {
             "type": "motion",

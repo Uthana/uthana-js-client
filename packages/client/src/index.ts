@@ -41,11 +41,8 @@ export type {
 export type {
   StitchInput,
   StitchResult,
-  StitchRange,
   MotionStep,
-  TransitionStep,
   ResolvedMotionStep,
-  StitchPlacement,
   PelvisState,
   Quaternion,
   StitchParams,
