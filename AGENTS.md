@@ -42,3 +42,7 @@ Review the complete PR diff for style, bugs, security, abstraction cost, and com
 ## Public project metadata
 
 Keep internal ticket identifiers, tracker links, and private planning references out of public content and metadata, including documentation, comments, examples, commit messages, branch/tag names, PRs, issues, and releases. Describe the public-facing behavior instead; track internal coordination in private systems with links to the public work.
+
+## Review tooling
+
+Hosted Cursor/Bugbot reviews are not enabled for this repository. Do not post `@cursor review`, `bugbot run`, or other trigger comments, including as a probe. Use local bug and security reviews of the complete diff against the PR base, fix actionable findings, and repeat affected checks after the final fix. Report local review accurately; do not describe it as a hosted Bugbot pass. Check this policy separately for each repository before batching review requests: a generic request for final reviews or coverage in another repository does not override this rule. Do not enable hosted review as a prerequisite for completing a PR.
