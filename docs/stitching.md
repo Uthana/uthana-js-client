@@ -5,7 +5,10 @@
 ## Simple join
 
 ```json
-{"character_id": "CHARACTER_ID", "steps": [{"motion_id": "FIRST_MOTION_ID"}, {"motion_id": "SECOND_MOTION_ID"}]}
+{
+  "character_id": "CHARACTER_ID",
+  "steps": [{ "motion_id": "FIRST_MOTION_ID" }, { "motion_id": "SECOND_MOTION_ID" }]
+}
 ```
 
 ## Trims and placement
