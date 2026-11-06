@@ -86,7 +86,7 @@ export class MotionsModule extends BaseModule {
     );
   }
 
-  /** Stitch typed motion/transition/motion steps with server preparation.
+  /** Stitch two motion objects with an optional outgoing transition with server preparation.
    * Requires stitch(input: StitchInput!) support. No automatic retries of uncertain requests.
    */
   async stitch(options: StitchInput, timeoutSeconds = 360): Promise<StitchResult> {
@@ -98,7 +98,7 @@ export class MotionsModule extends BaseModule {
     const isValidMotion =
       typeof result?.motion?.id === "string" && Boolean(result.motion.id.trim());
     const hasValidResolvedSteps =
-      Array.isArray(result?.resolved_steps) && result.resolved_steps.length === 3;
+      Array.isArray(result?.resolved_steps) && result.resolved_steps.length === 2;
     if (!isValidMotion) {
       throw new UthanaError(
         200,
@@ -109,7 +109,7 @@ export class MotionsModule extends BaseModule {
     if (!hasValidResolvedSteps) {
       throw new UthanaError(
         200,
-        "Stitch result must include exactly three resolved steps: a first motion, a middle transition, and a second motion",
+        "Stitch result must include exactly two resolved steps: two motion objects",
         "uncertain",
       );
     }
