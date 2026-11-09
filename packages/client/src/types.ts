@@ -142,7 +142,11 @@ export type TtmModelType =
   | "text-to-motion-bucmd";
 
 /** VTM model types */
-export type VtmModelType = "video-to-motion-2.0" | "video-to-motion-2.1" | "video-to-motion-v2";
+export type VtmModelType =
+  | "video-to-motion-2.0"
+  | "video-to-motion-2.1"
+  | "video-to-motion-3.0"
+  | "video-to-motion-v2";
 
 /** TTM job model types (async job API) */
 export type TtmJobModelType = "text-to-motion-3.0";
