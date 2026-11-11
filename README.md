@@ -314,7 +314,7 @@ const finished = await client.jobs.wait(job.id!);
 const motionId = finished.result?.result?.id;
 ```
 
-**Available models:** `video-to-motion-2.0` (default), `video-to-motion-2.1`.
+**Available models:** `video-to-motion-2.0` (default), `video-to-motion-2.1`, `video-to-motion-3.0`.
 
 ```tsx
 // React
