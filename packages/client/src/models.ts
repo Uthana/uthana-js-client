@@ -14,6 +14,7 @@ export const VTM_DEFAULT: VtmModelType = "video-to-motion-2.0";
 export const VTM_MODELS: readonly VtmModelType[] = [
   "video-to-motion-2.0",
   "video-to-motion-2.1",
+  "video-to-motion-3.0",
   "video-to-motion-v2",
 ] as const;
 
