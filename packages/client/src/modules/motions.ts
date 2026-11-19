@@ -3,10 +3,17 @@
  */
 
 import type { UthanaClient } from "../client";
+import type { ControlledLocomotionPlan } from "../controlled-locomotion";
+import {
+  normalizeControlledLocomotionPlan,
+  SUPPORTED_CONTROLLED_CHARACTERS,
+} from "../controlled-locomotion";
 import { UthanaError } from "../errors";
 import {
   CREATE_ENHANCED_STITCHED_MOTION,
   STITCH,
+  CONTROLLED_LOCOMOTION_OPTIONS,
+  CREATE_CONTROLLED_LOCOMOTION,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
   CREATE_MOTION_FAVORITE,
@@ -31,6 +38,7 @@ import {
 import type {
   CreateLocomotionOptions,
   DownloadAllowed,
+  Job,
   Motion,
   MotionCatalog,
   OutputFormat,
@@ -43,6 +51,49 @@ import { BaseModule } from "./base";
 export class MotionsModule extends BaseModule {
   constructor(client: UthanaClient) {
     super(client);
+  }
+
+  /** Read backend availability and current supported options without creating work. */
+  async getControlledLocomotionOptions(): Promise<Record<string, unknown>> {
+    const options = await this._client._graphql<unknown>(
+      CONTROLLED_LOCOMOTION_OPTIONS,
+      {},
+      { path: "controlled_locomotion_options" },
+    );
+    if (
+      typeof options !== "object" ||
+      options === null ||
+      Array.isArray(options) ||
+      !("enabled" in options) ||
+      typeof options.enabled !== "boolean"
+    ) {
+      throw new UthanaError(502, "Controlled locomotion discovery returned invalid options");
+    }
+    return options as Record<string, unknown>;
+  }
+
+  /** Submit once; retain the job ID and inspect its result before preview/download. */
+  async createControlledLocomotion(
+    characterId: string,
+    options: { plan: ControlledLocomotionPlan },
+  ): Promise<Job> {
+    if (!SUPPORTED_CONTROLLED_CHARACTERS.some((id) => id === characterId)) {
+      throw new Error("character_id must be supported by controlled locomotion");
+    }
+    const plan = normalizeControlledLocomotionPlan(options.plan);
+    const job = await this._client._graphql<Job>(
+      CREATE_CONTROLLED_LOCOMOTION,
+      { character_id: characterId, plan },
+      { path: "create_controlled_locomotion_job.job" },
+    );
+    if (!job || typeof job.id !== "string" || !job.id.trim()) {
+      throw new UthanaError(
+        502,
+        "Controlled locomotion returned no job ID and may have succeeded. Inspect existing jobs before resubmitting.",
+        "uncertain",
+      );
+    }
+    return job;
   }
 
   /** List all motions for the authenticated user. */

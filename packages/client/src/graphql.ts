@@ -107,6 +107,8 @@ query GetJob($job_id: String!) {
   job(job_id: $job_id) {
     id
     status
+        model
+        method
     created_at
     started_at
     ended_at
@@ -354,6 +356,18 @@ mutation create_motion_from_gltf(
     character_id: $characterId, motion_id: $sourceMotionId
   ) {
     motion { id }
+  }
+}
+`;
+
+export const CONTROLLED_LOCOMOTION_OPTIONS = `
+query ControlledLocomotionOptions { controlled_locomotion_options }
+`;
+
+export const CREATE_CONTROLLED_LOCOMOTION = `
+mutation ControlledLocomotion($character_id: String!, $plan: GenericScalar!) {
+  create_controlled_locomotion_job(character_id: $character_id, plan: $plan) {
+    job { id status method model }
   }
 }
 `;

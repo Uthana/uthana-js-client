@@ -4,6 +4,17 @@
  * Uthana JS/TS client for the Uthana API.
  */
 
+export type {
+  ControlledLocomotionPlan,
+  ControlledLocomotionResult,
+  ControlledLocomotionMeasurements,
+  PathPoint,
+  PaceChange,
+} from "./controlled-locomotion";
+export {
+  normalizeControlledLocomotionPlan,
+  controlledLocomotionOptions,
+} from "./controlled-locomotion";
 export { UthanaClient } from "./client";
 export type { UthanaClientOptions } from "./client";
 export { UthanaError } from "./errors";
