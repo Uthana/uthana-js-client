@@ -1,17 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import {
-  normalizeControlledLocomotionPlan,
-  controlledLocomotionOptions,
-} from "../packages/client/src/controlled-locomotion";
+import { normalizeControlledLocomotionPlan } from "../packages/client/src/controlled-locomotion";
 import { MotionsModule } from "../packages/client/src/modules/motions";
 import type { UthanaClient } from "../packages/client/src/client";
 import type { ControlledLocomotionPlan } from "../packages/client/src/controlled-locomotion";
 
-const cases = JSON.parse(
+const fixture = JSON.parse(
   readFileSync(new URL("./fixtures/controlled_locomotion.json", import.meta.url), "utf8"),
 );
-const plan: ControlledLocomotionPlan = cases[0].input;
+const cases = fixture.cases.map(
+  (entry: {
+    name: string;
+    overrides: Record<string, unknown>;
+    omit?: string[];
+    valid: boolean;
+    normalized?: unknown;
+  }) => ({
+    ...entry,
+    input: Object.fromEntries(
+      Object.entries({ ...fixture.base_plan, ...entry.overrides }).filter(
+        ([key]) => !entry.omit?.includes(key),
+      ),
+    ),
+  }),
+);
+const plan: ControlledLocomotionPlan = cases[0].input as ControlledLocomotionPlan;
 const character = "cH32hVsowEyB";
 
 describe("controlled locomotion", () => {
@@ -32,11 +45,6 @@ describe("controlled locomotion", () => {
     const input = structuredClone(plan);
     input.pace_changes[0].speed_mps = speed;
     expect(() => normalizeControlledLocomotionPlan(input)).toThrow();
-  });
-  it("catalog is a fresh offline value", () => {
-    const result = controlledLocomotionOptions();
-    (result.styles as string[]).length = 0;
-    expect(controlledLocomotionOptions().styles).not.toEqual([]);
   });
   it("submits normalized plan and returns the job", async () => {
     const job = { id: "j1", status: "PENDING" };

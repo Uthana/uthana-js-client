@@ -11,10 +11,7 @@ export type {
   PathPoint,
   PaceChange,
 } from "./controlled-locomotion";
-export {
-  normalizeControlledLocomotionPlan,
-  controlledLocomotionOptions,
-} from "./controlled-locomotion";
+export { normalizeControlledLocomotionPlan } from "./controlled-locomotion";
 export { UthanaClient } from "./client";
 export type { UthanaClientOptions } from "./client";
 export { UthanaError } from "./errors";

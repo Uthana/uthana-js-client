@@ -152,25 +152,3 @@ export function normalizeControlledLocomotionPlan(value: unknown): ControlledLoc
   }
   return { units, style, points, pace_changes: paces, allow_slowing: true };
 }
-
-/** Fresh offline catalog, not deployment availability or account eligibility. */
-export function controlledLocomotionOptions(): Record<string, unknown> {
-  return {
-    supported_character_ids: [...SUPPORTED_CONTROLLED_CHARACTERS],
-    styles: [...SUPPORTED_CONTROLLED_STYLES],
-    units: ["metres", "character_heights"],
-    min_points: 2,
-    max_points: MAX_POINTS,
-    min_speed_mps: MIN_SPEED_MPS,
-    max_speed_mps: MAX_SPEED_MPS,
-    max_coordinate: MAX_COORDINATE,
-    min_segment_length: MIN_SEGMENT_LENGTH,
-    max_pace_changes: MAX_POINTS,
-    max_path_length_m: 12,
-    max_duration_seconds: 20,
-    allow_slowing_required: true,
-    availability: "Requires an enabled backend and authorized character access",
-    axes: "Fixed initial right/forward; start at origin and head forward",
-    pace: "By smoothed-path progress, not elapsed time; ends with a stop",
-  };
-}

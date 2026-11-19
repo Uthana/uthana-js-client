@@ -1,6 +1,6 @@
 # Path-controlled locomotion preview
 
-This optional backend capability generates a saved CAMDM animation from a character, style, path and pace changes. It requires an enabled backend and provisioned workers. The offline options catalog describes this client's contract; it does not prove deployment availability or account access.
+This optional backend capability generates a saved CAMDM animation from a character, style, path and pace changes. It requires an enabled backend and provisioned workers. Read the live options before submission; enabled does not prove worker readiness or account access.
 
 Waypoints use fixed initial right/forward axes. Start at `(0, 0)` and put the second point directly forward. Coordinates use metres or character-height units, bounded to ±10. Supply 2–16 points at least 0.05 units apart. The worker validates the smoothed path against its 12-metre physical limit after height conversion. A character height means skeleton bone extent, excluding mesh and accessories.
 
@@ -11,9 +11,6 @@ Submit once and retain the returned job ID. Poll through the existing jobs API. 
 Saved successful motions use normal locomotion billing; normal preview and download eligibility rules apply. Root-path and stopping checks do not certify foot contact or visual quality. Review the animation before using it.
 
 ```typescript
-import { controlledLocomotionOptions } from "@uthana/client";
-
-console.log(controlledLocomotionOptions()); // Offline contract
 console.log(await client.motions.getControlledLocomotionOptions()); // Live availability
 const job = await client.motions.createControlledLocomotion("cH32hVsowEyB", {
   plan: {
