@@ -17,6 +17,8 @@ import { VtmModule } from "./modules/vtm";
 import type { CreateCharacterResult, ModelType, OutputFormat } from "./types";
 import { DEFAULT_TIMEOUT } from "./types";
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /** Options for UthanaClient construction. */
 export interface UthanaClientOptions {
   /** API host (e.g. "uthana.com"). Defaults to production when omitted. */
@@ -58,6 +60,9 @@ export class UthanaClient {
 
   private readonly _graffle: {
     gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    transport: (options: { raw: { signal: AbortSignal } }) => {
+      gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    };
   };
   private readonly _authHeader: string;
 
@@ -107,7 +112,19 @@ export class UthanaClient {
     },
   ): Promise<T> {
     const mutating = /^\s*mutation\b/i.test(query);
-    const doc = this._graffle.gql(query);
+    const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
+    if (
+      typeof timeoutSeconds !== "number" ||
+      !Number.isFinite(timeoutSeconds) ||
+      timeoutSeconds <= 0 ||
+      timeoutSeconds > MAX_TIMEOUT_MS / 1000
+    ) {
+      throw new Error("GraphQL timeoutSeconds must be positive and at most 2147483.647 seconds");
+    }
+    const timeoutMs = Math.ceil(timeoutSeconds * 1000);
+    const doc = this._graffle
+      .transport({ raw: { signal: AbortSignal.timeout(timeoutMs) } })
+      .gql(query);
     let result: Record<string, unknown>;
     try {
       result = (await doc.$send(variables)) as Record<string, unknown>;
