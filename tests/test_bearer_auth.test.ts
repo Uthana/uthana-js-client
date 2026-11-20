@@ -70,3 +70,9 @@ it("rejects mixed credentials and replaces singleton on changed options", () => 
   expect(refreshed).not.toBe(first);
   expect(createUthanaClient("", { accessToken: "two", domain: "example.com" })).not.toBe(refreshed);
 });
+
+it("reuses clients for equivalent options regardless of order or explicit defaults", () => {
+  const first = createUthanaClient("", { accessToken: "token", domain: "uthana.com" });
+  expect(createUthanaClient("", { domain: "uthana.com", accessToken: "token" })).toBe(first);
+  expect(createUthanaClient("", { accessToken: " token " })).toBe(first);
+});

@@ -69,3 +69,41 @@ it("requires a public scope for delegated React access", () => {
   ).toThrow("queryScope");
   quiet.mockRestore();
 });
+
+it.each([
+  { apiKey: "api-key-account", accessToken: undefined, queryScope: undefined },
+  { apiKey: "", accessToken: "same-token", queryScope: "other-org" },
+])("protects delegated caches on auth mode or organization changes: %s", async (next) => {
+  vi.spyOn(OrgModule.prototype, "getUser").mockResolvedValue({
+    id: "user-one",
+    name: "One",
+    email: "one@example.com",
+  });
+  const cache = new QueryClient();
+  const makeWrapper =
+    (apiKey: string, accessToken: string | undefined, queryScope: string | undefined) =>
+    ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider
+          apiKey={apiKey}
+          options={{ accessToken }}
+          queryScope={queryScope}
+          queryClient={cache}
+        >
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+  const first = renderHook(() => useUthanaUser(), {
+    wrapper: makeWrapper("", "same-token", "public-account"),
+  });
+  await waitFor(() => expect(first.result.current.user?.id).toBe("user-one"));
+  first.unmount();
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  expect(() =>
+    renderHook(() => useUthanaUser(), {
+      wrapper: makeWrapper(next.apiKey, next.accessToken, next.queryScope),
+    }),
+  ).toThrow("new or cleared QueryClient");
+  quiet.mockRestore();
+});

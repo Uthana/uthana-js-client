@@ -8,7 +8,10 @@ import type { ReactNode } from "react";
 import { createContext, useContext, useMemo } from "react";
 import { createUthanaClient, getUthanaClient, getUthanaClientScope } from "./client";
 
-const delegatedCacheOwners = new WeakMap<QueryClient, { client: UthanaClient; scope: string }>();
+const delegatedCacheOwners = new WeakMap<
+  QueryClient,
+  { client: UthanaClient; scope: string | undefined }
+>();
 
 const QueryScopeContext = createContext<string | null>(null);
 
@@ -65,14 +68,18 @@ export function UthanaProvider({
   if (queryScope !== undefined && !queryScope.trim()) {
     throw new Error("queryScope must be a nonempty public account/organization namespace.");
   }
-  if (options?.accessToken !== undefined) {
-    if (!queryScope?.trim()) {
+  const delegatedOwner = providedQueryClient
+    ? delegatedCacheOwners.get(providedQueryClient)
+    : undefined;
+  const isDelegated = options?.accessToken !== undefined;
+  if (isDelegated || delegatedOwner !== undefined) {
+    if (isDelegated && !queryScope?.trim()) {
       throw new Error(
         "Set queryScope to a public user and organization namespace for delegated React access.",
       );
     }
     if (providedQueryClient) {
-      const owner = delegatedCacheOwners.get(providedQueryClient);
+      const owner = delegatedOwner;
       const hasCachedQueries = providedQueryClient.getQueryCache().getAll().length > 0;
       const hasCachedMutations = providedQueryClient.getMutationCache().getAll().length > 0;
       if (
