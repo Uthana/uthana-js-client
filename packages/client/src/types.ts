@@ -41,8 +41,8 @@ export interface Motion {
     user_id?: string;
     /** @deprecated Legacy annotation identifier; not needed for normal feedback. */
     label_id?: string;
-    created?: string | null;
-    updated?: string | null;
+    created?: string;
+    updated?: string;
   } | null;
   rating?: {
     /** @deprecated Legacy internal identifier; not needed for normal feedback. */
