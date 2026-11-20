@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const contract: {
   ratings: Array<{ input: "like" | "dislike" | 0 | 1; score: number }>;
   invalid_ratings: unknown[];
+  invalid_favorites: unknown[];
   invalid_clear_results: unknown[];
 } = JSON.parse(
   readFileSync(new URL("./fixtures/motion_feedback_contract.json", import.meta.url), "utf8"),
@@ -93,3 +94,14 @@ it("rejects annotation clears and preserves definitive errors without fallback",
   await expect(client.motions.rate("m1", null)).rejects.toBe(failure);
   expect(send).toHaveBeenCalledTimes(1);
 });
+
+it.each(contract.invalid_favorites)(
+  "rejects non-boolean favorite states before writing: %s",
+  async (favorite) => {
+    // @ts-expect-error Exercise untrusted runtime input.
+    await expect(new UthanaClient("test").motions.favorite("m1", favorite)).rejects.toThrow(
+      "Favorite state",
+    );
+    expect(send).not.toHaveBeenCalled();
+  },
+);

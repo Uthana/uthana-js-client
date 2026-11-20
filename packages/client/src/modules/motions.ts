@@ -505,6 +505,9 @@ export class MotionsModule extends BaseModule {
 
   /** Add to your favorites; repeated calls keep it favorited. Existing false removes it. */
   async favorite(motion_id: string, favorite = true): Promise<void> {
+    if (typeof favorite !== "boolean") {
+      throw new Error("Favorite state must be true or false");
+    }
     await this._client._graphql(FAVORITE_MOTION, { motion_id, favorite });
   }
 
