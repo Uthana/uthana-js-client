@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { UthanaClient, UthanaCharacters } from "@uthana/client";
+import { UthanaClient, UthanaCharacters, UthanaError } from "@uthana/client";
 import { beforeEach, expect, it, vi } from "vitest";
 const contract = JSON.parse(
   readFileSync(new URL("./fixtures/library_copy_contract.json", import.meta.url), "utf8"),
@@ -90,4 +90,27 @@ it.each(contract.valid_results)("shared valid-copy fixture %j", async (entry) =>
     name: entry.name,
     match_score: entry.match_score,
   });
+});
+
+it.each([
+  new TypeError("fetch failed"),
+  new DOMException("aborted", "AbortError"),
+  new DOMException("timed out", "TimeoutError"),
+  new Error("pipeline failed", { cause: new TypeError("fetch failed") }),
+  new SyntaxError("invalid response JSON"),
+])("marks ambiguous charged transport failures uncertain", async (failure) => {
+  mockGql.mockRejectedValue(failure);
+  await expect(new UthanaClient("test").ttm.librarySearch("walk")).rejects.toMatchObject({
+    kind: "uncertain",
+  });
+  expect(mockGql).toHaveBeenCalledTimes(1);
+});
+it("preserves definitive errors and read failures", async () => {
+  const failure = new UthanaError(400, "Invalid GraphQL field", "graphql");
+  mockGql.mockRejectedValue(failure);
+  const client = new UthanaClient("test");
+  await expect(client.ttm.librarySearch("walk")).rejects.toBe(failure);
+  const networkError = new TypeError("fetch failed");
+  mockGql.mockRejectedValue(networkError);
+  await expect(client.motions.list()).rejects.toBe(networkError);
 });
