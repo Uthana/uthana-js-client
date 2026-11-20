@@ -205,7 +205,7 @@ export interface MotionPage {
 
 /** PAYG ledger row. USD amounts are decimal strings; zero remains distinct from unknown. */
 export interface LedgerEntry {
-  id?: string;
+  id: string;
   created?: string;
   type?: string;
   total_usd?: string;
