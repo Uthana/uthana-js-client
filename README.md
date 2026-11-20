@@ -487,7 +487,7 @@ const buffer = await client.motions.download(characterId, motionId, {
 const preview = await client.motions.preview(characterId, motionId);
 
 // Rate a motion (thumbs up/down)
-await client.motions.rate(motionId, 1); // 1 = thumbs up, 0 = thumbs down
+await client.motions.rate(motionId, "like");
 
 // Rename, delete, favorite
 await client.motions.rename(motionId, "New Name");
@@ -530,7 +530,7 @@ function MotionList() {
       {motions?.map((m) => (
         <li key={m.id}>
           {m.name}
-          <button onClick={() => rate.mutate({ motion_id: m.id!, score: 1 })}>👍</button>
+          <button onClick={() => rate.mutate({ motion_id: m.id!, score: "like" })}>👍</button>
         </li>
       ))}
     </ul>

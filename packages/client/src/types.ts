@@ -36,9 +36,18 @@ export interface Motion {
   created?: string | null;
   updated?: string | null;
   deleted?: string | null;
-  favorite?: { user_id?: string; label_id?: string; created?: string; updated?: string } | null;
-  rating?: {
+  favorite?: {
+    /** @deprecated Legacy internal identifier; not needed for normal feedback. */
     user_id?: string;
+    /** @deprecated Legacy annotation identifier; not needed for normal feedback. */
+    label_id?: string;
+    created?: string | null;
+    updated?: string | null;
+  } | null;
+  rating?: {
+    /** @deprecated Legacy internal identifier; not needed for normal feedback. */
+    user_id?: string;
+    /** @deprecated Legacy annotation identifier; not needed for normal feedback. */
     label_id?: string;
     score?: number;
     created?: string;

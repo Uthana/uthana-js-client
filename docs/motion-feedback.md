@@ -11,7 +11,7 @@ await client.motions.favorite("motion-id");
 await client.motions.unfavorite("motion-id");
 ```
 
-Use "like" or "dislike" to rate a motion, or null to clear your vote. Repeating a favorite call keeps the same state. Clearing a vote is different from disliking the motion.
+Use "like" or "dislike" to rate a motion, or `null` to clear your vote.
 
 A missing confirmation when clearing a vote raises `kind: "uncertain"`. Check your current vote before trying again; the client does not retry automatically.
 
