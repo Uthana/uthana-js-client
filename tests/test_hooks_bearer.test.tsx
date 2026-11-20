@@ -107,3 +107,26 @@ it.each([
   ).toThrow("new or cleared QueryClient");
   quiet.mockRestore();
 });
+
+it("remounts default query observers when only the organization scope changes", async () => {
+  const getUser = vi.spyOn(OrgModule.prototype, "getUser").mockResolvedValue({
+    id: "first-user",
+    name: "One",
+    email: "one@example.com",
+  });
+  const options = { accessToken: "unchanged-token" };
+  let queryScope = "org-one";
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <UthanaProvider apiKey="" options={options} queryScope={queryScope}>
+      {children}
+    </UthanaProvider>
+  );
+  const { result, rerender } = renderHook(() => useUthanaUser(), { wrapper });
+  await waitFor(() => expect(result.current.user?.id).toBe("first-user"));
+  getUser.mockResolvedValue({ id: "second-user", name: "Two", email: "two@example.com" });
+  queryScope = "org-two";
+  rerender();
+  expect(result.current.user?.id).not.toBe("first-user");
+  await waitFor(() => expect(result.current.user?.id).toBe("second-user"));
+  expect(getUser).toHaveBeenCalledTimes(2);
+});
