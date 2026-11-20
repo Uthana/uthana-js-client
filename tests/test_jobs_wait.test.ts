@@ -137,6 +137,26 @@ it("gives the polling deadline precedence over an equal request timeout", async 
   );
   await expect(client.jobs.wait("j1")).rejects.toMatchObject({ statusCode: 408 });
 });
+it.each(["resolve", "reject"])(
+  "enforces the deadline when a read settles late: %s",
+  async (outcome) => {
+    const clock = { now: vi.fn(() => 0) };
+    vi.stubGlobal("performance", clock);
+    const client = new UthanaClient("test", { timeout: 0.02 });
+    vi.spyOn(client.jobs, "get").mockImplementation(async () => {
+      clock.now.mockReturnValue(21);
+      if (outcome === "reject") {
+        throw new DOMException("Request timed out", "TimeoutError");
+      }
+      return { id: "j1", status: "FINISHED" };
+    });
+    try {
+      await expect(client.jobs.wait("j1")).rejects.toMatchObject({ statusCode: 408 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  },
+);
 it.each(["Actionable failure", { code: "invalid_motion", detail: "No usable frames" }])(
   "preserves job failure diagnostics: %s",
   async (result) => {

@@ -93,8 +93,16 @@ export class JobsModule extends BaseModule {
           }),
           this.get(job_id),
         ]);
+      } catch (error) {
+        if (performance.now() >= deadline) {
+          throw timeoutError;
+        }
+        throw error;
       } finally {
         clearTimeout(timer);
+      }
+      if (performance.now() >= deadline) {
+        throw timeoutError;
       }
       const isMissingJob = Object.entries(job).every(
         ([field, value]) => ["created", "started", "ended"].includes(field) && value == null,
