@@ -86,6 +86,7 @@ export class JobsModule extends BaseModule {
       let timer: ReturnType<typeof setTimeout> | undefined;
       let job: Job;
       try {
+        // shortcut: abandoned reads keep their HTTP timeout; add cancellation if they cause load.
         job = await Promise.race([
           this.get(job_id),
           new Promise<never>((_resolve, reject) => {
