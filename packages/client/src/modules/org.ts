@@ -2,12 +2,91 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
+import { UthanaError } from "../errors";
 import type { UthanaClient } from "../client";
 import { GET_ORG, GET_PRICES, GET_USAGE, GET_USER } from "../graphql";
 import type { LedgerEntry, LedgerOptions, Org, PaygPrice, User } from "../types";
 import { BaseModule } from "./base";
 
 const LEDGER_MAX_LIMIT = 500;
+
+const USD_DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const USD_FIELDS = new Set(["total_usd", "balance_before", "balance_after", "unit_price"]);
+
+function ledgerEntries(value: unknown): LedgerEntry[] {
+  if (!Array.isArray(value)) {
+    throw new UthanaError(502, "Uthana returned an invalid ledger list", "invalid_response");
+  }
+  return value.map((row: unknown, index): LedgerEntry => {
+    if (row === null || typeof row !== "object" || Array.isArray(row)) {
+      throw new UthanaError(
+        502,
+        `Uthana returned an invalid ledger entry at index ${index}`,
+        "invalid_response",
+      );
+    }
+    const record: Record<string, unknown> = { ...row };
+    if (typeof record.id !== "string" || !record.id.trim()) {
+      throw new UthanaError(502, `Ledger entry ${index} has no valid ID`, "invalid_response");
+    }
+    const entry: LedgerEntry = { id: record.id };
+    for (const field of ["created", "type", "total_usd"] as const) {
+      if (field in record) {
+        const item = record[field];
+        if (
+          typeof item !== "string" ||
+          (USD_FIELDS.has(field) && !USD_DECIMAL_PATTERN.test(item))
+        ) {
+          throw new UthanaError(
+            502,
+            `Ledger entry ${index} has an invalid ${field}`,
+            "invalid_response",
+          );
+        }
+        entry[field] = item;
+      }
+    }
+    for (const field of [
+      "balance_before",
+      "balance_after",
+      "job_id",
+      "task_id",
+      "model",
+      "model_version",
+      "billing_unit",
+      "unit_price",
+      "ref",
+      "status",
+    ] as const) {
+      if (field in record) {
+        const item = record[field];
+        if (
+          item !== null &&
+          (typeof item !== "string" || (USD_FIELDS.has(field) && !USD_DECIMAL_PATTERN.test(item)))
+        ) {
+          throw new UthanaError(
+            502,
+            `Ledger entry ${index} has an invalid ${field}`,
+            "invalid_response",
+          );
+        }
+        entry[field] = item;
+      }
+    }
+    if ("quantity" in record) {
+      const quantity = record.quantity;
+      if (quantity !== null && (typeof quantity !== "number" || !Number.isFinite(quantity))) {
+        throw new UthanaError(
+          502,
+          `Ledger entry ${index} has an invalid quantity`,
+          "invalid_response",
+        );
+      }
+      entry.quantity = quantity;
+    }
+    return entry;
+  });
+}
 
 function ledgerTime(name: string, value: Date | string): string {
   if (value instanceof Date) {
@@ -102,10 +181,8 @@ export class OrgModule extends BaseModule {
         job_id task_id model model_version billing_unit quantity unit_price ref status
       }
     }`;
-    return this._client._graphql<LedgerEntry[]>(query, variables, {
-      path: "payg_ledger",
-      pathDefault: [],
-    });
+    const rows = await this._client._graphql<unknown>(query, variables, { path: "payg_ledger" });
+    return ledgerEntries(rows);
   }
 
   /** Get current PAYG model prices with their billing units. */

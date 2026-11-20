@@ -23,4 +23,6 @@ Use the last returned entry's ID as `beforeId` to read older entries, retaining 
 
 USD amounts remain decimal strings. Read direction from `type`: a debit is a charge, topup/credit_grant add credit, and adjustment is signed. Preserve null balances and known zero amounts. On debit rows, historical `job_id` identifies the charged asset; `task_id` identifies the processing job to inspect with `jobs.get()`. Failed generations have no asset. A balance difference or estimate does not establish an operation's actual charge.
 
-React exposes `useUthanaLedger(options)` with the entry array in `data`. Filters and page position are part of its cache key; errors are reported without automatic retries. Authorization failures propagate. No helper automatically reads every page.
+React exposes `useUthanaLedger(options)` with the entry array in `data`. A non-secret client scope, filters and page position are part of its cache key; errors are reported without automatic retries. Authorization failures propagate. No helper automatically reads every page.
+
+Malformed ledger containers, IDs or financial fields raise an invalid-response error. The client preserves valid decimal strings and null/zero values, builds owned records, and never treats a malformed response as an empty billing history.

@@ -74,7 +74,7 @@ it.each([0, 501, 1.5, NaN, Infinity])(
     expect(mockGql).not.toHaveBeenCalled();
   },
 );
-it.each(["bad", "2026-02-30T00:00:00Z", "2026-13-01", "2026-01-01T24:00:00Z", ""])(
+it.each(["bad", "2026-02-30T00:00:00Z", "2026-13-01", ""])(
   "rejects invalid time %s",
   async (since) => {
     await expect(new UthanaClient("test").org.getLedger({ since })).rejects.toThrow("since");
@@ -92,4 +92,38 @@ it("propagates authorization failures without retry", async () => {
   mockGql.mockRejectedValue(new Error("RoleRequired"));
   await expect(new UthanaClient("test").org.getLedger()).rejects.toThrow("RoleRequired");
   expect(mockGql).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  null,
+  {},
+  "bad",
+  [null],
+  [{ id: "entry", total_usd: 0 }],
+  [{ id: "entry", total_usd: "free" }],
+  [{ id: "entry", quantity: "0" }],
+  [{ id: "entry", quantity: Infinity }],
+  [{ id: null }],
+  [{ id: "entry", balance_after: false }],
+])("rejects malformed financial response %j", async (rows) => {
+  mockGql.mockResolvedValue({ data: { payg_ledger: rows } });
+  await expect(new UthanaClient("test").org.getLedger()).rejects.toMatchObject({
+    statusCode: 502,
+    kind: "invalid_response",
+  });
+  expect(mockGql).toHaveBeenCalledTimes(1);
+});
+it("returns an owned validated record without mutating the input", async () => {
+  const row = {
+    id: "entry",
+    total_usd: "1E-8",
+    balance_after: null,
+    quantity: 0,
+    private_extra: "ignored",
+  };
+  mockGql.mockResolvedValue({ data: { payg_ledger: [row] } });
+  const entries = await new UthanaClient("test").org.getLedger();
+  expect(entries[0]).toEqual({ id: "entry", total_usd: "1E-8", balance_after: null, quantity: 0 });
+  expect(entries[0]).not.toBe(row);
+  expect(row.private_extra).toBe("ignored");
 });

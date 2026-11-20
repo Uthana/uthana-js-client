@@ -6,6 +6,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { LedgerEntry, LedgerOptions } from "@uthana/client";
 
 import { useQuery } from "@tanstack/react-query";
+import { getUthanaClientScope } from "../client";
 import { useUthanaClient } from "../UthanaProvider";
 
 const USER_QUERY_KEY = ["uthana", "user"] as const;
@@ -55,7 +56,7 @@ export function useUthanaPrices() {
 export function useUthanaLedger(options: LedgerOptions = {}): UseQueryResult<LedgerEntry[], Error> {
   const client = useUthanaClient();
   return useQuery({
-    queryKey: ["uthana", "ledger", options],
+    queryKey: ["uthana", "ledger", getUthanaClientScope(client), options],
     queryFn: () => client.org.getLedger(options),
     retry: false,
   });

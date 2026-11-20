@@ -3,6 +3,7 @@
  */
 
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   UthanaProvider,
   useUthanaCharacter,
@@ -105,8 +106,30 @@ const { mockClient } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../packages/react/src/client.ts", () => ({
-  createUthanaClient: () => mockClient,
+vi.mock("../packages/react/src/client.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../packages/react/src/client.ts")>()),
+  createUthanaClient: (apiKey: string) =>
+    apiKey === "other-account"
+      ? {
+          ...mockClient,
+          org: {
+            ...mockClient.org,
+            getLedger: vi.fn().mockResolvedValue([{ id: "other-ledger", total_usd: "1.00" }]),
+          },
+          characters: {
+            ...mockClient.characters,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-character" }], next_cursor: null }),
+          },
+          motions: {
+            ...mockClient.motions,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-motion" }], next_cursor: null }),
+          },
+        }
+      : mockClient,
   getUthanaClient: () => mockClient,
 }));
 
@@ -525,6 +548,36 @@ describe("paged hook error recovery", () => {
   });
 });
 
+it("does not expose the previous account's pages through a shared query cache", async () => {
+  let apiKey = "test-key";
+  const cache = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey={apiKey} queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  mockClient.characters.listPaged.mockResolvedValue({
+    items: [{ id: "first-character" }],
+    next_cursor: null,
+  });
+  const { result, rerender } = renderHook(() => useUthanaCharactersPaged(), { wrapper });
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("first-character"));
+  apiKey = "other-account";
+  rerender();
+  expect(result.current.data?.items[0]?.id).not.toBe("first-character");
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("other-character"));
+  const keys = JSON.stringify(
+    cache
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.queryKey),
+  );
+  expect(keys).not.toContain("test-key");
+  expect(keys).not.toContain("other-account");
+});
+
 it("keeps ledger filters and page IDs in separate cache entries", async () => {
   mockClient.org.getLedger.mockClear();
   const { result, rerender } = renderHook(
@@ -537,4 +590,22 @@ it("keeps ledger filters and page IDs in separate cache entries", async () => {
   await waitFor(() =>
     expect(mockClient.org.getLedger).toHaveBeenCalledWith({ beforeId: "entry1", types: ["debit"] }),
   );
+});
+
+it("does not expose another account's ledger through a shared QueryClient", async () => {
+  let apiKey = "test-key";
+  const cache = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey={apiKey} queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  const { result, rerender } = renderHook(() => useUthanaLedger(), { wrapper });
+  await waitFor(() => expect(result.current.data?.[0]?.id).toBe("entry1"));
+  apiKey = "other-account";
+  rerender();
+  expect(result.current.data?.[0]?.id).not.toBe("entry1");
+  await waitFor(() => expect(result.current.data?.[0]?.id).toBe("other-ledger"));
 });
