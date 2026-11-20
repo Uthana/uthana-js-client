@@ -88,10 +88,10 @@ export class JobsModule extends BaseModule {
       try {
         // shortcut: abandoned reads keep their HTTP timeout; add cancellation if they cause load.
         job = await Promise.race([
-          this.get(job_id),
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => reject(timeoutError), Math.ceil(remainingMs));
           }),
+          this.get(job_id),
         ]);
       } finally {
         clearTimeout(timer);
@@ -118,7 +118,15 @@ export class JobsModule extends BaseModule {
           result !== null && typeof result === "object" && "message" in result
             ? result.message
             : null;
-        throw new UthanaError(500, typeof message === "string" ? message : `Job ${job_id} failed`);
+        let failureMessage = `Job ${job_id} failed`;
+        if (typeof message === "string") {
+          failureMessage = message;
+        } else if (typeof result === "string") {
+          failureMessage = result;
+        } else if (result != null) {
+          failureMessage = JSON.stringify(result) ?? failureMessage;
+        }
+        throw new UthanaError(500, failureMessage);
       }
       const sleepMs = Math.min(intervalMs, deadline - performance.now());
       if (sleepMs > 0) {

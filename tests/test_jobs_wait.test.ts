@@ -126,3 +126,27 @@ it("preserves a lookup failure without retrying", async () => {
   await expect(new UthanaClient("test").jobs.wait("j1")).rejects.toBe(error);
   expect(mockGql).toHaveBeenCalledTimes(1);
 });
+
+it("gives the polling deadline precedence over an equal request timeout", async () => {
+  const client = new UthanaClient("test", { timeout: 0.02 });
+  vi.spyOn(client.jobs, "get").mockImplementation(
+    () =>
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new DOMException("Request timed out", "TimeoutError")), 20);
+      }),
+  );
+  await expect(client.jobs.wait("j1")).rejects.toMatchObject({ statusCode: 408 });
+});
+it.each(["Actionable failure", { code: "invalid_motion", detail: "No usable frames" }])(
+  "preserves job failure diagnostics: %s",
+  async (result) => {
+    mockGql
+      .mockReset()
+      .mockResolvedValue({ data: { job: { id: "j1", status: "FAILED", result } } });
+    await expect(new UthanaClient("test").jobs.wait("j1")).rejects.toMatchObject({
+      statusCode: 500,
+      apiMessage: typeof result === "string" ? result : JSON.stringify(result),
+    });
+    expect(mockGql).toHaveBeenCalledTimes(1);
+  },
+);
