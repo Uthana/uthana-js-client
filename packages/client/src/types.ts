@@ -239,3 +239,6 @@ export interface LibrarySearchResult {
   name: string | null;
   match_score: number | null;
 }
+
+/** Supported robot joint-trajectory export. */
+export type RobotFormat = "unitree_g1";
