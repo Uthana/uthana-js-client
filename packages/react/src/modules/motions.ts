@@ -1,3 +1,4 @@
+import type { ShareLink } from "@uthana/client";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
 /**
@@ -212,5 +213,24 @@ export function useUthanaRestoreMotion(): UseMutationResult<Motion, Error, strin
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["uthana", "motion", motionId] });
     },
+  });
+}
+
+/** Explicitly publish a public viewer link; never retry automatically. */
+export function useUthanaShareMotion(): UseMutationResult<
+  ShareLink,
+  Error,
+  { character_id: string; motion_id: string; start?: number; end?: number; timeoutSeconds?: number }
+> {
+  const client = useUthanaClient();
+  return useMutation({
+    mutationFn: (options: {
+      character_id: string;
+      motion_id: string;
+      start?: number;
+      end?: number;
+      timeoutSeconds?: number;
+    }) => client.motions.share(options.character_id, options.motion_id, options),
+    retry: false,
   });
 }

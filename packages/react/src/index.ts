@@ -28,6 +28,7 @@ export {
   useUthanaMotionPreview,
   useUthanaRestoreMotion,
   useUthanaMotions,
+  useUthanaShareMotion,
   useUthanaMotionsPaged,
   useUthanaLedger,
   useUthanaOrg,

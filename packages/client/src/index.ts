@@ -17,6 +17,7 @@ export {
   VtmModule,
 } from "./modules/index";
 export type {
+  ShareLink,
   RobotFormat,
   LedgerEntry,
   LedgerOptions,
