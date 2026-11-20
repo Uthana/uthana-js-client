@@ -96,7 +96,10 @@ export function UthanaProvider({
   const content = providedQueryClient ? (
     children
   ) : (
-    <QueryClientProvider key={getUthanaClientScope(client)} client={queryClient}>
+    <QueryClientProvider
+      key={JSON.stringify([getUthanaClientScope(client), queryScope])}
+      client={queryClient}
+    >
       {children}
     </QueryClientProvider>
   );
