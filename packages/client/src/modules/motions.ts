@@ -292,6 +292,9 @@ export class MotionsModule extends BaseModule {
     score: 0 | 1,
     options?: { label_id?: string | null },
   ): Promise<void> {
+    if (score !== 0 && score !== 1) {
+      throw new Error("Motion rating score must be 0 (thumbs down) or 1 (thumbs up)");
+    }
     await this._client._graphql(RATE_MOTION, {
       motion_id,
       label_id: options?.label_id ?? null,

@@ -11,7 +11,9 @@ vi.mock("graffle", () => ({
     create: () => {
       const chain = {
         transport: (config: { headers: unknown }) => {
-          headers.push(config.headers);
+          if (config.headers) {
+            headers.push(config.headers);
+          }
           return chain;
         },
         use: () => chain,

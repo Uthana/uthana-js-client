@@ -17,6 +17,8 @@ import { VtmModule } from "./modules/vtm";
 import type { CreateCharacterResult, ModelType, OutputFormat } from "./types";
 import { DEFAULT_TIMEOUT } from "./types";
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /** Options for UthanaClient construction. */
 export interface UthanaClientOptions {
   /** Delegated bearer token. Supply an empty apiKey when using this option. */
@@ -60,6 +62,9 @@ export class UthanaClient {
 
   private readonly _graffle: {
     gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    transport: (options: { raw: { signal: AbortSignal } }) => {
+      gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    };
   };
   private readonly _authHeader: string;
 
@@ -120,13 +125,26 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^\s*mutation\b/i.test(query);
-    const doc = this._graffle.gql(query);
+    const document = query.replace(/^(?:[\s,\uFEFF]|#[^\r\n]*)*/, "");
+    const isMutating = !/^(?:query\b|\{)/.test(document);
+    const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
+    if (
+      typeof timeoutSeconds !== "number" ||
+      !Number.isFinite(timeoutSeconds) ||
+      timeoutSeconds <= 0 ||
+      timeoutSeconds > MAX_TIMEOUT_MS / 1000
+    ) {
+      throw new Error("GraphQL timeoutSeconds must be positive and at most 2147483.647 seconds");
+    }
+    const timeoutMs = Math.ceil(timeoutSeconds * 1000);
+    const doc = this._graffle
+      .transport({ raw: { signal: AbortSignal.timeout(timeoutMs) } })
+      .gql(query);
     let result: Record<string, unknown>;
     try {
       result = (await doc.$send(variables)) as Record<string, unknown>;
     } catch (error) {
-      if (mutating && isAmbiguousTransportError(error)) {
+      if (isMutating && isAmbiguousTransportError(error)) {
         throw new UthanaError(
           502,
           "The mutation response was lost and the operation may have succeeded. Inspect existing work before resubmitting.",
@@ -136,14 +154,14 @@ export class UthanaClient {
       throw error;
     }
     const encoded = JSON.stringify(result);
-    const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
-    if (limit != null && encoded.length > limit) {
+    const limit = isMutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
+    if (limit != null && new TextEncoder().encode(encoded).byteLength > limit) {
       throw new UthanaError(
         502,
-        mutating
+        isMutating
           ? "Mutation response exceeded maxMutationResponseBytes; the operation may have succeeded. Inspect existing work before resubmitting."
           : "Query response exceeded maxResponseBytes",
-        mutating ? "uncertain" : "response_too_large",
+        isMutating ? "uncertain" : "response_too_large",
       );
     }
     const data = (result?.data ?? result) as Record<string, unknown>;
