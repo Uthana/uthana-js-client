@@ -231,3 +231,11 @@ export interface LedgerOptions {
   until?: Date | string | null;
   types?: string[] | null;
 }
+
+/** A charged best-match library copy, not a browsable list of candidates. */
+export interface LibrarySearchResult {
+  character_id: string;
+  motion_id: string;
+  name: string | null;
+  match_score: number | null;
+}

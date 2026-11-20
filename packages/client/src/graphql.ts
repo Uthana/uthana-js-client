@@ -488,3 +488,11 @@ mutation UpdateCharacter($character_id: String!, $name: String, $deleted: Boolea
   }
 }
 `;
+
+export const LIBRARY_SEARCH = `
+mutation LibrarySearch($prompt: String!, $character_id: String) {
+  create_text_to_motion(prompt: $prompt, character_id: $character_id, model: "nearest-neighbor") {
+    motion { id name tags }
+  }
+}
+`;

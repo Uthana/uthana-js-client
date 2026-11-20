@@ -35,5 +35,5 @@ export {
   useUthanaUsage,
   useUthanaUser,
 } from "./org";
-export { useUthanaCreateTtmJob, useUthanaTtm } from "./ttm";
+export { useUthanaLibrarySearch, useUthanaCreateTtmJob, useUthanaTtm } from "./ttm";
 export { useUthanaVtm } from "./vtm";

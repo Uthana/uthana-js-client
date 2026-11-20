@@ -1,0 +1,26 @@
+{
+  "invalid_results": [
+    null,
+    {},
+    { "motion": null },
+    { "motion": [] },
+    { "motion": {} },
+    { "motion": { "id": " " } },
+    { "motion": { "id": 7 } }
+  ],
+  "unknown_score_tags": [null, [], { "Distance": true }, { "Distance": "0.5" }],
+  "valid_results": [
+    {
+      "response": { "motion": { "id": "m1", "name": null, "tags": { "Distance": 0 } } },
+      "motion_id": "m1",
+      "name": null,
+      "match_score": 0
+    },
+    {
+      "response": { "motion": { "id": "m2", "name": "Walk", "tags": { "Distance": 0.75 } } },
+      "motion_id": "m2",
+      "name": "Walk",
+      "match_score": 0.75
+    }
+  ]
+}
