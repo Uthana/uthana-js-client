@@ -1,4 +1,4 @@
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type { CharacterPage, AssetPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
@@ -6,6 +6,7 @@ import type { CharacterPage, AssetPageOptions } from "@uthana/client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  Character,
   CharacterPreviewResult,
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
@@ -290,5 +291,27 @@ export function useUthanaCharactersPaged(
   return useQuery({
     queryKey: ["uthana", "characters", "paged", options],
     queryFn: () => client.characters.listPaged(options),
+  });
+}
+
+/** Read a character by ID. Null disables the query. */
+export function useUthanaCharacter(characterId: string | null): UseQueryResult<Character, Error> {
+  const client = useUthanaClient();
+  return useQuery({
+    queryKey: ["uthana", "characters", "detail", characterId],
+    queryFn: () => client.characters.get(characterId ?? ""),
+    enabled: characterId != null && characterId !== "",
+  });
+}
+
+/** Restore a character and refresh character queries, including paged lists. */
+export function useUthanaRestoreCharacter(): UseMutationResult<Character, Error, string> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (characterId: string) => client.characters.restore(characterId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
+    },
   });
 }

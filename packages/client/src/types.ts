@@ -20,6 +20,7 @@ export interface Org {
 
 /** Character object from characters.list. */
 export interface Character {
+  deleted?: string | null;
   org_id?: string | null;
   id?: string;
   name?: string | null;

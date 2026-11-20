@@ -388,11 +388,9 @@ query LocomotionStyles {
 `;
 
 export const UPDATE_MOTION = `
-mutation update_motion($id: String!, $name: String, $deleted: Boolean) {
-  update_motion(id: $id, name: $name, deleted: $deleted) {
-    id
-    name
-    deleted
+mutation UpdateMotion($motion_id: String!, $name: String, $deleted: Boolean) {
+  update_motion(motion_id: $motion_id, name: $name, deleted: $deleted) {
+    motion { id name org_id created updated deleted }
   }
 }
 `;
@@ -474,5 +472,19 @@ query MotionsPaged(
         items { id name org_id created updated tags }
         next_cursor
     }
+}
+`;
+
+export const GET_CHARACTER = `
+query GetCharacter($character_id: String!) {
+  character(id: $character_id) { id name org_id created updated }
+}
+`;
+
+export const UPDATE_CHARACTER = `
+mutation UpdateCharacter($character_id: String!, $name: String, $deleted: Boolean) {
+  update_character(character_id: $character_id, name: $name, deleted: $deleted) {
+    character { id name org_id created updated deleted }
+  }
 }
 `;

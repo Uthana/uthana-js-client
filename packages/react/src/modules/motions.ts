@@ -1,5 +1,5 @@
-import type { UseQueryResult } from "@tanstack/react-query";
-import type { MotionPage, MotionPageOptions } from "@uthana/client";
+import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -197,5 +197,18 @@ export function useUthanaMotionsPaged(
   return useQuery({
     queryKey: ["uthana", "motions", "paged", options],
     queryFn: () => client.motions.listPaged(options),
+  });
+}
+
+/** Restore a motion and refresh list, page and detail queries. */
+export function useUthanaRestoreMotion(): UseMutationResult<Motion, Error, string> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (motionId: string) => client.motions.restore(motionId),
+    onSuccess: (_motion, motionId) => {
+      queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["uthana", "motion", motionId] });
+    },
   });
 }

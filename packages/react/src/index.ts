@@ -8,6 +8,8 @@ export { createUthanaClient, getUthanaClient } from "./client";
 export { UthanaProvider, useUthanaClient } from "./UthanaProvider";
 export {
   useUthanaBakeWithChanges,
+  useUthanaCharacter,
+  useUthanaRestoreCharacter,
   useUthanaCharacters,
   useUthanaCharactersPaged,
   useUthanaCreateCharacter,
@@ -24,6 +26,7 @@ export {
   useUthanaMotionCatalog,
   useUthanaMotionDownloads,
   useUthanaMotionPreview,
+  useUthanaRestoreMotion,
   useUthanaMotions,
   useUthanaMotionsPaged,
   useUthanaOrg,

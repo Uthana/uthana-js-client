@@ -9,10 +9,10 @@ import {
   CREATE_CHARACTER_FROM_IMAGE,
   CREATE_IMAGE_FROM_IMAGE,
   CREATE_IMAGE_FROM_TEXT,
-  DELETE_CHARACTER,
+  GET_CHARACTER,
+  UPDATE_CHARACTER,
   LIST_CHARACTERS,
   LIST_CHARACTERS_PAGED,
-  RENAME_CHARACTER,
 } from "../graphql";
 import type {
   Character,
@@ -300,20 +300,41 @@ export class CharactersModule extends BaseModule {
     return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
-  /** Rename a character by ID. */
-  async rename(character_id: string, name: string): Promise<Character> {
-    return this._client._graphql<Character>(
-      RENAME_CHARACTER,
-      { character_id, name },
-      { path: "update_character.character" },
+  /** Get one live accessible character with owning organization and record dates. */
+  async get(characterId: string): Promise<Character> {
+    const character = await this._client._graphql<Character | null>(
+      GET_CHARACTER,
+      { character_id: characterId },
+      { path: "character", pathDefault: null },
     );
+    if (!character) {
+      throw new UthanaError(404, `No character found matching ${characterId}`, "http");
+    }
+    return character;
   }
 
-  /** Soft-delete a character by ID. */
+  /** Rename a character using the account's existing write permissions. */
+  async rename(character_id: string, name: string): Promise<Character> {
+    return this._update(character_id, { name });
+  }
+
+  /** Soft-delete a character; associated motions remain intact. */
   async delete(character_id: string): Promise<Character> {
+    return this._update(character_id, { deleted: true });
+  }
+
+  /** Restore a soft-deleted character by ID using existing write permissions. */
+  async restore(characterId: string): Promise<Character> {
+    return this._update(characterId, { deleted: false });
+  }
+
+  private async _update(
+    characterId: string,
+    changes: { name?: string; deleted?: boolean },
+  ): Promise<Character> {
     return this._client._graphql<Character>(
-      DELETE_CHARACTER,
-      { character_id },
+      UPDATE_CHARACTER,
+      { character_id: characterId, ...changes },
       { path: "update_character.character" },
     );
   }

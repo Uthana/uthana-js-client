@@ -341,21 +341,29 @@ export class MotionsModule extends BaseModule {
     });
   }
 
-  /** Soft-delete a motion by ID. */
+  /** Soft-delete a motion by ID, returning its updated record. */
   async delete(motion_id: string): Promise<Motion> {
-    return this._client._graphql<Motion>(
-      UPDATE_MOTION,
-      { id: motion_id, deleted: true },
-      { path: "update_motion" },
-    );
+    return this._update(motion_id, { deleted: true });
   }
 
-  /** Rename a motion by ID. */
+  /** Rename a motion by ID, returning its updated record. */
   async rename(motion_id: string, new_name: string): Promise<Motion> {
+    return this._update(motion_id, { name: new_name });
+  }
+
+  /** Restore a soft-deleted motion by ID using existing write permissions. */
+  async restore(motionId: string): Promise<Motion> {
+    return this._update(motionId, { deleted: false });
+  }
+
+  private async _update(
+    motionId: string,
+    changes: { name?: string; deleted?: boolean },
+  ): Promise<Motion> {
     return this._client._graphql<Motion>(
       UPDATE_MOTION,
-      { id: motion_id, name: new_name },
-      { path: "update_motion" },
+      { motion_id: motionId, ...changes },
+      { path: "update_motion.motion" },
     );
   }
 

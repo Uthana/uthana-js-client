@@ -878,3 +878,5 @@ retry automatically. Custom requests with multiple mutations can have earlier
 successful operations; inspect their results before retrying.
 
 For server-side asset search, ordering, and cursor pagination, see [Find characters and motions](docs/pagination.md).
+
+See [Inspect and restore assets](docs/asset-management.md) for character detail and asset lifecycle methods.

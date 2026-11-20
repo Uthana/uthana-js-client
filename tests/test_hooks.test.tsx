@@ -5,6 +5,9 @@
 import React from "react";
 import {
   UthanaProvider,
+  useUthanaCharacter,
+  useUthanaRestoreCharacter,
+  useUthanaRestoreMotion,
   useUthanaCharacters,
   useUthanaCharactersPaged,
   useUthanaMotionsPaged,
@@ -64,6 +67,7 @@ const { mockClient } = vi.hoisted(() => {
     mockClient: {
       apiKey: "test-key",
       motions: {
+        restore: vi.fn().mockResolvedValue({ id: "m1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "m1" }], next_cursor: null }),
         list: mockMotionsList,
         get: mockMotionGet,
@@ -73,6 +77,8 @@ const { mockClient } = vi.hoisted(() => {
         rename: mockMotionRename,
       },
       characters: {
+        get: vi.fn().mockResolvedValue({ id: "c1", org_id: "org", created: null }),
+        restore: vi.fn().mockResolvedValue({ id: "c1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "c1" }], next_cursor: "next" }),
         list: mockCharactersList,
         createFromFile: mockCreateFromFile,
@@ -462,5 +468,32 @@ describe("paged asset hooks", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockClient.motions.listPaged).toHaveBeenCalledWith(options);
     expect(result.current.data?.items).toEqual([{ id: "m1" }]);
+  });
+});
+
+describe("character detail and restore hooks", () => {
+  it("reads character detail and disables null selections", async () => {
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string | null }) => useUthanaCharacter(id),
+      { wrapper: createWrapper(), initialProps: { id: null } },
+    );
+    expect(result.current.isFetching).toBe(false);
+    rerender({ id: "c1" });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.org_id).toBe("org");
+  });
+  it("restores the selected character", async () => {
+    const { result } = renderHook(() => useUthanaRestoreCharacter(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync("c1");
+    });
+    expect(mockClient.characters.restore).toHaveBeenCalledWith("c1");
+  });
+  it("restores the selected motion", async () => {
+    const { result } = renderHook(() => useUthanaRestoreMotion(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync("m1");
+    });
+    expect(mockClient.motions.restore).toHaveBeenCalledWith("m1");
   });
 });
