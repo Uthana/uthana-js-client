@@ -31,3 +31,17 @@ export function getUthanaClient(): UthanaClient {
   }
   return clientInstance;
 }
+
+// Cache identity only: query keys must never contain API keys or access tokens.
+const CLIENT_SCOPE_SESSION = Math.random().toString(36).slice(2);
+const clientScopes = new WeakMap<UthanaClient, string>();
+let scopeSequence = 0;
+
+export function getUthanaClientScope(client: UthanaClient): string {
+  let scope = clientScopes.get(client);
+  if (scope === undefined) {
+    scope = `${CLIENT_SCOPE_SESSION}-${++scopeSequence}`;
+    clientScopes.set(client, scope);
+  }
+  return scope;
+}
