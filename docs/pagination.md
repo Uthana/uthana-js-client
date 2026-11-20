@@ -47,3 +47,13 @@ Pass `next_cursor` unchanged with the same account, query, source, method, and o
 const result = useUthanaCharactersPaged({ source: "mine", order: "created_desc" });
 // Render result.data?.items, and pass result.data?.next_cursor for the next page.
 ```
+
+For server rendering, set `queryScope` on `UthanaProvider` to a public namespace identifying the signed-in user and organization (for example, `user-42:org-7`). Use the same value on server and browser and change it when the account or organization changes. It becomes part of the dehydrated query key, so never pass an API key or token. Scoped queries require this value on the server; browser-only apps can omit it and use an isolated per-client scope.
+
+```tsx
+<UthanaProvider apiKey={apiKey} queryScope="user-42:org-7" queryClient={cache}>
+  {children}
+</UthanaProvider>
+```
+
+If you supply a QueryClient, wrap the provider in your own QueryClientProvider. Keep that cache private to the signed-in account and create a new cache on account changes.
