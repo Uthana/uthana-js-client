@@ -242,3 +242,13 @@ export interface LibrarySearchResult {
 
 /** Supported robot joint-trajectory export. */
 export type RobotFormat = "unitree_g1";
+
+/** Explicitly published viewer link and social preview image. */
+export interface ShareLink {
+  character_id: string;
+  motion_id: string;
+  start: number;
+  end: number;
+  preview_url: string;
+  png_url: string;
+}

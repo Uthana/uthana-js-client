@@ -5,6 +5,7 @@
 import type { UthanaClient } from "../client";
 import { UthanaError } from "../errors";
 import {
+  CREATE_SHARE_LINK,
   CREATE_ENHANCED_STITCHED_MOTION,
   STITCH,
   CREATE_LOCOMOTION,
@@ -38,11 +39,16 @@ import type {
   MotionCatalog,
   OutputFormat,
   RobotFormat,
+  ShareLink,
   TextToMotionResult,
 } from "../types";
 import { UthanaCharacters } from "../types";
 import { validateAssetPageLimit } from "../utils";
 import { BaseModule } from "./base";
+
+const SHARE_IMAGE_FPS = 10;
+const SHARE_IMAGE_WIDTH_PX = 300;
+const SHARE_IMAGE_HEIGHT_PX = 157;
 
 const ROBOT_DOWNLOAD_TIMEOUT_SECONDS = 660;
 const ROBOT_DOWNLOAD_FPS = [24, 30, 60];
@@ -382,6 +388,63 @@ export class MotionsModule extends BaseModule {
       maxBytes: options?.maxBytes,
       timeoutSeconds,
     });
+  }
+
+  /** Make this motion publicly viewable. Anyone with the link can open it without an account. */
+  async share(
+    characterId: string,
+    motionId: string,
+    {
+      start = 0,
+      end = 1,
+      timeoutSeconds,
+    }: { start?: number; end?: number; timeoutSeconds?: number } = {},
+  ): Promise<ShareLink> {
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      !(0 <= start && start < end && end <= 1)
+    ) {
+      throw new Error("Share fractions must be finite and satisfy 0 <= start < end <= 1");
+    }
+    const data = await this._client._graphql<unknown>(
+      CREATE_SHARE_LINK,
+      {
+        character_id: characterId,
+        motion_id: motionId,
+        start,
+        end,
+        fps: SHARE_IMAGE_FPS,
+        wd: SHARE_IMAGE_WIDTH_PX,
+        ht: SHARE_IMAGE_HEIGHT_PX,
+      },
+      { path: "create_share_link", timeoutSeconds },
+    );
+    if (
+      data === null ||
+      typeof data !== "object" ||
+      !("png_url" in data) ||
+      typeof data.png_url !== "string" ||
+      !data.png_url.trim()
+    ) {
+      throw new UthanaError(
+        502,
+        "create_share_link returned no preview image URL, so the link may not be public. Open the motion in the Uthana app and use Share before sending it.",
+        "uncertain",
+      );
+    }
+    let previewUrl = `${this._client.baseUrl}/app/preview/${encodeURIComponent(characterId)}/${encodeURIComponent(motionId)}`;
+    if (start !== 0 || end !== 1) {
+      previewUrl += `?start=${start}&end=${end}`;
+    }
+    return {
+      character_id: characterId,
+      motion_id: motionId,
+      start,
+      end,
+      preview_url: previewUrl,
+      png_url: data.png_url,
+    };
   }
 
   /** Soft-delete a motion by ID, returning its updated record. */
