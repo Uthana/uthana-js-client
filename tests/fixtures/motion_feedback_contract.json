@@ -1,0 +1,10 @@
+{
+  "ratings": [
+    { "input": "like", "score": 1 },
+    { "input": "dislike", "score": 0 },
+    { "input": 1, "score": 1 },
+    { "input": 0, "score": 0 }
+  ],
+  "invalid_ratings": [true, false, 2, -1, 0.5, "1", "LIKE", "", {}, []],
+  "invalid_clear_results": [null, {}, { "ok": false }, { "ok": 1 }, { "ok": "true" }]
+}

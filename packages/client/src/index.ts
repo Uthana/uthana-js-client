@@ -17,6 +17,7 @@ export {
   VtmModule,
 } from "./modules/index";
 export type {
+  MotionRatingValue,
   ShareLink,
   RobotFormat,
   LibrarySearchResult,

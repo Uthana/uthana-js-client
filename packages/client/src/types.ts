@@ -37,7 +37,13 @@ export interface Motion {
   updated?: string | null;
   deleted?: string | null;
   favorite?: { user_id?: string; label_id?: string; created?: string; updated?: string } | null;
-  rating?: { user_id?: string; label_id?: string; score?: number; created?: string } | null;
+  rating?: {
+    user_id?: string;
+    label_id?: string;
+    score?: number;
+    created?: string;
+    updated?: string;
+  } | null;
   tags?: Record<string, unknown> | string[] | null;
   assets?: Array<{
     id?: string;
@@ -252,3 +258,6 @@ export interface ShareLink {
   preview_url: string;
   png_url: string;
 }
+
+/** Personal vote input: null clears it; numeric scores remain compatible. */
+export type MotionRatingValue = "like" | "dislike" | 0 | 1 | null;

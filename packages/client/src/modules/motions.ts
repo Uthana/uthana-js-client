@@ -10,9 +10,9 @@ import {
   STITCH,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
-  CREATE_MOTION_FAVORITE,
+  FAVORITE_MOTION,
+  CLEAR_MOTION_RATING,
   CREATE_MOTION_FROM_GLTF,
-  DELETE_MOTION_FAVORITE,
   GET_MOTION_BY_ID,
   LIST_LOCOMOTION_STYLES,
   LIST_MOTIONS,
@@ -36,6 +36,7 @@ import type {
   Motion,
   MotionPage,
   MotionPageOptions,
+  MotionRatingValue,
   MotionCatalog,
   OutputFormat,
   RobotFormat,
@@ -286,19 +287,45 @@ export class MotionsModule extends BaseModule {
     );
   }
 
-  /** Rate a motion (thumbs up/down). score: 1 = thumbs up, 0 = thumbs down. */
+  /** Save your vote: "like"/1, "dislike"/0, or null to clear the whole-motion vote. */
   async rate(
     motion_id: string,
-    score: 0 | 1,
+    score: MotionRatingValue,
     options?: { label_id?: string | null },
   ): Promise<void> {
-    if (score !== 0 && score !== 1) {
-      throw new Error("Motion rating score must be 0 (thumbs down) or 1 (thumbs up)");
+    if (score === null) {
+      if (options?.label_id != null) {
+        throw new Error("Clearing a rating applies to the whole motion; omit label_id");
+      }
+      const result = await this._client._graphql<unknown>(
+        CLEAR_MOTION_RATING,
+        { motion_id },
+        { path: "clear_motion_rating" },
+      );
+      if (
+        result === null ||
+        typeof result !== "object" ||
+        !("ok" in result) ||
+        result.ok !== true
+      ) {
+        throw new UthanaError(
+          502,
+          "Clearing the rating returned no confirmation. Inspect the motion's current rating before trying again.",
+          "uncertain",
+        );
+      }
+      return;
+    }
+    const numericScore = score === "like" ? 1 : score === "dislike" ? 0 : score;
+    if (numericScore !== 0 && numericScore !== 1) {
+      throw new Error(
+        "Motion rating score must be 0 (thumbs down) or 1 (thumbs up), 'like', 'dislike', or null",
+      );
     }
     await this._client._graphql(RATE_MOTION, {
       motion_id,
       label_id: options?.label_id ?? null,
-      score,
+      score: numericScore,
     });
   }
 
@@ -476,13 +503,14 @@ export class MotionsModule extends BaseModule {
     );
   }
 
-  /** Set or unset a motion as favorite. */
-  async favorite(motion_id: string, favorite: boolean): Promise<void> {
-    if (favorite) {
-      await this._client._graphql(CREATE_MOTION_FAVORITE, { motion_id });
-    } else {
-      await this._client._graphql(DELETE_MOTION_FAVORITE, { motion_id });
-    }
+  /** Add to your favorites; repeated calls keep it favorited. Existing false removes it. */
+  async favorite(motion_id: string, favorite = true): Promise<void> {
+    await this._client._graphql(FAVORITE_MOTION, { motion_id, favorite });
+  }
+
+  /** Remove from your favorites; repeating the call is harmless. */
+  async unfavorite(motion_id: string): Promise<void> {
+    await this.favorite(motion_id, false);
   }
 
   /**
