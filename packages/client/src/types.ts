@@ -231,3 +231,6 @@ export interface LedgerOptions {
   until?: Date | string | null;
   types?: string[] | null;
 }
+
+/** Supported robot joint-trajectory export. */
+export type RobotFormat = "unitree_g1";
