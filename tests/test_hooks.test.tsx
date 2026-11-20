@@ -464,3 +464,25 @@ describe("paged asset hooks", () => {
     expect(result.current.data?.items).toEqual([{ id: "m1" }]);
   });
 });
+
+describe("paged hook error recovery", () => {
+  it("reports invalid character cursors without automatic retries", async () => {
+    mockClient.characters.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
+    const { result } = renderHook(
+      () => useUthanaCharactersPaged({ cursor: "bad-character-cursor" }),
+      { wrapper: createWrapper() },
+    );
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockClient.characters.listPaged).toHaveBeenCalledTimes(1);
+    mockClient.characters.listPaged.mockResolvedValue({ items: [], next_cursor: null });
+  });
+  it("reports invalid motion cursors without automatic retries", async () => {
+    mockClient.motions.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
+    const { result } = renderHook(() => useUthanaMotionsPaged({ cursor: "bad-motion-cursor" }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockClient.motions.listPaged).toHaveBeenCalledTimes(1);
+    mockClient.motions.listPaged.mockResolvedValue({ items: [], next_cursor: null });
+  });
+});

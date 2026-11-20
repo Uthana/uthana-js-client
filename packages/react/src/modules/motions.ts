@@ -197,5 +197,6 @@ export function useUthanaMotionsPaged(
   return useQuery({
     queryKey: ["uthana", "motions", "paged", options],
     queryFn: () => client.motions.listPaged(options),
+    retry: false,
   });
 }

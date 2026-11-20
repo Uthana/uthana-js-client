@@ -290,5 +290,6 @@ export function useUthanaCharactersPaged(
   return useQuery({
     queryKey: ["uthana", "characters", "paged", options],
     queryFn: () => client.characters.listPaged(options),
+    retry: false,
   });
 }
