@@ -300,7 +300,7 @@ export function useUthanaCharactersPaged(
 export function useUthanaCharacter(characterId: string | null): UseQueryResult<Character, Error> {
   const client = useUthanaClient();
   return useQuery({
-    queryKey: ["uthana", "characters", "detail", characterId],
+    queryKey: ["uthana", "characters", "detail", getUthanaClientScope(client), characterId],
     queryFn: () => client.characters.get(characterId ?? ""),
     enabled: characterId != null && characterId !== "",
   });
