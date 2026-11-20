@@ -4,8 +4,40 @@
 
 import type { UthanaClient } from "../client";
 import { GET_ORG, GET_PRICES, GET_USAGE, GET_USER } from "../graphql";
-import type { Org, PaygPrice, User } from "../types";
+import type { LedgerEntry, LedgerOptions, Org, PaygPrice, User } from "../types";
 import { BaseModule } from "./base";
+
+const LEDGER_MAX_LIMIT = 500;
+
+function ledgerTime(name: string, value: Date | string): string {
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) {
+      throw new Error(`${name} must be a valid Date or ISO 8601 timestamp`);
+    }
+    return value.toISOString();
+  }
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}(?:$|T| )/.test(value) ||
+    !Number.isFinite(Date.parse(value))
+  ) {
+    throw new Error(`${name} must be a valid Date or ISO 8601 timestamp`);
+  }
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  if (
+    year < 1 ||
+    Number(value.slice(11, 13)) > 23 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > new Date(Date.UTC(year, month, 0)).getUTCDate()
+  ) {
+    throw new Error(`${name} must be a valid Date or ISO 8601 timestamp`);
+  }
+  return value;
+}
 
 /** Organization and user info. */
 export class OrgModule extends BaseModule {
@@ -26,6 +58,54 @@ export class OrgModule extends BaseModule {
   /** Get account quotas, subscription state, PAYG balance, and current prices. */
   async getUsage(): Promise<Record<string, unknown>> {
     return this._client._graphql<Record<string, unknown>>(GET_USAGE);
+  }
+
+  /** Read PAYG charges, payments and credits, newest first. Does not change billing. */
+  async getLedger(options: LedgerOptions = {}): Promise<LedgerEntry[]> {
+    const limit = options.limit === undefined ? 50 : options.limit;
+    if (!Number.isInteger(limit) || limit < 1 || limit > LEDGER_MAX_LIMIT) {
+      throw new Error(`limit must be an integer from 1 to ${LEDGER_MAX_LIMIT}`);
+    }
+    const declared = ["$limit: Int"];
+    const args = ["limit: $limit"];
+    const variables: Record<string, unknown> = { limit };
+    if (options.beforeId != null) {
+      if (typeof options.beforeId !== "string" || !options.beforeId) {
+        throw new Error("beforeId must be a ledger entry ID from a previous page");
+      }
+      declared.push("$before_id: ID");
+      args.push("before_id: $before_id");
+      variables.before_id = options.beforeId;
+    }
+    for (const name of ["since", "until"] as const) {
+      const value = options[name];
+      if (value != null) {
+        declared.push(`$${name}: DateTime`);
+        args.push(`${name}: $${name}`);
+        variables[name] = ledgerTime(name, value);
+      }
+    }
+    if (options.types != null) {
+      if (
+        !Array.isArray(options.types) ||
+        !options.types.every((type) => typeof type === "string" && type.length > 0)
+      ) {
+        throw new Error("types must be a list of entry type names, such as ['debit']");
+      }
+      declared.push("$types: [String!]");
+      args.push("types: $types");
+      variables.types = [...options.types];
+    }
+    const query = `query Ledger(${declared.join(", ")}) {
+      payg_ledger(${args.join(", ")}) {
+        id created type total_usd balance_before balance_after
+        job_id task_id model model_version billing_unit quantity unit_price ref status
+      }
+    }`;
+    return this._client._graphql<LedgerEntry[]>(query, variables, {
+      path: "payg_ledger",
+      pathDefault: [],
+    });
   }
 
   /** Get current PAYG model prices with their billing units. */

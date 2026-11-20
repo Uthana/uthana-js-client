@@ -2,6 +2,9 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { LedgerEntry, LedgerOptions } from "@uthana/client";
+
 import { useQuery } from "@tanstack/react-query";
 import { useUthanaClient } from "../UthanaProvider";
 
@@ -46,4 +49,14 @@ export function useUthanaPrices() {
     queryFn: () => client.org.getPrices(),
   });
   return { prices, ...rest };
+}
+
+/** Read one ledger page; filters and page position are part of its cache key. */
+export function useUthanaLedger(options: LedgerOptions = {}): UseQueryResult<LedgerEntry[], Error> {
+  const client = useUthanaClient();
+  return useQuery({
+    queryKey: ["uthana", "ledger", options],
+    queryFn: () => client.org.getLedger(options),
+    retry: false,
+  });
 }

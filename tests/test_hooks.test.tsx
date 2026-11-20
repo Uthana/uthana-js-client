@@ -20,6 +20,7 @@ import {
   useUthanaMotionDownloads,
   useUthanaMotionPreview,
   useUthanaMotions,
+  useUthanaLedger,
   useUthanaOrg,
   useUthanaRateMotion,
   useUthanaRenameCharacter,
@@ -88,7 +89,11 @@ const { mockClient } = vi.hoisted(() => {
         delete: mockCharacterDelete,
         generateFromImage: mockCharacterGenerateFromImage,
       },
-      org: { getUser: mockUser, getOrg: mockOrg },
+      org: {
+        getUser: mockUser,
+        getOrg: mockOrg,
+        getLedger: vi.fn().mockResolvedValue([{ id: "entry1", total_usd: "0.00" }]),
+      },
       jobs: { list: mockJobsList, get: mockJobGet },
       motionDownloads: {
         list: mockMotionDownloadsList,
@@ -518,4 +523,18 @@ describe("paged hook error recovery", () => {
     expect(mockClient.motions.listPaged).toHaveBeenCalledTimes(1);
     mockClient.motions.listPaged.mockResolvedValue({ items: [], next_cursor: null });
   });
+});
+
+it("keeps ledger filters and page IDs in separate cache entries", async () => {
+  mockClient.org.getLedger.mockClear();
+  const { result, rerender } = renderHook(
+    ({ beforeId }: { beforeId: string | null }) => useUthanaLedger({ beforeId, types: ["debit"] }),
+    { wrapper: createWrapper(), initialProps: { beforeId: null } },
+  );
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.[0].total_usd).toBe("0.00");
+  rerender({ beforeId: "entry1" });
+  await waitFor(() =>
+    expect(mockClient.org.getLedger).toHaveBeenCalledWith({ beforeId: "entry1", types: ["debit"] }),
+  );
 });

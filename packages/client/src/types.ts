@@ -202,3 +202,32 @@ export interface MotionPage {
   items: Motion[];
   next_cursor: string | null;
 }
+
+/** PAYG ledger row. USD amounts are decimal strings; zero remains distinct from unknown. */
+export interface LedgerEntry {
+  id?: string;
+  created?: string;
+  type?: string;
+  total_usd?: string;
+  balance_before?: string | null;
+  balance_after?: string | null;
+  /** Charged motion/character ID despite the historical name. */
+  job_id?: string | null;
+  /** Processing job ID for jobs.get(). */
+  task_id?: string | null;
+  model?: string | null;
+  model_version?: string | null;
+  billing_unit?: string | null;
+  quantity?: number | null;
+  unit_price?: string | null;
+  ref?: string | null;
+  status?: string | null;
+}
+
+export interface LedgerOptions {
+  limit?: number;
+  beforeId?: string | null;
+  since?: Date | string | null;
+  until?: Date | string | null;
+  types?: string[] | null;
+}
