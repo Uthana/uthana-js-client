@@ -3,6 +3,7 @@
  */
 
 import { Graffle } from "graffle";
+import { getOperationAST, parse } from "graphql";
 import { Throws } from "graffle/extensions/throws";
 import { UthanaError, isAmbiguousTransportError } from "./errors";
 import { CREATE_T2M } from "./graphql";
@@ -125,7 +126,7 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^\s*mutation\b/i.test(query);
+    const isMutating = getOperationAST(parse(query))?.operation !== "query";
     const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
     if (
       typeof timeoutSeconds !== "number" ||
@@ -143,7 +144,7 @@ export class UthanaClient {
     try {
       result = (await doc.$send(variables)) as Record<string, unknown>;
     } catch (error) {
-      if (mutating && isAmbiguousTransportError(error)) {
+      if (isMutating && isAmbiguousTransportError(error)) {
         throw new UthanaError(
           502,
           "The mutation response was lost and the operation may have succeeded. Inspect existing work before resubmitting.",
@@ -153,14 +154,14 @@ export class UthanaClient {
       throw error;
     }
     const encoded = JSON.stringify(result);
-    const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
-    if (limit != null && encoded.length > limit) {
+    const limit = isMutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
+    if (limit != null && new TextEncoder().encode(encoded).byteLength > limit) {
       throw new UthanaError(
         502,
-        mutating
+        isMutating
           ? "Mutation response exceeded maxMutationResponseBytes; the operation may have succeeded. Inspect existing work before resubmitting."
           : "Query response exceeded maxResponseBytes",
-        mutating ? "uncertain" : "response_too_large",
+        isMutating ? "uncertain" : "response_too_large",
       );
     }
     const data = (result?.data ?? result) as Record<string, unknown>;

@@ -880,3 +880,5 @@ successful operations; inspect their results before retrying.
 For server-side asset search, ordering, and cursor pagination, see [Find characters and motions](docs/pagination.md).
 
 See [Inspect and restore assets](docs/asset-management.md) for character detail and asset lifecycle methods.
+
+See [Motion feedback](docs/motion-feedback.md) for readable votes, clearing and explicit favorites.

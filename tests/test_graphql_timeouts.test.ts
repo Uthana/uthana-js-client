@@ -57,3 +57,38 @@ it("applies the configured default and rejects invalid timeouts before sending",
   }
   expect(send).not.toHaveBeenCalled();
 });
+it("counts UTF-8 response bytes and validates ratings before transport", async () => {
+  send.mockResolvedValue({ data: { name: "猫" } });
+  const serialized = JSON.stringify({ data: { name: "猫" } });
+  const client = new UthanaClient("test", { maxResponseBytes: serialized.length });
+  await expect(client._graphql("query Read { user { id } }")).rejects.toMatchObject({
+    kind: "response_too_large",
+  });
+  send.mockClear();
+  for (const score of [-1, 2, true, NaN]) {
+    // @ts-expect-error Exercise runtime input validation.
+    await expect(client.motions.rate("m", score)).rejects.toThrow("score");
+  }
+  expect(send).not.toHaveBeenCalled();
+});
+
+it.each([
+  "\uFEFF# paid request\nmutation Paid { write }",
+  "fragment Fields on Query { user { id } }\nmutation Paid { write }",
+])("handles comments and fragment-first documents conservatively for recovery", async (query) => {
+  send.mockRejectedValue(new TypeError("fetch failed"));
+  await expect(new UthanaClient("test")._graphql(query)).rejects.toMatchObject({
+    kind: "uncertain",
+  });
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it("keeps fragment-first reads under query limits and preserves their transport failures", async () => {
+  const query = "fragment Fields on User { id } query Read { user { ...Fields } }";
+  const failure = new TypeError("fetch failed");
+  send.mockRejectedValue(failure);
+  const client = new UthanaClient("test", { maxResponseBytes: 1 });
+  await expect(client._graphql(query)).rejects.toBe(failure);
+  send.mockResolvedValue({ data: { user: { id: "u" } } });
+  await expect(client._graphql(query)).rejects.toMatchObject({ kind: "response_too_large" });
+});

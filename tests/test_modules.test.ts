@@ -114,14 +114,14 @@ describe("module methods with mocked _graphql", () => {
       );
     });
 
-    it("favorite(true) calls create_motion_favorite mutation", async () => {
-      mockGql.mockResolvedValue({ data: { create_motion_favorite: {} } });
+    it("favorite(true) sets the favorite state", async () => {
+      mockGql.mockResolvedValue({ data: { favorite_motion: { __typename: "FavoriteMotion" } } });
       await client.motions.favorite("m1", true);
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motion_id: "m1" }));
     });
 
-    it("favorite(false) calls delete_motion_favorite mutation", async () => {
-      mockGql.mockResolvedValue({ data: { delete_motion_favorite: {} } });
+    it("favorite(false) clears the favorite state", async () => {
+      mockGql.mockResolvedValue({ data: { favorite_motion: { __typename: "FavoriteMotion" } } });
       await client.motions.favorite("m1", false);
       expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ motion_id: "m1" }));
     });
