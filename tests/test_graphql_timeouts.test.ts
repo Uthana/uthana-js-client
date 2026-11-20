@@ -71,3 +71,14 @@ it("counts UTF-8 response bytes and validates ratings before transport", async (
   }
   expect(send).not.toHaveBeenCalled();
 });
+
+it.each([
+  "\uFEFF# paid request\nmutation Paid { write }",
+  "fragment Fields on Query { user { id } }\nmutation Paid { write }",
+])("handles comments and fragment-first documents conservatively for recovery", async (query) => {
+  send.mockRejectedValue(new TypeError("fetch failed"));
+  await expect(new UthanaClient("test")._graphql(query)).rejects.toMatchObject({
+    kind: "uncertain",
+  });
+  expect(send).toHaveBeenCalledTimes(1);
+});
