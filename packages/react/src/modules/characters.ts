@@ -299,8 +299,9 @@ export function useUthanaCharactersPaged(
 /** Read a character by ID. Null disables the query. */
 export function useUthanaCharacter(characterId: string | null): UseQueryResult<Character, Error> {
   const client = useUthanaClient();
+  const scope = useUthanaQueryScope(client);
   return useQuery({
-    queryKey: ["uthana", "characters", "detail", getUthanaClientScope(client), characterId],
+    queryKey: ["uthana", "characters", "detail", scope, characterId],
     queryFn: () => client.characters.get(characterId ?? ""),
     enabled: characterId != null && characterId !== "",
   });
