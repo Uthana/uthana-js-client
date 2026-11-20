@@ -6,11 +6,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
 import type { ReactNode } from "react";
 import { createContext, useContext, useMemo } from "react";
-import { createUthanaClient, getUthanaClient, getUthanaClientScope } from "./client";
+import {
+  createUthanaClient,
+  getUthanaClient,
+  getUthanaClientOptionsKey,
+  getUthanaClientScope,
+} from "./client";
 
 const delegatedCacheOwners = new WeakMap<
   QueryClient,
-  { client: UthanaClient; scope: string | undefined }
+  { clientKey: string; scope: string | undefined }
 >();
 
 const QueryScopeContext = createContext<string | null>(null);
@@ -62,7 +67,9 @@ export function UthanaProvider({
   queryClient: providedQueryClient,
   children,
 }: UthanaProviderProps) {
-  const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, options]);
+  const optionsKey = getUthanaClientOptionsKey(options);
+  const clientKey = JSON.stringify([apiKey, optionsKey]);
+  const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
 
   const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
   if (queryScope !== undefined && !queryScope.trim()) {
@@ -83,14 +90,14 @@ export function UthanaProvider({
       const hasCachedQueries = providedQueryClient.getQueryCache().getAll().length > 0;
       const hasCachedMutations = providedQueryClient.getMutationCache().getAll().length > 0;
       if (
-        (owner?.client !== client || owner.scope !== queryScope) &&
+        (owner?.clientKey !== clientKey || owner.scope !== queryScope) &&
         (hasCachedQueries || hasCachedMutations)
       ) {
         throw new Error(
           "Use a new or cleared QueryClient when delegated credentials change; never reuse another account's cache.",
         );
       }
-      delegatedCacheOwners.set(providedQueryClient, { client, scope: queryScope });
+      delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
     }
   }
   const content = providedQueryClient ? (
