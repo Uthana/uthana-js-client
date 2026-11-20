@@ -6,6 +6,58 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 afterEach(() => vi.restoreAllMocks());
+it.each([
+  { hasExternalCache: false, isRemount: false },
+  { hasExternalCache: true, isRemount: false },
+  { hasExternalCache: true, isRemount: true },
+])(
+  "preserves equivalent delegated owners across multiple providers: %s",
+  async ({ hasExternalCache, isRemount }) => {
+    const getUser = vi.spyOn(OrgModule.prototype, "getUser").mockResolvedValue({
+      id: "first-user",
+      name: "One",
+      email: "one@example.com",
+    });
+    const cache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => {
+      const content = (
+        <UthanaProvider
+          apiKey=""
+          options={{ accessToken: "first-token" }}
+          queryScope="first-org"
+          queryClient={hasExternalCache ? cache : undefined}
+        >
+          {children}
+        </UthanaProvider>
+      );
+      return hasExternalCache ? (
+        <QueryClientProvider client={cache}>{content}</QueryClientProvider>
+      ) : (
+        content
+      );
+    };
+    const first = renderHook(() => useUthanaUser(), { wrapper });
+    await waitFor(() => expect(first.result.current.user?.id).toBe("first-user"));
+    getUser.mockResolvedValue({ id: "second-user", name: "Two", email: "two@example.com" });
+    const second = renderHook(() => useUthanaUser(), {
+      wrapper: ({ children }) => (
+        <UthanaProvider apiKey="" options={{ accessToken: "second-token" }} queryScope="second-org">
+          {children}
+        </UthanaProvider>
+      ),
+    });
+    await waitFor(() => expect(second.result.current.user?.id).toBe("second-user"));
+    if (isRemount) {
+      first.unmount();
+      const remounted = renderHook(() => useUthanaUser(), { wrapper });
+      await waitFor(() => expect(remounted.result.current.user?.id).toBe("first-user"));
+    } else {
+      first.rerender();
+      expect(first.result.current.user?.id).toBe("first-user");
+    }
+    expect(getUser).toHaveBeenCalledTimes(2);
+  },
+);
 it("creates a fresh default cache when delegated credentials change", async () => {
   const getUser = vi
     .spyOn(OrgModule.prototype, "getUser")
