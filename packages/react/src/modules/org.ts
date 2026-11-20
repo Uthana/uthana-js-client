@@ -6,8 +6,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { LedgerEntry, LedgerOptions } from "@uthana/client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getUthanaClientScope } from "../client";
-import { useUthanaClient } from "../UthanaProvider";
+import { useUthanaClient, useUthanaQueryScope } from "../UthanaProvider";
 
 const USER_QUERY_KEY = ["uthana", "user"] as const;
 const ORG_QUERY_KEY = ["uthana", "org"] as const;
@@ -55,8 +54,9 @@ export function useUthanaPrices() {
 /** Read one ledger page; filters and page position are part of its cache key. */
 export function useUthanaLedger(options: LedgerOptions = {}): UseQueryResult<LedgerEntry[], Error> {
   const client = useUthanaClient();
+  const scope = useUthanaQueryScope(client);
   return useQuery({
-    queryKey: ["uthana", "ledger", getUthanaClientScope(client), options],
+    queryKey: ["uthana", "ledger", scope, options],
     queryFn: () => client.org.getLedger(options),
     retry: false,
   });

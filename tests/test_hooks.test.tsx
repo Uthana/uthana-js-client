@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, dehydrate, hydrate } from "@tanstack/react-query";
 import {
   UthanaProvider,
   useUthanaCharacter,
@@ -608,4 +608,36 @@ it("does not expose another account's ledger through a shared QueryClient", asyn
   rerender();
   expect(result.current.data?.[0]?.id).not.toBe("entry1");
   await waitFor(() => expect(result.current.data?.[0]?.id).toBe("other-ledger"));
+});
+
+it("hydrates scoped pages across distinct server and browser client instances", async () => {
+  const serverCache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  const makeWrapper =
+    (cache: QueryClient, apiKey: string) =>
+    ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider apiKey={apiKey} queryScope="user-42:org-7" queryClient={cache}>
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+  mockClient.characters.listPaged.mockResolvedValue({
+    items: [{ id: "hydrated" }],
+    next_cursor: null,
+  });
+  const server = renderHook(() => useUthanaCharactersPaged(), {
+    wrapper: makeWrapper(serverCache, "test-key"),
+  });
+  await waitFor(() => expect(server.result.current.isSuccess).toBe(true));
+  server.unmount();
+  const payload = JSON.parse(JSON.stringify(dehydrate(serverCache)));
+  expect(JSON.stringify(payload)).not.toContain("test-key");
+  const browserCache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  hydrate(browserCache, payload);
+  mockClient.characters.listPaged.mockClear();
+  const browser = renderHook(() => useUthanaCharactersPaged(), {
+    wrapper: makeWrapper(browserCache, "other-account"),
+  });
+  expect(browser.result.current.data?.items[0]?.id).toBe("hydrated");
+  expect(mockClient.characters.listPaged).not.toHaveBeenCalled();
 });
