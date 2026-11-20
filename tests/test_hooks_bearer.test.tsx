@@ -1,11 +1,46 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OrgModule } from "@uthana/client";
-import { UthanaProvider, useUthanaUser } from "@uthana/react";
+import { UthanaProvider, useUthanaClient, useUthanaUser } from "@uthana/react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 afterEach(() => vi.restoreAllMocks());
+it("releases delegated ownership after a cleared switch to API-key authentication", () => {
+  const cache = new QueryClient();
+  const wrapper =
+    (apiKey: string, accessToken?: string) =>
+    ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider
+          apiKey={apiKey}
+          options={{ accessToken }}
+          queryScope="public-scope"
+          queryClient={cache}
+        >
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+  const delegated = renderHook(() => useUthanaClient(), { wrapper: wrapper("", "token") });
+  cache.setQueryData(["example"], "delegated data");
+  delegated.unmount();
+  cache.clear();
+  const basic = renderHook(() => useUthanaClient(), { wrapper: wrapper("first-key") });
+  cache.setQueryData(["example"], "app-managed API-key data");
+  basic.unmount();
+  const next = renderHook(() => useUthanaClient(), { wrapper: wrapper("second-key") });
+  expect(next.result.current.apiKey).toBe("second-key");
+  next.unmount();
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    expect(() => renderHook(() => useUthanaClient(), { wrapper: wrapper("", "token") })).toThrow(
+      "new or cleared QueryClient",
+    );
+  } finally {
+    quiet.mockRestore();
+  }
+});
 it.each([
   { hasExternalCache: false, isRemount: false },
   { hasExternalCache: true, isRemount: false },
