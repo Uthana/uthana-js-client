@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
 import type { ReactNode } from "react";
 import { createContext, useContext, useMemo } from "react";
-import { createUthanaClient, getUthanaClient } from "./client";
+import { createUthanaClient, getUthanaClient, getUthanaClientScope } from "./client";
+
+const QueryScopeContext = createContext<string | null>(null);
 
 const UthanaContext = createContext<UthanaClient | null>(null);
 
@@ -19,9 +21,25 @@ export function useUthanaClient(): UthanaClient {
   return getUthanaClient();
 }
 
+/** Stable public account/organization namespace for hydrated query keys. */
+export function useUthanaQueryScope(client: UthanaClient): string {
+  const scope = useContext(QueryScopeContext);
+  if (scope !== null) {
+    return JSON.stringify([client.baseUrl, scope]);
+  }
+  if (!("window" in globalThis)) {
+    throw new Error(
+      "Set UthanaProvider queryScope to the same public account/organization ID on the server and browser before using scoped queries.",
+    );
+  }
+  return getUthanaClientScope(client);
+}
+
 export interface UthanaProviderProps {
   apiKey: string;
   options?: UthanaClientOptions;
+  /** Public account/organization namespace. Required for SSR of scoped queries; never a credential. */
+  queryScope?: string;
   /** When provided, UthanaProvider will not render QueryClientProvider. Use your own above. */
   queryClient?: QueryClient;
   children: ReactNode;
@@ -35,19 +53,24 @@ export interface UthanaProviderProps {
 export function UthanaProvider({
   apiKey,
   options,
+  queryScope,
   queryClient: providedQueryClient,
   children,
 }: UthanaProviderProps) {
   const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, options]);
 
-  if (providedQueryClient) {
-    return <UthanaContext.Provider value={client}>{children}</UthanaContext.Provider>;
+  const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
+  if (queryScope !== undefined && !queryScope.trim()) {
+    throw new Error("queryScope must be a nonempty public account/organization namespace.");
   }
-
-  const queryClient = useMemo(() => new QueryClient(), []);
+  const content = providedQueryClient ? (
+    children
+  ) : (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
   return (
     <UthanaContext.Provider value={client}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryScopeContext.Provider value={queryScope ?? null}>{content}</QueryScopeContext.Provider>
     </UthanaContext.Provider>
   );
 }

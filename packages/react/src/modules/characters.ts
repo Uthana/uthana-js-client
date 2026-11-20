@@ -11,8 +11,7 @@ import type {
   CreateFromGeneratedImageResult,
 } from "@uthana/client";
 import { useCallback, useRef, useState } from "react";
-import { getUthanaClientScope } from "../client";
-import { useUthanaClient } from "../UthanaProvider";
+import { useUthanaClient, useUthanaQueryScope } from "../UthanaProvider";
 
 const CHARACTERS_QUERY_KEY = ["uthana", "characters"] as const;
 
@@ -288,8 +287,9 @@ export function useUthanaCharactersPaged(
   options: AssetPageOptions = {},
 ): UseQueryResult<CharacterPage, Error> {
   const client = useUthanaClient();
+  const scope = useUthanaQueryScope(client);
   return useQuery({
-    queryKey: ["uthana", "characters", "paged", getUthanaClientScope(client), options],
+    queryKey: ["uthana", "characters", "paged", scope, options],
     queryFn: () => client.characters.listPaged(options),
     retry: false,
   });
