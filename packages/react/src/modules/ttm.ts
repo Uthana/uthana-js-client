@@ -1,8 +1,10 @@
+import type { UseMutationResult } from "@tanstack/react-query";
+import type { LibrarySearchResult } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { TtmJobModelType, TtmModelType } from "@uthana/client";
 import { useUthanaClient } from "../UthanaProvider";
 
@@ -35,5 +37,23 @@ export function useUthanaCreateTtmJob() {
       rewrite_prompt?: boolean | null;
       fast?: boolean | null;
     }) => client.ttm.createJob(params.prompt, params),
+  });
+}
+
+/** A deliberate charged copy. Errors are never retried automatically. */
+export function useUthanaLibrarySearch(): UseMutationResult<
+  LibrarySearchResult,
+  Error,
+  { prompt: string; character_id?: string | null }
+> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (options: { prompt: string; character_id?: string | null }) =>
+      client.ttm.librarySearch(options.prompt, { character_id: options.character_id }),
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["uthana", "motions"] });
+    },
   });
 }

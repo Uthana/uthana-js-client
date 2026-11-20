@@ -42,3 +42,21 @@ export class UthanaError extends globalThis.Error {
     Object.setPrototypeOf(this, UthanaError.prototype);
   }
 }
+
+/** Fetch failures can be wrapped in Graffle pipeline errors. GraphQL errors stay definitive. */
+export function isAmbiguousTransportError(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  while (error instanceof Error && !seen.has(error)) {
+    seen.add(error);
+    if (
+      error instanceof TypeError ||
+      error instanceof SyntaxError ||
+      error.name === "AbortError" ||
+      error.name === "TimeoutError"
+    ) {
+      return true;
+    }
+    error = "cause" in error ? error.cause : undefined;
+  }
+  return false;
+}

@@ -3,9 +3,16 @@
  */
 
 import type { UthanaClient } from "../client";
-import { CREATE_TEXT_TO_MOTION_JOB } from "../graphql";
+import { CREATE_TEXT_TO_MOTION_JOB, LIBRARY_SEARCH } from "../graphql";
+import { UthanaError } from "../errors";
 import { normalizeModelName } from "../models";
-import type { Job, TextToMotionResult, TtmJobModelType, TtmModelType } from "../types";
+import type {
+  LibrarySearchResult,
+  Job,
+  TextToMotionResult,
+  TtmJobModelType,
+  TtmModelType,
+} from "../types";
 import { UthanaCharacters } from "../types";
 import { BaseModule } from "./base";
 
@@ -57,6 +64,45 @@ export class TtmModule extends BaseModule {
     const characterId = options?.character_id ?? UthanaCharacters.tar;
 
     return { character_id: characterId, motion_id: motionId };
+  }
+
+  /** Copy the single closest library match. Charged per second, including weak matches. */
+  async librarySearch(
+    prompt: string,
+    options: { character_id?: string | null } = {},
+  ): Promise<LibrarySearchResult> {
+    const data = await this._client._graphql<unknown>(
+      LIBRARY_SEARCH,
+      { prompt, character_id: options.character_id ?? null },
+      { path: "create_text_to_motion" },
+    );
+    const motion =
+      data !== null && typeof data === "object" && "motion" in data ? data.motion : null;
+    if (
+      motion === null ||
+      typeof motion !== "object" ||
+      Array.isArray(motion) ||
+      !("id" in motion) ||
+      typeof motion.id !== "string" ||
+      !motion.id.trim()
+    ) {
+      throw new UthanaError(
+        502,
+        "Library copy returned no motion ID and may have succeeded. Inspect existing work before resubmitting.",
+        "uncertain",
+      );
+    }
+    const tags = "tags" in motion ? motion.tags : null;
+    const score =
+      tags !== null && typeof tags === "object" && !Array.isArray(tags) && "Distance" in tags
+        ? tags.Distance
+        : null;
+    return {
+      character_id: options.character_id ?? UthanaCharacters.tar,
+      motion_id: motion.id,
+      name: "name" in motion && typeof motion.name === "string" ? motion.name : null,
+      match_score: typeof score === "number" && Number.isFinite(score) ? score : null,
+    };
   }
 
   /**

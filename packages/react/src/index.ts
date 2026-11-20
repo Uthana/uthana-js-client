@@ -35,6 +35,7 @@ export {
   useUthanaRateMotion,
   useUthanaRenameCharacter,
   useUthanaTrimMotion,
+  useUthanaLibrarySearch,
   useUthanaTtm,
   useUthanaUsage,
   useUthanaUser,
