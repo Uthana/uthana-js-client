@@ -3,7 +3,7 @@
  */
 
 import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
-import { UthanaClient as UthanaClientClass } from "@uthana/client";
+import { DEFAULT_TIMEOUT, UthanaClient as UthanaClientClass } from "@uthana/client";
 
 let clientInstance: UthanaClient | null = null;
 let clientOptionsKey: string | undefined;
@@ -14,7 +14,14 @@ let clientOptionsKey: string | undefined;
  * Credentials or request options changing replaces the singleton.
  */
 export function createUthanaClient(apiKey: string, options?: UthanaClientOptions): UthanaClient {
-  const optionsKey = JSON.stringify(options ?? {});
+  const optionsKey = JSON.stringify([
+    options?.accessToken !== undefined,
+    typeof options?.accessToken === "string" ? options.accessToken.trim() : options?.accessToken,
+    options?.domain ?? "uthana.com",
+    options?.timeout ?? DEFAULT_TIMEOUT,
+    options?.maxResponseBytes ?? null,
+    options?.maxMutationResponseBytes ?? null,
+  ]);
   if (clientInstance && (clientInstance.apiKey !== apiKey || clientOptionsKey !== optionsKey)) {
     clientInstance = null;
   }
