@@ -6,6 +6,8 @@ import React from "react";
 import {
   UthanaProvider,
   useUthanaCharacters,
+  useUthanaCharactersPaged,
+  useUthanaMotionsPaged,
   useUthanaCreateCharacter,
   useUthanaDeleteCharacter,
   useUthanaJob,
@@ -62,6 +64,7 @@ const { mockClient } = vi.hoisted(() => {
     mockClient: {
       apiKey: "test-key",
       motions: {
+        listPaged: vi.fn().mockResolvedValue({ items: [{ id: "m1" }], next_cursor: null }),
         list: mockMotionsList,
         get: mockMotionGet,
         preview: mockMotionPreview,
@@ -70,6 +73,7 @@ const { mockClient } = vi.hoisted(() => {
         rename: mockMotionRename,
       },
       characters: {
+        listPaged: vi.fn().mockResolvedValue({ items: [{ id: "c1" }], next_cursor: "next" }),
         list: mockCharactersList,
         createFromFile: mockCreateFromFile,
         createFromPrompt: mockCreateFromPrompt,
@@ -421,5 +425,42 @@ describe("React hooks", () => {
       expect.objectContaining({ file: blob }),
     );
     expect(result.current.data?.id).toBe("job1");
+  });
+});
+
+describe("paged asset hooks", () => {
+  it("keeps character filter and cursor requests separate in the query cache", async () => {
+    mockClient.characters.listPaged.mockClear();
+    const { result, rerender } = renderHook(
+      ({ cursor }: { cursor: string | null }) =>
+        useUthanaCharactersPaged({ source: "mine", cursor }),
+      { wrapper: createWrapper(), initialProps: { cursor: null } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.next_cursor).toBe("next");
+    rerender({ cursor: "next" });
+    await waitFor(() =>
+      expect(mockClient.characters.listPaged).toHaveBeenCalledWith({
+        source: "mine",
+        cursor: "next",
+      }),
+    );
+    expect(mockClient.characters.listPaged).toHaveBeenCalledWith({ source: "mine", cursor: null });
+  });
+
+  it("passes motion search, source, sort and method options", async () => {
+    const options = {
+      query: "walk",
+      source: "uthana",
+      order: "name_desc",
+      method: "TextToMotion",
+      limit: 10,
+    } as const;
+    const { result } = renderHook(() => useUthanaMotionsPaged(options), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient.motions.listPaged).toHaveBeenCalledWith(options);
+    expect(result.current.data?.items).toEqual([{ id: "m1" }]);
   });
 });

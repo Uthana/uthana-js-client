@@ -15,6 +15,7 @@ import {
   GET_MOTION_BY_ID,
   LIST_LOCOMOTION_STYLES,
   LIST_MOTIONS,
+  LIST_MOTIONS_PAGED,
   MOTION_CATALOG,
   MOTION_DOWNLOAD_ALLOWED,
   RATE_MOTION,
@@ -32,6 +33,8 @@ import type {
   CreateLocomotionOptions,
   DownloadAllowed,
   Motion,
+  MotionPage,
+  MotionPageOptions,
   MotionCatalog,
   OutputFormat,
   TextToMotionResult,
@@ -48,6 +51,16 @@ export class MotionsModule extends BaseModule {
   /** List all motions for the authenticated user. */
   async list(): Promise<Motion[]> {
     return this._client._graphql<Motion[]>(LIST_MOTIONS, {}, { path: "motions", pathDefault: [] });
+  }
+
+  /** Search saved names with server-side ordering and opaque cursor pagination. */
+  async listPaged(options: MotionPageOptions = {}): Promise<MotionPage> {
+    const variables = Object.fromEntries(
+      Object.entries(options).filter(([, value]) => value != null),
+    );
+    return this._client._graphql<MotionPage>(LIST_MOTIONS_PAGED, variables, {
+      path: "motions_paged",
+    });
   }
 
   /** Get a motion and its asset metadata. Throws 404 if missing. */

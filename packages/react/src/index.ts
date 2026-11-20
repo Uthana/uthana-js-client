@@ -9,6 +9,7 @@ export { UthanaProvider, useUthanaClient } from "./UthanaProvider";
 export {
   useUthanaBakeWithChanges,
   useUthanaCharacters,
+  useUthanaCharactersPaged,
   useUthanaCreateCharacter,
   useUthanaCreateLocomotion,
   useUthanaCreateLoopedMotion,
@@ -24,6 +25,7 @@ export {
   useUthanaMotionDownloads,
   useUthanaMotionPreview,
   useUthanaMotions,
+  useUthanaMotionsPaged,
   useUthanaOrg,
   useUthanaPrices,
   useUthanaRateMotion,

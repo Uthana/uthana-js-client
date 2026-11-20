@@ -11,10 +11,13 @@ import {
   CREATE_IMAGE_FROM_TEXT,
   DELETE_CHARACTER,
   LIST_CHARACTERS,
+  LIST_CHARACTERS_PAGED,
   RENAME_CHARACTER,
 } from "../graphql";
 import type {
   Character,
+  CharacterPage,
+  AssetPageOptions,
   CharacterPreviewResult,
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
@@ -275,6 +278,16 @@ export class CharactersModule extends BaseModule {
       {},
       { path: "characters", pathDefault: [] },
     );
+  }
+
+  /** Search saved names with server-side ordering and opaque cursor pagination. */
+  async listPaged(options: AssetPageOptions = {}): Promise<CharacterPage> {
+    const variables = Object.fromEntries(
+      Object.entries(options).filter(([, value]) => value != null),
+    );
+    return this._client._graphql<CharacterPage>(LIST_CHARACTERS_PAGED, variables, {
+      path: "characters_paged",
+    });
   }
 
   /** Download a character model in the requested format. */

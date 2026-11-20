@@ -4,6 +4,7 @@
 
 export {
   useUthanaCharacters,
+  useUthanaCharactersPaged,
   useUthanaCreateCharacter,
   useUthanaDeleteCharacter,
   useUthanaRenameCharacter,
@@ -20,6 +21,7 @@ export {
   useUthanaMotionCatalog,
   useUthanaMotionPreview,
   useUthanaMotions,
+  useUthanaMotionsPaged,
   useUthanaRateMotion,
   useUthanaTrimMotion,
 } from "./motions";

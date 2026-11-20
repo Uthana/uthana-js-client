@@ -1,3 +1,5 @@
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { MotionPage, MotionPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -184,5 +186,16 @@ export function useUthanaCreateLocomotion() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
     },
+  });
+}
+
+/** Read one page. Include next_cursor in options to request the next page. */
+export function useUthanaMotionsPaged(
+  options: MotionPageOptions = {},
+): UseQueryResult<MotionPage, Error> {
+  const client = useUthanaClient();
+  return useQuery({
+    queryKey: ["uthana", "motions", "paged", options],
+    queryFn: () => client.motions.listPaged(options),
   });
 }
