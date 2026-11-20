@@ -5,6 +5,7 @@ import type { MotionPage, MotionPageOptions } from "@uthana/client";
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getUthanaClientScope } from "../client";
 import { useUthanaClient } from "../UthanaProvider";
 
 const MOTIONS_QUERY_KEY = ["uthana", "motions"] as const;
@@ -195,7 +196,7 @@ export function useUthanaMotionsPaged(
 ): UseQueryResult<MotionPage, Error> {
   const client = useUthanaClient();
   return useQuery({
-    queryKey: ["uthana", "motions", "paged", options],
+    queryKey: ["uthana", "motions", "paged", getUthanaClientScope(client), options],
     queryFn: () => client.motions.listPaged(options),
     retry: false,
   });

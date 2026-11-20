@@ -41,7 +41,7 @@ Pass `next_cursor` unchanged with the same account, query, source, method, and o
 
 ## React
 
-`useUthanaCharactersPaged(options)` and `useUthanaMotionsPaged(options)` return TanStack Query results with the page in `data`. Query keys include all options, including the cursor, so different filters/pages cannot share cached results. Existing asset mutation hooks invalidate these queries through their common asset key prefix.
+`useUthanaCharactersPaged(options)` and `useUthanaMotionsPaged(options)` return TanStack Query results with the page in `data`. Query keys include a non-secret client scope and all options, including the cursor, so different filters/pages cannot share cached results. Existing asset mutation hooks invalidate these queries through their common asset key prefix.
 
 ```tsx
 const result = useUthanaCharactersPaged({ source: "mine", order: "created_desc" });

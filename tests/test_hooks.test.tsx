@@ -3,6 +3,7 @@
  */
 
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   UthanaProvider,
   useUthanaCharacters,
@@ -94,8 +95,26 @@ const { mockClient } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../packages/react/src/client.ts", () => ({
-  createUthanaClient: () => mockClient,
+vi.mock("../packages/react/src/client.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../packages/react/src/client.ts")>()),
+  createUthanaClient: (apiKey: string) =>
+    apiKey === "other-account"
+      ? {
+          ...mockClient,
+          characters: {
+            ...mockClient.characters,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-character" }], next_cursor: null }),
+          },
+          motions: {
+            ...mockClient.motions,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-motion" }], next_cursor: null }),
+          },
+        }
+      : mockClient,
   getUthanaClient: () => mockClient,
 }));
 
@@ -485,4 +504,34 @@ describe("paged hook error recovery", () => {
     expect(mockClient.motions.listPaged).toHaveBeenCalledTimes(1);
     mockClient.motions.listPaged.mockResolvedValue({ items: [], next_cursor: null });
   });
+});
+
+it("does not expose the previous account's pages through a shared query cache", async () => {
+  let apiKey = "test-key";
+  const cache = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey={apiKey} queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  mockClient.characters.listPaged.mockResolvedValue({
+    items: [{ id: "first-character" }],
+    next_cursor: null,
+  });
+  const { result, rerender } = renderHook(() => useUthanaCharactersPaged(), { wrapper });
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("first-character"));
+  apiKey = "other-account";
+  rerender();
+  expect(result.current.data?.items[0]?.id).not.toBe("first-character");
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("other-character"));
+  const keys = JSON.stringify(
+    cache
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.queryKey),
+  );
+  expect(keys).not.toContain("test-key");
+  expect(keys).not.toContain("other-account");
 });
