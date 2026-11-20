@@ -19,6 +19,8 @@ import { DEFAULT_TIMEOUT } from "./types";
 
 /** Options for UthanaClient construction. */
 export interface UthanaClientOptions {
+  /** Delegated bearer token. Supply an empty apiKey when using this option. */
+  accessToken?: string;
   /** API host (e.g. "uthana.com"). Defaults to production when omitted. */
   domain?: string;
   /** Request timeout in seconds. */
@@ -65,17 +67,29 @@ export class UthanaClient {
     public readonly apiKey: string,
     options: UthanaClientOptions = {},
   ) {
+    const accessToken =
+      typeof options.accessToken === "string" ? options.accessToken.trim() : undefined;
+    if (
+      options.accessToken !== undefined &&
+      (typeof options.accessToken !== "string" || !accessToken || /\s/.test(accessToken))
+    ) {
+      throw new Error("accessToken must be nonempty and without whitespace");
+    }
+    if (accessToken && apiKey) {
+      throw new Error("Supply either apiKey or accessToken, not both");
+    }
     const domain = options.domain ?? "uthana.com";
     this.baseUrl = `https://${domain}`;
     this.graphqlUrl = `${this.baseUrl}/graphql`;
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this._maxResponseBytes = options.maxResponseBytes ?? null;
     this._maxMutationResponseBytes = options.maxMutationResponseBytes ?? null;
-    this._authHeader =
-      "Basic " +
-      (typeof globalThis.btoa !== "undefined"
-        ? globalThis.btoa(`${apiKey}:`)
-        : Buffer.from(`${apiKey}:`).toString("base64"));
+    this._authHeader = accessToken
+      ? `Bearer ${accessToken}`
+      : "Basic " +
+        (typeof globalThis.btoa !== "undefined"
+          ? globalThis.btoa(`${apiKey}:`)
+          : Buffer.from(`${apiKey}:`).toString("base64"));
 
     this._graffle = Graffle.create()
       .transport({

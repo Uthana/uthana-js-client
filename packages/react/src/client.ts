@@ -6,18 +6,21 @@ import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
 import { UthanaClient as UthanaClientClass } from "@uthana/client";
 
 let clientInstance: UthanaClient | null = null;
+let clientOptionsKey: string | undefined;
 
 /**
  * Create or return the singleton Uthana client for React apps.
  * Call this once (e.g. in a root layout or provider) with your API key.
- * If called again with a different apiKey, the singleton is replaced.
+ * Credentials or request options changing replaces the singleton.
  */
 export function createUthanaClient(apiKey: string, options?: UthanaClientOptions): UthanaClient {
-  if (clientInstance && clientInstance.apiKey !== apiKey) {
+  const optionsKey = JSON.stringify(options ?? {});
+  if (clientInstance && (clientInstance.apiKey !== apiKey || clientOptionsKey !== optionsKey)) {
     clientInstance = null;
   }
   if (!clientInstance) {
     clientInstance = new UthanaClientClass(apiKey, options);
+    clientOptionsKey = optionsKey;
   }
   return clientInstance;
 }
