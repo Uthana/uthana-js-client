@@ -3,6 +3,7 @@
  */
 
 import { Graffle } from "graffle";
+import { getOperationAST, parse } from "graphql";
 import { Throws } from "graffle/extensions/throws";
 import { UthanaError, isAmbiguousTransportError } from "./errors";
 import { CREATE_T2M } from "./graphql";
@@ -125,8 +126,7 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const document = query.replace(/^(?:[\s,\uFEFF]|#[^\r\n]*)*/, "");
-    const isMutating = !/^(?:query\b|\{)/.test(document);
+    const isMutating = getOperationAST(parse(query))?.operation !== "query";
     const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
     if (
       typeof timeoutSeconds !== "number" ||

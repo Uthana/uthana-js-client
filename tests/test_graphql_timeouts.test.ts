@@ -82,3 +82,13 @@ it.each([
   });
   expect(send).toHaveBeenCalledTimes(1);
 });
+
+it("keeps fragment-first reads under query limits and preserves their transport failures", async () => {
+  const query = "fragment Fields on User { id } query Read { user { ...Fields } }";
+  const failure = new TypeError("fetch failed");
+  send.mockRejectedValue(failure);
+  const client = new UthanaClient("test", { maxResponseBytes: 1 });
+  await expect(client._graphql(query)).rejects.toBe(failure);
+  send.mockResolvedValue({ data: { user: { id: "u" } } });
+  await expect(client._graphql(query)).rejects.toMatchObject({ kind: "response_too_large" });
+});

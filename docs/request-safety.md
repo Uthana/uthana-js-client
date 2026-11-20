@@ -5,3 +5,5 @@
 Mutation timeouts, lost connections and invalid response JSON can leave the operation outcome unknown. They raise `UthanaError` with `kind: "uncertain"`; inspect existing work before submitting a charged operation again. Definitive GraphQL errors retain their original error category. Queries preserve transport failures and do not use the uncertain mutation category. No request is automatically retried by the SDK.
 
 Configured decoded GraphQL response limits count UTF-8 bytes, including non-ASCII text. Graffle parses the response before this decoded-result check; it is not a streaming memory limit. `motions.rate` validates a numeric 0 or 1 before sending the request.
+
+Operation classification uses the installed GraphQL parser, so comments and fragment-first reads retain query limits and read-error behavior. Documents without a single selected operation receive conservative mutation handling.
