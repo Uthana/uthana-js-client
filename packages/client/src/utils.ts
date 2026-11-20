@@ -5,6 +5,15 @@
 import { UthanaError } from "./errors";
 import { SUPPORTED_VIDEO_FORMATS } from "./types";
 
+const MAX_ASSET_PAGE_ITEMS = 100;
+
+/** Reject limits that JSON would silently turn into null as well as out-of-range values. */
+export function validateAssetPageLimit(limit: number | null | undefined): void {
+  if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > MAX_ASSET_PAGE_ITEMS)) {
+    throw new Error(`limit must be an integer from 1 to ${MAX_ASSET_PAGE_ITEMS}`);
+  }
+}
+
 /** Detect mesh format from file header. Returns 'glb', 'fbx', or null if unknown. */
 export function detectMeshFormat(header: Uint8Array): "glb" | "fbx" | null {
   if (header.byteLength >= 4) {

@@ -35,7 +35,7 @@ for (;;) {
 
 Search matches every word in the name, ignoring case. Each word needs at least three consecutive letters or digits; the whole query is at most 200 characters. The optional motion `method` matches the saved Method tag exactly, ignoring case, and is at most 100 characters. It does not reliably identify the model version. This searches saved assets, not library candidates.
 
-Choose `created_desc` (default), `created_asc`, `name_asc`, or `name_desc`. IDs break ties; missing sort values come last. Page size is 1–100, default 20. Omitted or null options use server defaults. Invalid options raise API errors instead of silently changing the request. Motion tags may be a dictionary, a string array, or null.
+Choose `created_desc` (default), `created_asc`, `name_asc`, or `name_desc`. IDs break ties; missing sort values come last. Page size is 1–100, default 20. Omitted or null options use server defaults. Invalid options raise errors instead of silently changing the request. Page limits are validated before JSON serialization, including non-finite numbers. Motion tags may be a dictionary, a string array, or null.
 
 Pass `next_cursor` unchanged with the same account, query, source, method, and order. You may change page size. Null ends the results. If a cursor becomes invalid, restart without it. Pages are not snapshots: assets can change between calls. These queries find older matching motions beyond the recent 1,000; refined video motions replace their base version in this listing. No helper automatically reads every page or retries a failed request.
 

@@ -61,10 +61,25 @@ describe.each(["characters", "motions"] as const)("%s pagination", (kind) => {
   });
 });
 
-it("passes explicit zero and empty filters through to API validation", async () => {
+it("passes explicit empty filters through to API validation", async () => {
   mockGql.mockReset().mockRejectedValue(new UthanaError(400, "Invalid limit", "graphql"));
   const client = new UthanaClient("test-key");
-  const options = { limit: 0, query: "", cursor: "", method: "" };
+  const options = { query: "", cursor: "", method: "" };
   await expect(client.motions.listPaged(options)).rejects.toThrow("Invalid limit");
   expect(mockGql).toHaveBeenCalledWith(options);
 });
+
+it.each([NaN, Infinity, -Infinity, 0, 101, 1.5])(
+  "rejects invalid page limit %s before serialization",
+  async (limit) => {
+    mockGql.mockClear();
+    const client = new UthanaClient("test");
+    await expect(client.characters.listPaged({ limit })).rejects.toThrow(
+      "limit must be an integer from 1 to 100",
+    );
+    await expect(client.motions.listPaged({ limit })).rejects.toThrow(
+      "limit must be an integer from 1 to 100",
+    );
+    expect(mockGql).not.toHaveBeenCalled();
+  },
+);

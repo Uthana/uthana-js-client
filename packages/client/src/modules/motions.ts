@@ -40,6 +40,7 @@ import type {
   TextToMotionResult,
 } from "../types";
 import { UthanaCharacters } from "../types";
+import { validateAssetPageLimit } from "../utils";
 import { BaseModule } from "./base";
 
 /** Motion management: list, download, delete, rename, favorite, stitch, loop. */
@@ -55,6 +56,7 @@ export class MotionsModule extends BaseModule {
 
   /** Search saved names with server-side ordering and opaque cursor pagination. */
   async listPaged(options: MotionPageOptions = {}): Promise<MotionPage> {
+    validateAssetPageLimit(options.limit);
     const variables = Object.fromEntries(
       Object.entries(options).filter(([, value]) => value != null),
     );
