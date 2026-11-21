@@ -1,5 +1,5 @@
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import type { CharacterPage, AssetPageOptions } from "@uthana/client";
+import type { CharacterPage, AssetPageOptions, ModifyCharacterParams } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -313,6 +313,23 @@ export function useUthanaRestoreCharacter(): UseMutationResult<Character, Error,
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (characterId: string) => client.characters.restore(characterId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
+    },
+  });
+}
+
+/** Change a character's name or deleted state and refresh its queries. */
+export function useUthanaModifyCharacter(): UseMutationResult<
+  Character,
+  Error,
+  ModifyCharacterParams
+> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: ModifyCharacterParams) => client.characters.modify(params),
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
     },
