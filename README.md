@@ -377,8 +377,8 @@ const { character } = await client.characters.generateFromImage(pending, pending
 const { character } = await client.characters.createFromImage(imageFile);
 
 // Rename or delete
-await client.characters.rename(characterId, "New name");
-await client.characters.delete(characterId);
+await client.characters.modify({ character_id: characterId, name: "New name" });
+await client.characters.modify({ character_id: characterId, deleted: true });
 ```
 
 ```tsx
@@ -386,8 +386,7 @@ await client.characters.delete(characterId);
 import {
   useUthanaCharacters,
   useUthanaCreateCharacter,
-  useUthanaRenameCharacter,
-  useUthanaDeleteCharacter,
+  useUthanaModifyCharacter,
 } from "@uthana/react";
 
 // File upload — single step
@@ -449,17 +448,18 @@ function GenerateWithSelection() {
 // List, rename, delete
 function CharacterList() {
   const { characters } = useUthanaCharacters();
-  const rename = useUthanaRenameCharacter();
-  const remove = useUthanaDeleteCharacter();
+  const modify = useUthanaModifyCharacter();
   return (
     <ul>
       {characters?.map((c) => (
         <li key={c.id}>
           {c.name}
-          <button onClick={() => rename.mutate({ character_id: c.id!, name: "New name" })}>
+          <button onClick={() => modify.mutate({ character_id: c.id!, name: "New name" })}>
             Rename
           </button>
-          <button onClick={() => remove.mutate({ character_id: c.id! })}>Delete</button>
+          <button onClick={() => modify.mutate({ character_id: c.id!, deleted: true })}>
+            Delete
+          </button>
         </li>
       ))}
     </ul>
@@ -490,8 +490,8 @@ const preview = await client.motions.preview(characterId, motionId);
 await client.motions.rate(motionId, 1); // 1 = thumbs up, 0 = thumbs down
 
 // Rename, delete, favorite
-await client.motions.rename(motionId, "New Name");
-await client.motions.delete(motionId);
+await client.motions.modify({ motion_id: motionId, name: "New Name" });
+await client.motions.modify({ motion_id: motionId, deleted: true });
 await client.motions.favorite(motionId, true);
 
 // Bake custom GLTF animation data as a new motion for an existing character
@@ -755,8 +755,8 @@ try {
 | `useUthanaRateMotion`                        | Rate motion mutation                      |
 | `useUthanaCharacters`                        | List characters                           |
 | `useUthanaCreateCharacter`                   | Create character (file, prompt, or image) |
-| `useUthanaRenameCharacter`                   | Rename character mutation                 |
-| `useUthanaDeleteCharacter`                   | Delete character mutation                 |
+| `useUthanaModifyCharacter`                   | Rename, delete or restore a character     |
+| `useUthanaModifyMotion`                      | Rename, delete or restore a motion        |
 | `useUthanaJobs(method?)`                     | List jobs                                 |
 | `useUthanaJob(id)`                           | Get job (polls when enabled)              |
 | `useUthanaMotionDownloads`                   | List motion downloads                     |

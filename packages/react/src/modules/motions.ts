@@ -1,4 +1,4 @@
-import type { ShareLink } from "@uthana/client";
+import type { ShareLink, ModifyMotionParams } from "@uthana/client";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
 /**
@@ -232,5 +232,19 @@ export function useUthanaShareMotion(): UseMutationResult<
       timeoutSeconds?: number;
     }) => client.motions.share(options.character_id, options.motion_id, options),
     retry: false,
+  });
+}
+
+/** Change a motion's name or deleted state and refresh its queries. */
+export function useUthanaModifyMotion(): UseMutationResult<Motion, Error, ModifyMotionParams> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: ModifyMotionParams) => client.motions.modify(params),
+    retry: false,
+    onSuccess: (_motion, params) => {
+      queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["uthana", "motion", params.motion_id] });
+    },
   });
 }
