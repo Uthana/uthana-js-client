@@ -4,7 +4,8 @@
 
 import { Graffle } from "graffle";
 import { Throws } from "graffle/extensions/throws";
-import { UthanaError } from "./errors";
+import { getOperationAST, parse } from "graphql";
+import { UthanaError, isAmbiguousTransportError } from "./errors";
 import { CREATE_T2M } from "./graphql";
 import { models, normalizeModelName } from "./models";
 import { CharactersModule } from "./modules/characters";
@@ -106,9 +107,21 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^\s*mutation\b/i.test(query);
+    const mutating = getOperationAST(parse(query))?.operation !== "query";
     const doc = this._graffle.gql(query);
-    const result = (await doc.$send(variables)) as Record<string, unknown>;
+    let result: Record<string, unknown>;
+    try {
+      result = (await doc.$send(variables)) as Record<string, unknown>;
+    } catch (error) {
+      if (mutating && isAmbiguousTransportError(error)) {
+        throw new UthanaError(
+          502,
+          "The mutation response was lost and the operation may have succeeded. Inspect existing work before resubmitting.",
+          "uncertain",
+        );
+      }
+      throw error;
+    }
     const encoded = JSON.stringify(result);
     const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
     if (limit != null && encoded.length > limit) {

@@ -37,12 +37,16 @@ import type {
   MotionPageOptions,
   MotionCatalog,
   OutputFormat,
+  RobotFormat,
   TextToMotionResult,
   ModifyMotionParams,
 } from "../types";
 import { UthanaCharacters } from "../types";
 import { validateAssetPageLimit } from "../utils";
 import { BaseModule } from "./base";
+
+const ROBOT_DOWNLOAD_TIMEOUT_SECONDS = 660;
+const ROBOT_DOWNLOAD_FPS = [24, 30, 60];
 
 /** Motion management: list, download, delete, rename, favorite, stitch, loop. */
 export class MotionsModule extends BaseModule {
@@ -317,6 +321,43 @@ export class MotionsModule extends BaseModule {
       torso_only: options?.torso_only,
     });
     return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
+  }
+
+  /** Download Unitree G1 CSV joint trajectories; retargeting can take several minutes. */
+  async downloadRobot(
+    characterId: string,
+    motionId: string,
+    options: {
+      robot?: RobotFormat;
+      fps?: number | null;
+      maxBytes?: number | null;
+      timeoutSeconds?: number;
+    } = {},
+  ): Promise<ArrayBuffer> {
+    const robot = options.robot ?? "unitree_g1";
+    if (robot !== "unitree_g1") {
+      throw new Error("Robot must be unitree_g1");
+    }
+    if (options.fps != null && !ROBOT_DOWNLOAD_FPS.includes(options.fps)) {
+      throw new Error("Robot download fps must be 24, 30, or 60");
+    }
+    if (
+      options.maxBytes != null &&
+      (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1)
+    ) {
+      throw new Error("Robot download maxBytes must be a positive safe integer");
+    }
+    const timeoutSeconds = options.timeoutSeconds ?? ROBOT_DOWNLOAD_TIMEOUT_SECONDS;
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+      throw new Error("Robot download timeoutSeconds must be a positive finite number");
+    }
+    const character = encodeURIComponent(characterId);
+    const motion = encodeURIComponent(motionId);
+    let url = `${this._client.baseUrl}/motion/file/motion_viewer/${character}/${motion}/csv/${robot}_${character}-${motion}.csv`;
+    if (options.fps != null) {
+      url += `?fps=${options.fps}`;
+    }
+    return this._client._requestBytes(url, { maxBytes: options.maxBytes, timeoutSeconds });
   }
 
   /** Download a WebM or APNG preview (does not charge download seconds). */

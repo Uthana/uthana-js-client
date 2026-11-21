@@ -233,6 +233,9 @@ export interface LedgerOptions {
   types?: string[] | null;
 }
 
+/** Supported robot joint-trajectory export. */
+export type RobotFormat = "unitree_g1";
+
 /** Changes to a character. Omitted fields stay unchanged. */
 export interface ModifyCharacterParams {
   character_id: string;
