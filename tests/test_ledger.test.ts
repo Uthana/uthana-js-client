@@ -142,7 +142,6 @@ it("returns an owned validated record without mutating the input", async () => {
 });
 
 it.each([
-  { since: "2026-11-12T23:59:59.999Z" },
   { until: "2026-11-12T23:59:59.999Z" },
   { until: "2026-11-20T00:00:00.001Z" },
   { since: "2026-11-20T00:00:00.001Z" },
@@ -164,3 +163,37 @@ it("retains the seven-day bound when paging with an old entry ID", async () => {
     until: "2026-11-20T00:00:00.000Z",
   });
 });
+
+it.each([false, true])(
+  "accepts precomputed date bounds and preserves until (paging=%s)",
+  async (isPaging) => {
+    mockGql.mockResolvedValue({ data: { payg_ledger: [] } });
+    const client = new UthanaClient("test");
+    await client.org.getLedger();
+    const first = mockGql.mock.calls[0][0];
+    for (const elapsedMs of [1, 3000, 600000]) {
+      vi.setSystemTime(new Date(Date.parse(first.until) + elapsedMs));
+      const options = {
+        since: first.since,
+        until: first.until,
+        ...(isPaging ? { beforeId: "entry1" } : {}),
+      };
+      await client.org.getLedger(options);
+      const sent = mockGql.mock.calls.at(-1)![0];
+      expect(sent.since).toBe(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+      expect(sent.until).toBe(first.until);
+      expect(sent.before_id).toBe(isPaging ? "entry1" : undefined);
+      expect(options.since).toBe(first.since);
+    }
+    expect(mockGql).toHaveBeenCalledTimes(4);
+  },
+);
+
+it.each([undefined, "old-entry"])(
+  "clamps old starts without expanding history (beforeId=%s)",
+  async (beforeId) => {
+    mockGql.mockResolvedValue({ data: { payg_ledger: [] } });
+    await new UthanaClient("test").org.getLedger({ since: "2000-01-01", beforeId });
+    expect(mockGql.mock.calls[0][0].since).toBe("2026-11-13T00:00:00.000Z");
+  },
+);
