@@ -165,7 +165,9 @@ export class OrgModule extends BaseModule {
       if (value != null) {
         times[name] = ledgerTime(name, value);
         const timestamp = Date.parse(times[name]);
-        if (timestamp < cutoff || timestamp > now) {
+        if (name === "since" && timestamp < cutoff) {
+          times.since = new Date(cutoff).toISOString();
+        } else if (timestamp < cutoff || timestamp > now) {
           throw new Error(
             `${name} must be within the last 7 days. Use the API or web for older history.`,
           );
