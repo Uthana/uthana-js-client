@@ -17,6 +17,12 @@ export {
   VtmModule,
 } from "./modules/index";
 export type {
+  AssetOrder,
+  AssetSource,
+  AssetPageOptions,
+  CharacterPage,
+  MotionPage,
+  MotionPageOptions,
   Character,
   CharacterPreviewResult,
   CreateCharacterResult,

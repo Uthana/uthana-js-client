@@ -876,3 +876,5 @@ response in `apiMessage`; GraphQL errors are surfaced by the GraphQL transport.
 Wait for an existing job to finish before submitting again. The client does not
 retry automatically. Custom requests with multiple mutations can have earlier
 successful operations; inspect their results before retrying.
+
+For server-side asset search, ordering, and cursor pagination, see [Find characters and motions](docs/pagination.md).

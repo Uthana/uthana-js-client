@@ -20,6 +20,7 @@ export interface Org {
 
 /** Character object from characters.list. */
 export interface Character {
+  org_id?: string | null;
   id?: string;
   name?: string | null;
   created?: string | null;
@@ -173,3 +174,30 @@ export const UthanaCharacters = {
   quinn: "czCjWEMtWxt8",
   y_bot: "cJM4ngRqXg83",
 } as const;
+
+/** Which saved assets to include. mine means the caller's organization. */
+export type AssetSource = "all" | "mine" | "uthana";
+export type AssetOrder = "created_desc" | "created_asc" | "name_asc" | "name_desc";
+
+/** Server defaults apply to omitted and null options. */
+export interface AssetPageOptions {
+  query?: string | null;
+  source?: AssetSource | null;
+  order?: AssetOrder | null;
+  limit?: number | null;
+  cursor?: string | null;
+}
+
+export interface MotionPageOptions extends AssetPageOptions {
+  method?: string | null;
+}
+
+export interface CharacterPage {
+  items: Character[];
+  next_cursor: string | null;
+}
+
+export interface MotionPage {
+  items: Motion[];
+  next_cursor: string | null;
+}

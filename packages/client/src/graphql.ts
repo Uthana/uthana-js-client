@@ -449,3 +449,30 @@ export const STITCH = `
     }
   }
 `;
+
+export const LIST_CHARACTERS_PAGED = `
+query CharactersPaged(
+    $query: String, $source: String, $order: String, $limit: Int, $cursor: String
+) {
+    characters_paged(
+        query: $query, source: $source, order: $order, limit: $limit, cursor: $cursor
+    ) {
+        items { id name org_id created updated }
+        next_cursor
+    }
+}
+`;
+
+export const LIST_MOTIONS_PAGED = `
+query MotionsPaged(
+    $query: String, $source: String, $order: String, $limit: Int, $cursor: String, $method: String
+) {
+    motions_paged(
+        query: $query, source: $source, order: $order, limit: $limit,
+        cursor: $cursor, method: $method
+    ) {
+        items { id name org_id created updated tags }
+        next_cursor
+    }
+}
+`;

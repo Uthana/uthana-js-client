@@ -1,3 +1,5 @@
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { CharacterPage, AssetPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -9,7 +11,7 @@ import type {
   CreateFromGeneratedImageResult,
 } from "@uthana/client";
 import { useCallback, useRef, useState } from "react";
-import { useUthanaClient } from "../UthanaProvider";
+import { useUthanaClient, useUthanaQueryScope } from "../UthanaProvider";
 
 const CHARACTERS_QUERY_KEY = ["uthana", "characters"] as const;
 
@@ -277,5 +279,18 @@ export function useUthanaDeleteCharacter() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
     },
+  });
+}
+
+/** Read one page. Include next_cursor in options to request the next page. */
+export function useUthanaCharactersPaged(
+  options: AssetPageOptions = {},
+): UseQueryResult<CharacterPage, Error> {
+  const client = useUthanaClient();
+  const scope = useUthanaQueryScope(client);
+  return useQuery({
+    queryKey: ["uthana", "characters", "paged", scope, options],
+    queryFn: () => client.characters.listPaged(options),
+    retry: false,
   });
 }

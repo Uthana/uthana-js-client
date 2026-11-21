@@ -3,9 +3,12 @@
  */
 
 import React from "react";
+import { QueryClient, QueryClientProvider, dehydrate, hydrate } from "@tanstack/react-query";
 import {
   UthanaProvider,
   useUthanaCharacters,
+  useUthanaCharactersPaged,
+  useUthanaMotionsPaged,
   useUthanaCreateCharacter,
   useUthanaDeleteCharacter,
   useUthanaJob,
@@ -62,6 +65,7 @@ const { mockClient } = vi.hoisted(() => {
     mockClient: {
       apiKey: "test-key",
       motions: {
+        listPaged: vi.fn().mockResolvedValue({ items: [{ id: "m1" }], next_cursor: null }),
         list: mockMotionsList,
         get: mockMotionGet,
         preview: mockMotionPreview,
@@ -70,6 +74,7 @@ const { mockClient } = vi.hoisted(() => {
         rename: mockMotionRename,
       },
       characters: {
+        listPaged: vi.fn().mockResolvedValue({ items: [{ id: "c1" }], next_cursor: "next" }),
         list: mockCharactersList,
         createFromFile: mockCreateFromFile,
         createFromPrompt: mockCreateFromPrompt,
@@ -90,8 +95,26 @@ const { mockClient } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../packages/react/src/client.ts", () => ({
-  createUthanaClient: () => mockClient,
+vi.mock("../packages/react/src/client.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../packages/react/src/client.ts")>()),
+  createUthanaClient: (apiKey: string) =>
+    apiKey === "other-account"
+      ? {
+          ...mockClient,
+          characters: {
+            ...mockClient.characters,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-character" }], next_cursor: null }),
+          },
+          motions: {
+            ...mockClient.motions,
+            listPaged: vi
+              .fn()
+              .mockResolvedValue({ items: [{ id: "other-motion" }], next_cursor: null }),
+          },
+        }
+      : mockClient,
   getUthanaClient: () => mockClient,
 }));
 
@@ -422,4 +445,125 @@ describe("React hooks", () => {
     );
     expect(result.current.data?.id).toBe("job1");
   });
+});
+
+describe("paged asset hooks", () => {
+  it("keeps character filter and cursor requests separate in the query cache", async () => {
+    mockClient.characters.listPaged.mockClear();
+    const { result, rerender } = renderHook(
+      ({ cursor }: { cursor: string | null }) =>
+        useUthanaCharactersPaged({ source: "mine", cursor }),
+      { wrapper: createWrapper(), initialProps: { cursor: null } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.next_cursor).toBe("next");
+    rerender({ cursor: "next" });
+    await waitFor(() =>
+      expect(mockClient.characters.listPaged).toHaveBeenCalledWith({
+        source: "mine",
+        cursor: "next",
+      }),
+    );
+    expect(mockClient.characters.listPaged).toHaveBeenCalledWith({ source: "mine", cursor: null });
+  });
+
+  it("passes motion search, source, sort and method options", async () => {
+    const options = {
+      query: "walk",
+      source: "uthana",
+      order: "name_desc",
+      method: "TextToMotion",
+      limit: 10,
+    } as const;
+    const { result } = renderHook(() => useUthanaMotionsPaged(options), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient.motions.listPaged).toHaveBeenCalledWith(options);
+    expect(result.current.data?.items).toEqual([{ id: "m1" }]);
+  });
+});
+
+describe("paged hook error recovery", () => {
+  it("reports invalid character cursors without automatic retries", async () => {
+    mockClient.characters.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
+    const { result } = renderHook(
+      () => useUthanaCharactersPaged({ cursor: "bad-character-cursor" }),
+      { wrapper: createWrapper() },
+    );
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockClient.characters.listPaged).toHaveBeenCalledTimes(1);
+    mockClient.characters.listPaged.mockResolvedValue({ items: [], next_cursor: null });
+  });
+  it("reports invalid motion cursors without automatic retries", async () => {
+    mockClient.motions.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
+    const { result } = renderHook(() => useUthanaMotionsPaged({ cursor: "bad-motion-cursor" }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockClient.motions.listPaged).toHaveBeenCalledTimes(1);
+    mockClient.motions.listPaged.mockResolvedValue({ items: [], next_cursor: null });
+  });
+});
+
+it("does not expose the previous account's pages through a shared query cache", async () => {
+  let apiKey = "test-key";
+  const cache = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey={apiKey} queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  mockClient.characters.listPaged.mockResolvedValue({
+    items: [{ id: "first-character" }],
+    next_cursor: null,
+  });
+  const { result, rerender } = renderHook(() => useUthanaCharactersPaged(), { wrapper });
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("first-character"));
+  apiKey = "other-account";
+  rerender();
+  expect(result.current.data?.items[0]?.id).not.toBe("first-character");
+  await waitFor(() => expect(result.current.data?.items[0]?.id).toBe("other-character"));
+  const keys = JSON.stringify(
+    cache
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.queryKey),
+  );
+  expect(keys).not.toContain("test-key");
+  expect(keys).not.toContain("other-account");
+});
+
+it("hydrates scoped pages across distinct server and browser client instances", async () => {
+  const serverCache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  const makeWrapper =
+    (cache: QueryClient, apiKey: string) =>
+    ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider apiKey={apiKey} queryScope="user-42:org-7" queryClient={cache}>
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+  mockClient.characters.listPaged.mockResolvedValue({
+    items: [{ id: "hydrated" }],
+    next_cursor: null,
+  });
+  const server = renderHook(() => useUthanaCharactersPaged(), {
+    wrapper: makeWrapper(serverCache, "test-key"),
+  });
+  await waitFor(() => expect(server.result.current.isSuccess).toBe(true));
+  server.unmount();
+  const payload = JSON.parse(JSON.stringify(dehydrate(serverCache)));
+  expect(JSON.stringify(payload)).not.toContain("test-key");
+  const browserCache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  hydrate(browserCache, payload);
+  mockClient.characters.listPaged.mockClear();
+  const browser = renderHook(() => useUthanaCharactersPaged(), {
+    wrapper: makeWrapper(browserCache, "other-account"),
+  });
+  expect(browser.result.current.data?.items[0]?.id).toBe("hydrated");
+  expect(mockClient.characters.listPaged).not.toHaveBeenCalled();
 });
