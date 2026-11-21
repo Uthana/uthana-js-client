@@ -757,6 +757,8 @@ try {
 | `useUthanaCreateCharacter`                   | Create character (file, prompt, or image) |
 | `useUthanaRenameCharacter`                   | Rename character mutation                 |
 | `useUthanaDeleteCharacter`                   | Delete character mutation                 |
+| `useUthanaModifyCharacter`                   | Rename, delete or restore a character     |
+| `useUthanaModifyMotion`                      | Rename, delete or restore a motion        |
 | `useUthanaJobs(method?)`                     | List jobs                                 |
 | `useUthanaJob(id)`                           | Get job (polls when enabled)              |
 | `useUthanaMotionDownloads`                   | List motion downloads                     |
@@ -878,3 +880,5 @@ retry automatically. Custom requests with multiple mutations can have earlier
 successful operations; inspect their results before retrying.
 
 For server-side asset search, ordering, and cursor pagination, see [Find characters and motions](docs/pagination.md).
+
+See [Inspect and restore assets](docs/asset-management.md) for character detail and asset lifecycle methods.

@@ -3,6 +3,8 @@
  */
 
 export {
+  useUthanaCharacter,
+  useUthanaModifyCharacter,
   useUthanaCharacters,
   useUthanaCharactersPaged,
   useUthanaCreateCharacter,
@@ -20,6 +22,7 @@ export {
   useUthanaMotion,
   useUthanaMotionCatalog,
   useUthanaMotionPreview,
+  useUthanaModifyMotion,
   useUthanaMotions,
   useUthanaMotionsPaged,
   useUthanaRateMotion,

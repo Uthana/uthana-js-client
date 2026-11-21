@@ -6,6 +6,9 @@ import React from "react";
 import { QueryClient, QueryClientProvider, dehydrate, hydrate } from "@tanstack/react-query";
 import {
   UthanaProvider,
+  useUthanaCharacter,
+  useUthanaModifyCharacter,
+  useUthanaModifyMotion,
   useUthanaCharacters,
   useUthanaCharactersPaged,
   useUthanaMotionsPaged,
@@ -65,6 +68,8 @@ const { mockClient } = vi.hoisted(() => {
     mockClient: {
       apiKey: "test-key",
       motions: {
+        modify: vi.fn().mockResolvedValue({ id: "m1", name: "Hero", deleted: null }),
+        restore: vi.fn().mockResolvedValue({ id: "m1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "m1" }], next_cursor: null }),
         list: mockMotionsList,
         get: mockMotionGet,
@@ -74,6 +79,9 @@ const { mockClient } = vi.hoisted(() => {
         rename: mockMotionRename,
       },
       characters: {
+        modify: vi.fn().mockResolvedValue({ id: "c1", name: "Hero", deleted: null }),
+        get: vi.fn().mockResolvedValue({ id: "c1", org_id: "org", created: null }),
+        restore: vi.fn().mockResolvedValue({ id: "c1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "c1" }], next_cursor: "next" }),
         list: mockCharactersList,
         createFromFile: mockCreateFromFile,
@@ -484,6 +492,81 @@ describe("paged asset hooks", () => {
   });
 });
 
+describe("character detail and modification hooks", () => {
+  it("reads character detail and disables null selections", async () => {
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string | null }) => useUthanaCharacter(id),
+      { wrapper: createWrapper(), initialProps: { id: null } },
+    );
+    expect(result.current.isFetching).toBe(false);
+    rerender({ id: "c1" });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.org_id).toBe("org");
+  });
+  it("restores the selected character", async () => {
+    const { result } = renderHook(() => useUthanaModifyCharacter(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync({ character_id: "c1", deleted: false });
+    });
+    expect(mockClient.characters.modify).toHaveBeenCalledWith({
+      character_id: "c1",
+      deleted: false,
+    });
+  });
+  it("restores the selected motion", async () => {
+    const { result } = renderHook(() => useUthanaModifyMotion(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync({ motion_id: "m1", deleted: false });
+    });
+    expect(mockClient.motions.modify).toHaveBeenCalledWith({ motion_id: "m1", deleted: false });
+  });
+});
+
+describe("restore retry policy", () => {
+  for (const { kind, useRestore } of [
+    {
+      kind: "characters",
+      useRestore: () => {
+        const modify = useUthanaModifyCharacter();
+        return () => modify.mutateAsync({ character_id: "c1", deleted: false });
+      },
+    },
+    {
+      kind: "motions",
+      useRestore: () => {
+        const modify = useUthanaModifyMotion();
+        return () => modify.mutateAsync({ motion_id: "m1", deleted: false });
+      },
+    },
+  ] as const) {
+    it(`does not retry uncertain ${kind} restores despite cache defaults`, async () => {
+      const error = new Error("Restore outcome is uncertain");
+      mockClient[kind].modify.mockReset().mockRejectedValue(error);
+      const cache = new QueryClient({
+        defaultOptions: { mutations: { retry: 2, retryDelay: 0 } },
+      });
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={cache}>
+          <UthanaProvider apiKey="test-key" queryClient={cache}>
+            {children}
+          </UthanaProvider>
+        </QueryClientProvider>
+      );
+      const { result } = renderHook(() => useRestore(), { wrapper });
+      await act(async () => {
+        await expect(result.current()).rejects.toBe(error);
+      });
+      expect(mockClient[kind].modify).toHaveBeenCalledTimes(1);
+      cache.clear();
+      mockClient[kind].modify.mockResolvedValue({
+        id: kind === "characters" ? "c1" : "m1",
+        name: "Hero",
+        deleted: null,
+      });
+    });
+  }
+});
+
 describe("paged hook error recovery", () => {
   it("reports invalid character cursors without automatic retries", async () => {
     mockClient.characters.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
@@ -567,3 +650,40 @@ it("hydrates scoped pages across distinct server and browser client instances", 
   expect(browser.result.current.data?.items[0]?.id).toBe("hydrated");
   expect(mockClient.characters.listPaged).not.toHaveBeenCalled();
 });
+
+it.each(["characters", "motions"] as const)(
+  "modifies %s explicitly and refreshes cached records",
+  async (kind) => {
+    mockClient[kind].modify.mockClear();
+    const cache = new QueryClient();
+    const id = kind === "characters" ? "c1" : "m1";
+    const detail =
+      kind === "characters"
+        ? ["uthana", "characters", "detail", "scope", id]
+        : ["uthana", "motion", id];
+    const page = ["uthana", kind, "paged", "scope", {}];
+    cache.setQueryData(detail, { id });
+    cache.setQueryData(page, { items: [{ id }] });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider apiKey="test-key" queryClient={cache}>
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+    const hook = kind === "characters" ? useUthanaModifyCharacter : useUthanaModifyMotion;
+    const { result } = renderHook(() => hook(), { wrapper });
+    const params =
+      kind === "characters"
+        ? { character_id: id, name: "Hero", deleted: false }
+        : { motion_id: id, name: "Hero", deleted: false };
+    expect(mockClient[kind].modify).not.toHaveBeenCalled();
+    // @ts-expect-error The parameter shape follows the selected resource in this parameterized test.
+    act(() => result.current.mutate(params));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient[kind].modify).toHaveBeenCalledTimes(1);
+    expect(mockClient[kind].modify).toHaveBeenCalledWith(params);
+    expect(cache.getQueryState(detail)?.isInvalidated).toBe(true);
+    expect(cache.getQueryState(page)?.isInvalidated).toBe(true);
+  },
+);

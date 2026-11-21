@@ -9,10 +9,10 @@ import {
   CREATE_CHARACTER_FROM_IMAGE,
   CREATE_IMAGE_FROM_IMAGE,
   CREATE_IMAGE_FROM_TEXT,
-  DELETE_CHARACTER,
+  GET_CHARACTER,
+  UPDATE_CHARACTER,
   LIST_CHARACTERS,
   LIST_CHARACTERS_PAGED,
-  RENAME_CHARACTER,
 } from "../graphql";
 import type {
   Character,
@@ -22,6 +22,7 @@ import type {
   CreateCharacterResult,
   CreateFromGeneratedImageResult,
   OutputFormat,
+  ModifyCharacterParams,
 } from "../types";
 import { DEFAULT_BYTE_UPLOAD_MAX } from "../types";
 import {
@@ -307,22 +308,69 @@ export class CharactersModule extends BaseModule {
     return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
-  /** Rename a character by ID. */
-  async rename(character_id: string, name: string): Promise<Character> {
-    return this._client._graphql<Character>(
-      RENAME_CHARACTER,
-      { character_id, name },
-      { path: "update_character.character" },
+  /** Get character details. Throws 404 if missing or inaccessible. */
+  async get(characterId: string): Promise<Character> {
+    const character = await this._client._graphql<Character | null>(
+      GET_CHARACTER,
+      { character_id: characterId },
+      { path: "character", pathDefault: null },
     );
+    if (!character) {
+      throw new UthanaError(404, `No character found matching ${characterId}`, "http");
+    }
+    return character;
   }
 
-  /** Soft-delete a character by ID. */
+  /** Rename a character by ID. */
+  async rename(character_id: string, name: string): Promise<Character> {
+    return this.modify({ character_id, name });
+  }
+
+  /** Soft-delete a character; associated motions remain intact. */
   async delete(character_id: string): Promise<Character> {
-    return this._client._graphql<Character>(
-      DELETE_CHARACTER,
-      { character_id },
+    return this.modify({ character_id, deleted: true });
+  }
+
+  /** Restore a deleted character by ID. */
+  async restore(characterId: string): Promise<Character> {
+    return this.modify({ character_id: characterId, deleted: false });
+  }
+
+  /** Change a character's name or deleted state. Returns the updated character. */
+  async modify(params: ModifyCharacterParams): Promise<Character> {
+    if (params === null || typeof params !== "object") {
+      throw new Error("Character changes must include character_id and name or deleted");
+    }
+    const { character_id, name, deleted } = params;
+    if (typeof character_id !== "string" || !character_id.trim()) {
+      throw new Error("character_id must be a nonempty string");
+    }
+    if (name !== undefined && typeof name !== "string") {
+      throw new Error("Character name must be a string");
+    }
+    if (deleted !== undefined && typeof deleted !== "boolean") {
+      throw new Error("Character deleted must be true or false");
+    }
+    if (name === undefined && deleted === undefined) {
+      throw new Error("Provide name or deleted to modify a character");
+    }
+    const result = await this._client._graphql<Character>(
+      UPDATE_CHARACTER,
+      {
+        character_id,
+        ...(name === undefined ? {} : { name }),
+        ...(deleted === undefined ? {} : { deleted }),
+      },
       { path: "update_character.character" },
     );
+    if (!result || result.id !== character_id) {
+      throw new UthanaError(
+        502,
+        "Changing the character returned no confirmation. Check the character before trying again.",
+        "uncertain",
+      );
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------------------

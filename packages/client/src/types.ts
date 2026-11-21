@@ -20,6 +20,7 @@ export interface Org {
 
 /** Character object from characters.list. */
 export interface Character {
+  deleted?: string | null;
   org_id?: string | null;
   id?: string;
   name?: string | null;
@@ -200,4 +201,18 @@ export interface CharacterPage {
 export interface MotionPage {
   items: Motion[];
   next_cursor: string | null;
+}
+
+/** Changes to a character. Omitted fields stay unchanged. */
+export interface ModifyCharacterParams {
+  character_id: string;
+  name?: string;
+  deleted?: boolean;
+}
+
+/** Changes to a motion. Omitted fields stay unchanged. */
+export interface ModifyMotionParams {
+  motion_id: string;
+  name?: string;
+  deleted?: boolean;
 }

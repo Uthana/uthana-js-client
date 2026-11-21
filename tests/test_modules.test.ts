@@ -95,15 +95,23 @@ describe("module methods with mocked _graphql", () => {
     });
 
     it("delete calls mutation with deleted=true", async () => {
-      mockGql.mockResolvedValue({ data: { update_motion: { id: "m1", deleted: true } } });
+      mockGql.mockResolvedValue({
+        data: { update_motion: { motion: { id: "m1", deleted: "2026-01-01" } } },
+      });
       await client.motions.delete("m1");
-      expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ id: "m1", deleted: true }));
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({ motion_id: "m1", deleted: true }),
+      );
     });
 
     it("rename calls mutation with new name", async () => {
-      mockGql.mockResolvedValue({ data: { update_motion: { id: "m1", name: "New Name" } } });
+      mockGql.mockResolvedValue({
+        data: { update_motion: { motion: { id: "m1", name: "New Name" } } },
+      });
       await client.motions.rename("m1", "New Name");
-      expect(mockGql).toHaveBeenCalledWith(expect.objectContaining({ id: "m1", name: "New Name" }));
+      expect(mockGql).toHaveBeenCalledWith(
+        expect.objectContaining({ motion_id: "m1", name: "New Name" }),
+      );
     });
 
     it("favorite(true) calls create_motion_favorite mutation", async () => {
