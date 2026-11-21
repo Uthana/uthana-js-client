@@ -2,7 +2,7 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OrgModule } from "@uthana/client";
 import { UthanaProvider, useUthanaClient, useUthanaUser } from "@uthana/react";
-import { renderHook, waitFor } from "@testing-library/react";
+import { render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { getUthanaClient } from "../packages/react/src/client";
 
@@ -282,4 +282,66 @@ it("remounts default query observers when only the organization scope changes", 
   expect(result.current.user?.id).not.toBe("first-user");
   await waitFor(() => expect(result.current.user?.id).toBe("second-user"));
   expect(getUser).toHaveBeenCalledTimes(2);
+});
+
+it("does not claim an external cache when a descendant render fails", () => {
+  const cache = new QueryClient();
+  function BrokenChild(): React.ReactNode {
+    throw new Error("Abandoned render");
+  }
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  expect(() =>
+    render(
+      <UthanaProvider
+        apiKey=""
+        options={{ accessToken: "abandoned-token" }}
+        queryScope="abandoned-org"
+        queryClient={cache}
+      >
+        <BrokenChild />
+      </UthanaProvider>,
+    ),
+  ).toThrow("Abandoned render");
+  quiet.mockRestore();
+  const mounted = renderHook(() => useUthanaClient(), {
+    wrapper: ({ children }) => (
+      <UthanaProvider
+        apiKey=""
+        options={{ accessToken: "committed-token" }}
+        queryScope="committed-org"
+        queryClient={cache}
+      >
+        {children}
+      </UthanaProvider>
+    ),
+  });
+  expect(mounted.result.current).toBeDefined();
+});
+
+it("rejects different owners that render together before either commits", () => {
+  const cache = new QueryClient();
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  expect(() =>
+    render(
+      <>
+        <UthanaProvider
+          apiKey=""
+          options={{ accessToken: "first-token" }}
+          queryScope="first-org"
+          queryClient={cache}
+        >
+          <span>First</span>
+        </UthanaProvider>
+        <UthanaProvider
+          apiKey=""
+          options={{ accessToken: "second-token" }}
+          queryScope="second-org"
+          queryClient={cache}
+        >
+          <span>Second</span>
+        </UthanaProvider>
+      </>,
+    ),
+  ).toThrow("new QueryClient");
+  quiet.mockRestore();
 });
