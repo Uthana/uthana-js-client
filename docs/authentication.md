@@ -22,6 +22,8 @@ The token is sent as Bearer authentication for GraphQL, file uploads and downloa
 </UthanaProvider>
 ```
 
-Delegated React access requires a public `queryScope` identifying the user and organization; never use a token as the scope. Use the same public scope during server rendering and hydration, and change it on account/organization changes. The default provider creates a fresh cache when credentials change. If supplying an external QueryClient, use a fresh or fully cleared cache for each credential change, including token refresh. A cache used for delegated access cannot be transferred to another client while populated, including when switching to API-key authentication or a different organization. Hydrate after the provider has claimed its initially empty cache. API-key-only integrations retain their existing external-cache behavior.
+Delegated React access requires a public `queryScope` identifying the user and organization; never use a token as the scope. Use the same public scope during server rendering and hydration. The default provider creates a fresh cache when credentials or scope change.
+
+An external `QueryClient` is bound to its delegated credentials, request options and organization scope for its lifetime. Use a new instance whenever these change, including token refresh or switching to API-key authentication. Clearing or unmounting does not transfer ownership. Multiple providers may share a cache only with equivalent credentials/options and the same scope. Hydrate after the provider has claimed its initially empty cache. API-key-only integrations retain their existing external-cache behavior.
 
 `createUthanaClient` replaces its singleton when credentials or options change. Do not use a process-global singleton for server-side requests from multiple users; create a request-local UthanaClient instead.

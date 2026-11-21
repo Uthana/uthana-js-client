@@ -7,37 +7,88 @@ import { afterEach, expect, it, vi } from "vitest";
 import { getUthanaClient } from "../packages/react/src/client";
 
 afterEach(() => vi.restoreAllMocks());
-it("releases delegated ownership after a cleared switch to API-key authentication", () => {
+it("requires a fresh cache to leave delegated authentication and preserves API-key caches", () => {
   const cache = new QueryClient();
   const wrapper =
-    (apiKey: string, accessToken?: string) =>
+    ({
+      apiKey,
+      accessToken,
+      queryClient = cache,
+    }: {
+      apiKey: string;
+      accessToken?: string;
+      queryClient?: QueryClient;
+    }) =>
     ({ children }: { children: React.ReactNode }) => (
-      <QueryClientProvider client={cache}>
+      <QueryClientProvider client={queryClient}>
         <UthanaProvider
           apiKey={apiKey}
           options={{ accessToken }}
           queryScope="public-scope"
+          queryClient={queryClient}
+        >
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+  const delegated = renderHook(() => useUthanaClient(), {
+    wrapper: wrapper({ apiKey: "", accessToken: "token" }),
+  });
+  delegated.unmount();
+  cache.clear();
+  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    expect(() =>
+      renderHook(() => useUthanaClient(), { wrapper: wrapper({ apiKey: "first-key" }) }),
+    ).toThrow("new QueryClient");
+    const basicCache = new QueryClient();
+    const basic = renderHook(() => useUthanaClient(), {
+      wrapper: wrapper({ apiKey: "first-key", queryClient: basicCache }),
+    });
+    basicCache.setQueryData(["example"], "app-managed API-key data");
+    basic.unmount();
+    const next = renderHook(() => useUthanaClient(), {
+      wrapper: wrapper({ apiKey: "second-key", queryClient: basicCache }),
+    });
+    expect(next.result.current.apiKey).toBe("second-key");
+    next.unmount();
+    expect(() =>
+      renderHook(() => useUthanaClient(), {
+        wrapper: wrapper({ apiKey: "", accessToken: "token", queryClient: basicCache }),
+      }),
+    ).toThrow("new QueryClient");
+  } finally {
+    quiet.mockRestore();
+  }
+});
+it.each([
+  { accessToken: "first-token", queryScope: "second-org" },
+  { accessToken: "second-token", queryScope: "first-org" },
+])("rejects a second owner of an empty external cache: %s", ({ accessToken, queryScope }) => {
+  const cache = new QueryClient();
+  const wrapper =
+    (token: string, scope: string) =>
+    ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider
+          apiKey=""
+          options={{ accessToken: token }}
+          queryScope={scope}
           queryClient={cache}
         >
           {children}
         </UthanaProvider>
       </QueryClientProvider>
     );
-  const delegated = renderHook(() => useUthanaClient(), { wrapper: wrapper("", "token") });
-  cache.setQueryData(["example"], "delegated data");
-  delegated.unmount();
-  cache.clear();
-  const basic = renderHook(() => useUthanaClient(), { wrapper: wrapper("first-key") });
-  cache.setQueryData(["example"], "app-managed API-key data");
-  basic.unmount();
-  const next = renderHook(() => useUthanaClient(), { wrapper: wrapper("second-key") });
-  expect(next.result.current.apiKey).toBe("second-key");
-  next.unmount();
+  renderHook(() => useUthanaClient(), { wrapper: wrapper("first-token", "first-org") });
+  expect(cache.getQueryCache().getAll()).toHaveLength(0);
+  const working = getUthanaClient();
   const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
-    expect(() => renderHook(() => useUthanaClient(), { wrapper: wrapper("", "token") })).toThrow(
-      "new or cleared QueryClient",
-    );
+    expect(() =>
+      renderHook(() => useUthanaClient(), { wrapper: wrapper(accessToken, queryScope) }),
+    ).toThrow("new QueryClient");
+    expect(getUthanaClient()).toBe(working);
   } finally {
     quiet.mockRestore();
   }
@@ -141,7 +192,7 @@ it("rejects a populated external cache when delegated credentials change", async
   const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
   const working = getUthanaClient();
   expect(() => renderHook(() => useUthanaUser(), { wrapper: makeWrapper("second") })).toThrow(
-    "new or cleared QueryClient",
+    "new QueryClient",
   );
   expect(getUthanaClient()).toBe(working);
   quiet.mockRestore();
@@ -194,7 +245,7 @@ it.each([
     renderHook(() => useUthanaUser(), {
       wrapper: makeWrapper(next.apiKey, next.accessToken, next.queryScope),
     }),
-  ).toThrow("new or cleared QueryClient");
+  ).toThrow("new QueryClient");
   quiet.mockRestore();
 });
 

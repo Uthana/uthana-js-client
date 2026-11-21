@@ -84,26 +84,23 @@ export function UthanaProvider({
     }
     if (providedQueryClient) {
       const owner = delegatedOwner;
-      const hasCachedQueries = providedQueryClient.getQueryCache().getAll().length > 0;
-      const hasCachedMutations = providedQueryClient.getMutationCache().getAll().length > 0;
-      if (
-        (owner?.clientKey !== clientKey || owner.scope !== queryScope) &&
-        (hasCachedQueries || hasCachedMutations)
-      ) {
+      const hasDifferentOwner =
+        owner !== undefined && (owner.clientKey !== clientKey || owner.scope !== queryScope);
+      const hasUnclaimedData =
+        owner === undefined &&
+        (providedQueryClient.getQueryCache().getAll().length > 0 ||
+          providedQueryClient.getMutationCache().getAll().length > 0);
+      if (hasDifferentOwner || hasUnclaimedData) {
         throw new Error(
-          "Use a new or cleared QueryClient when delegated credentials change; never reuse another account's cache.",
+          "Use a new QueryClient when delegated credentials, request options or organization change; clearing a cache does not change its owner.",
         );
       }
     }
   }
   const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
   const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
-  if (providedQueryClient) {
-    if (isDelegated) {
-      delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
-    } else if (delegatedOwner !== undefined) {
-      delegatedCacheOwners.delete(providedQueryClient);
-    }
+  if (providedQueryClient && isDelegated) {
+    delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
   }
   const content = providedQueryClient ? (
     children
