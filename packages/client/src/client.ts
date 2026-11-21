@@ -111,7 +111,7 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^\s*mutation\b/i.test(query);
+    const mutating = /^(?:[\s,\uFEFF]|#[^\r\n]*(?:\r\n?|\n|$))*mutation\b/i.test(query);
     const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
     if (
       typeof timeoutSeconds !== "number" ||
