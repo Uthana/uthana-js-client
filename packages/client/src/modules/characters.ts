@@ -307,7 +307,7 @@ export class CharactersModule extends BaseModule {
     return this._client._requestBytes(url, { maxBytes: options?.maxBytes });
   }
 
-  /** Get one live accessible character with owning organization and record dates. */
+  /** Get character details. Throws 404 if missing or inaccessible. */
   async get(characterId: string): Promise<Character> {
     const character = await this._client._graphql<Character | null>(
       GET_CHARACTER,
@@ -320,7 +320,7 @@ export class CharactersModule extends BaseModule {
     return character;
   }
 
-  /** Rename a character using the account's existing write permissions. */
+  /** Rename a character by ID. */
   async rename(character_id: string, name: string): Promise<Character> {
     return this._update(character_id, { name });
   }
@@ -330,7 +330,7 @@ export class CharactersModule extends BaseModule {
     return this._update(character_id, { deleted: true });
   }
 
-  /** Restore a soft-deleted character by ID using existing write permissions. */
+  /** Restore a deleted character by ID. */
   async restore(characterId: string): Promise<Character> {
     return this._update(characterId, { deleted: false });
   }
