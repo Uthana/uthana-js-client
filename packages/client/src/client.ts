@@ -106,7 +106,7 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^\s*mutation\b/i.test(query);
+    const mutating = /^(?:[\s,\uFEFF]|#[^\r\n]*(?:\r\n?|\n|$))*mutation\b/i.test(query);
     const doc = this._graffle.gql(query);
     let result: Record<string, unknown>;
     try {
