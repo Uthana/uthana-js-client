@@ -13,9 +13,9 @@ import {
   getUthanaClientScope,
 } from "./client";
 
-const delegatedCacheOwners = new WeakMap<
+const externalCacheOwners = new WeakMap<
   QueryClient,
-  { clientKey: string; scope: string | undefined }
+  { kind: "api-key" } | { kind: "delegated"; clientKey: string; scope: string | undefined }
 >();
 
 const QueryScopeContext = createContext<string | null>(null);
@@ -72,26 +72,26 @@ export function UthanaProvider({
   if (queryScope !== undefined && !queryScope.trim()) {
     throw new Error("queryScope must be a nonempty public account/organization namespace.");
   }
-  const delegatedOwner = providedQueryClient
-    ? delegatedCacheOwners.get(providedQueryClient)
-    : undefined;
+  const cacheOwner = providedQueryClient ? externalCacheOwners.get(providedQueryClient) : undefined;
   const isDelegated = options?.accessToken !== undefined;
-  if (isDelegated || delegatedOwner !== undefined) {
+  if (isDelegated || cacheOwner?.kind === "delegated") {
     if (isDelegated && !queryScope?.trim()) {
       throw new Error(
         "Set queryScope to a public user and organization namespace for delegated React access.",
       );
     }
     if (providedQueryClient) {
-      const owner = delegatedOwner;
-      const hasCachedQueries = providedQueryClient.getQueryCache().getAll().length > 0;
-      const hasCachedMutations = providedQueryClient.getMutationCache().getAll().length > 0;
-      if (
-        (owner?.clientKey !== clientKey || owner.scope !== queryScope) &&
-        (hasCachedQueries || hasCachedMutations)
-      ) {
+      const owner = cacheOwner;
+      const hasDifferentOwner =
+        owner !== undefined &&
+        (owner.kind !== "delegated" || owner.clientKey !== clientKey || owner.scope !== queryScope);
+      const hasUnclaimedData =
+        owner === undefined &&
+        (providedQueryClient.getQueryCache().getAll().length > 0 ||
+          providedQueryClient.getMutationCache().getAll().length > 0);
+      if (hasDifferentOwner || hasUnclaimedData) {
         throw new Error(
-          "Use a new or cleared QueryClient when delegated credentials change; never reuse another account's cache.",
+          "Use a new QueryClient when delegated credentials, request options or organization change; clearing a cache does not change its owner.",
         );
       }
     }
@@ -99,11 +99,10 @@ export function UthanaProvider({
   const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
   const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
   if (providedQueryClient) {
-    if (isDelegated) {
-      delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
-    } else if (delegatedOwner !== undefined) {
-      delegatedCacheOwners.delete(providedQueryClient);
-    }
+    externalCacheOwners.set(
+      providedQueryClient,
+      isDelegated ? { kind: "delegated", clientKey, scope: queryScope } : { kind: "api-key" },
+    );
   }
   const content = providedQueryClient ? (
     children
