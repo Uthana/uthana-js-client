@@ -62,37 +62,49 @@ it("requires a fresh cache to leave delegated authentication and preserves API-k
   }
 });
 it.each([
-  { accessToken: "first-token", queryScope: "second-org" },
-  { accessToken: "second-token", queryScope: "first-org" },
-])("rejects a second owner of an empty external cache: %s", ({ accessToken, queryScope }) => {
-  const cache = new QueryClient();
-  const wrapper =
-    (token: string, scope: string) =>
-    ({ children }: { children: React.ReactNode }) => (
-      <QueryClientProvider client={cache}>
-        <UthanaProvider
-          apiKey=""
-          options={{ accessToken: token }}
-          queryScope={scope}
-          queryClient={cache}
-        >
-          {children}
-        </UthanaProvider>
-      </QueryClientProvider>
-    );
-  renderHook(() => useUthanaClient(), { wrapper: wrapper("first-token", "first-org") });
-  expect(cache.getQueryCache().getAll()).toHaveLength(0);
-  const working = getUthanaClient();
-  const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
-  try {
-    expect(() =>
-      renderHook(() => useUthanaClient(), { wrapper: wrapper(accessToken, queryScope) }),
-    ).toThrow("new QueryClient");
-    expect(getUthanaClient()).toBe(working);
-  } finally {
-    quiet.mockRestore();
-  }
-});
+  { apiKey: "", accessToken: "first-token", queryScope: "second-org" },
+  { apiKey: "", accessToken: "second-token", queryScope: "first-org" },
+  { apiKey: "basic-key", accessToken: "second-token", queryScope: "first-org" },
+])(
+  "rejects a second owner of an empty external cache: %s",
+  ({ apiKey, accessToken, queryScope }) => {
+    const cache = new QueryClient();
+    const wrapper =
+      (auth: { apiKey: string; accessToken?: string; queryScope: string }) =>
+      ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={cache}>
+          <UthanaProvider
+            apiKey={auth.apiKey}
+            options={{ accessToken: auth.accessToken }}
+            queryScope={auth.queryScope}
+            queryClient={cache}
+          >
+            {children}
+          </UthanaProvider>
+        </QueryClientProvider>
+      );
+    renderHook(() => useUthanaClient(), {
+      wrapper: wrapper({
+        apiKey,
+        accessToken: apiKey ? undefined : "first-token",
+        queryScope: "first-org",
+      }),
+    });
+    expect(cache.getQueryCache().getAll()).toHaveLength(0);
+    const working = getUthanaClient();
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() =>
+        renderHook(() => useUthanaClient(), {
+          wrapper: wrapper({ apiKey: "", accessToken, queryScope }),
+        }),
+      ).toThrow("new QueryClient");
+      expect(getUthanaClient()).toBe(working);
+    } finally {
+      quiet.mockRestore();
+    }
+  },
+);
 it.each([
   { hasExternalCache: false, isRemount: false },
   { hasExternalCache: true, isRemount: false },
