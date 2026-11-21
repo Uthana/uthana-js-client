@@ -3,8 +3,8 @@
  */
 
 import { Graffle } from "graffle";
-import { getOperationAST, parse } from "graphql";
 import { Throws } from "graffle/extensions/throws";
+import { getOperationAST, parse } from "graphql";
 import { UthanaError, isAmbiguousTransportError } from "./errors";
 import { CREATE_T2M } from "./graphql";
 import { models, normalizeModelName } from "./models";

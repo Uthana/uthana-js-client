@@ -5,7 +5,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
 import type { ReactNode } from "react";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useInsertionEffect, useMemo } from "react";
 import {
   createUthanaClient,
   getUthanaClient,
@@ -13,10 +13,25 @@ import {
   getUthanaClientScope,
 } from "./client";
 
-const externalCacheOwners = new WeakMap<
-  QueryClient,
-  { kind: "api-key" } | { kind: "delegated"; clientKey: string; scope: string | undefined }
->();
+type CacheOwner =
+  | { kind: "api-key" }
+  | { kind: "delegated"; clientKey: string; scope: string | undefined };
+
+const externalCacheOwners = new WeakMap<QueryClient, CacheOwner>();
+const CACHE_OWNER_ERROR =
+  "Use a new QueryClient when delegated credentials, request options or organization change; clearing a cache does not change its owner.";
+
+function hasDifferentOwner(owner: CacheOwner | undefined, next: CacheOwner): boolean {
+  if (owner === undefined || (owner.kind === "api-key" && next.kind === "api-key")) {
+    return false;
+  }
+  return (
+    owner.kind !== "delegated" ||
+    next.kind !== "delegated" ||
+    owner.clientKey !== next.clientKey ||
+    owner.scope !== next.scope
+  );
+}
 
 const QueryScopeContext = createContext<string | null>(null);
 
@@ -74,6 +89,9 @@ export function UthanaProvider({
   }
   const cacheOwner = providedQueryClient ? externalCacheOwners.get(providedQueryClient) : undefined;
   const isDelegated = options?.accessToken !== undefined;
+  const nextOwner: CacheOwner = isDelegated
+    ? { kind: "delegated", clientKey, scope: queryScope }
+    : { kind: "api-key" };
   if (isDelegated || cacheOwner?.kind === "delegated") {
     if (isDelegated && !queryScope?.trim()) {
       throw new Error(
@@ -81,29 +99,26 @@ export function UthanaProvider({
       );
     }
     if (providedQueryClient) {
-      const owner = cacheOwner;
-      const hasDifferentOwner =
-        owner !== undefined &&
-        (owner.kind !== "delegated" || owner.clientKey !== clientKey || owner.scope !== queryScope);
       const hasUnclaimedData =
-        owner === undefined &&
+        cacheOwner === undefined &&
         (providedQueryClient.getQueryCache().getAll().length > 0 ||
           providedQueryClient.getMutationCache().getAll().length > 0);
-      if (hasDifferentOwner || hasUnclaimedData) {
-        throw new Error(
-          "Use a new QueryClient when delegated credentials, request options or organization change; clearing a cache does not change its owner.",
-        );
+      if (hasDifferentOwner(cacheOwner, nextOwner) || hasUnclaimedData) {
+        throw new Error(CACHE_OWNER_ERROR);
       }
     }
   }
   const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
   const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
-  if (providedQueryClient) {
-    externalCacheOwners.set(
-      providedQueryClient,
-      isDelegated ? { kind: "delegated", clientKey, scope: queryScope } : { kind: "api-key" },
-    );
-  }
+  // Claim only committed renders, before descendant query subscriptions run.
+  useInsertionEffect(() => {
+    if (providedQueryClient) {
+      if (hasDifferentOwner(externalCacheOwners.get(providedQueryClient), nextOwner)) {
+        throw new Error(CACHE_OWNER_ERROR);
+      }
+      externalCacheOwners.set(providedQueryClient, nextOwner);
+    }
+  });
   const content = providedQueryClient ? (
     children
   ) : (
