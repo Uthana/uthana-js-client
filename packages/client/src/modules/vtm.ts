@@ -5,11 +5,12 @@
 import type { UthanaClient } from "../client";
 import { CREATE_VIDEO_TO_MOTION } from "../graphql";
 import { models, normalizeModelName } from "../models";
-import { DEFAULT_BYTE_UPLOAD_MAX } from "../types";
 import type { VideoToMotionResult, VtmModelType } from "../types";
 import { prepareVideoToMotion, validateUploadLimit } from "../utils";
 import { BaseModule } from "./base";
 import { transformJob } from "./jobs";
+
+const VIDEO_UPLOAD_MAX_BYTES = 200 * 1024 * 1024;
 
 /** Video to motion: extract motion capture from video files. */
 export class VtmModule extends BaseModule {
@@ -17,7 +18,11 @@ export class VtmModule extends BaseModule {
     super(client);
   }
 
-  /** Extract motion capture data from a video. Returns a job to poll via jobs.get(). */
+  /**
+   * Extract motion capture from a video up to 200 MiB. Poll via jobs.get().
+   * The API limits organizations without an active card to 50 MiB, except contracts.
+   * maxBytes can lower the client limit; null cannot remove the 200 MiB cap.
+   */
   async create(
     file: File | Blob | string,
     options?: {
@@ -34,7 +39,13 @@ export class VtmModule extends BaseModule {
     if (typeof file === "string") {
       const prepared = prepareVideoToMotion(file, options?.motion_name ?? null);
       const mod = await import("node:fs/promises");
+      if ((await mod.stat(file)).size > VIDEO_UPLOAD_MAX_BYTES) {
+        throw new Error("Video upload exceeds 200 MiB. Upload a smaller video.");
+      }
       const buf = await mod.readFile(file);
+      if (buf.byteLength > VIDEO_UPLOAD_MAX_BYTES) {
+        throw new Error("Video upload exceeds 200 MiB. Upload a smaller video.");
+      }
       if (options?.maxBytes != null && buf.byteLength > options.maxBytes) {
         throw new Error("Video upload exceeds maxBytes");
       }
@@ -45,6 +56,9 @@ export class VtmModule extends BaseModule {
       const filename = file instanceof File ? file.name : "video.mp4";
       const prepared = prepareVideoToMotion(filename, options?.motion_name ?? null);
       blob = file instanceof Blob ? file : new Blob([], { type: "application/octet-stream" });
+      if (blob.size > VIDEO_UPLOAD_MAX_BYTES) {
+        throw new Error("Video upload exceeds 200 MiB. Upload a smaller video.");
+      }
       if (options?.maxBytes != null && blob.size > options.maxBytes) {
         throw new Error("Video upload exceeds maxBytes");
       }
@@ -73,7 +87,7 @@ export class VtmModule extends BaseModule {
       maxBytes?: number | null;
     },
   ): Promise<VideoToMotionResult> {
-    const maxBytes = options?.maxBytes === undefined ? DEFAULT_BYTE_UPLOAD_MAX : options.maxBytes;
+    const maxBytes = options?.maxBytes === undefined ? VIDEO_UPLOAD_MAX_BYTES : options.maxBytes;
     validateUploadLimit(maxBytes);
     const bytes =
       content instanceof ArrayBuffer
@@ -83,6 +97,9 @@ export class VtmModule extends BaseModule {
           : new Uint8Array(content);
     if (!bytes.byteLength) {
       throw new Error("Video upload content must be nonempty bytes");
+    }
+    if (bytes.byteLength > VIDEO_UPLOAD_MAX_BYTES) {
+      throw new Error("Video upload exceeds 200 MiB. Upload a smaller video.");
     }
     if (maxBytes != null && bytes.byteLength > maxBytes) {
       throw new Error("Video upload exceeds maxBytes");

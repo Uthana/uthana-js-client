@@ -10,8 +10,17 @@ export interface User {
   email_verified?: boolean | null;
 }
 
+/** Server-owned upload policy. A null maximum is unknown or unbounded. */
+export interface UploadLimit {
+  category: string;
+  max_bytes: number | null;
+  extensions: string[];
+  max_bytes_without_preprocessing: number | null;
+}
+
 /** Org object from org.get_org. */
 export interface Org {
+  upload_limits?: UploadLimit[] | null;
   id?: string;
   name?: string | null;
   motion_download_secs_per_month?: number | null;
@@ -109,7 +118,7 @@ export interface CreateLocomotionOptions {
   move_speed?: number | null;
   /** From listLocomotionStyles; API default neutral_male_a. */
   style_id?: string | null;
-  /** Direction in degrees on ground plane, -180 to 180; API default 0. */
+  /** Character-relative degrees, -180 to 180: 0 forward (default), 90 left, -90 right, 180 backward. */
   travel_angle?: number | null;
 }
 
