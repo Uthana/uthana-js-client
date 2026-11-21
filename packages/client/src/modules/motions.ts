@@ -289,15 +289,8 @@ export class MotionsModule extends BaseModule {
   }
 
   /** Save "like" or "dislike", or pass null to clear your vote. */
-  async rate(
-    motion_id: string,
-    score: MotionRatingValue | 0 | 1,
-    options?: { label_id?: string | null },
-  ): Promise<void> {
+  async rate(motion_id: string, score: MotionRatingValue | 0 | 1): Promise<void> {
     if (score === null) {
-      if (options?.label_id != null) {
-        throw new Error("Clearing a rating applies to the whole motion; omit label_id");
-      }
       const result = await this._client._graphql<unknown>(
         CLEAR_MOTION_RATING,
         { motion_id },
@@ -323,7 +316,6 @@ export class MotionsModule extends BaseModule {
     }
     await this._client._graphql(RATE_MOTION, {
       motion_id,
-      label_id: options?.label_id ?? null,
       score: numericScore,
     });
   }

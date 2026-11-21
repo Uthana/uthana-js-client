@@ -122,14 +122,8 @@ export function useUthanaRateMotion() {
   const client = useUthanaClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: {
-      motion_id: string;
-      score: MotionRatingValue | 0 | 1;
-      label_id?: string | null;
-    }) =>
-      client.motions.rate(params.motion_id, params.score, {
-        label_id: params.label_id,
-      }),
+    mutationFn: (params: { motion_id: string; score: MotionRatingValue | 0 | 1 }) =>
+      client.motions.rate(params.motion_id, params.score),
     retry: false,
     onSuccess: (_data, params) => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });

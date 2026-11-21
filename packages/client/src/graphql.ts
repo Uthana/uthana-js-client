@@ -147,14 +147,10 @@ query GetMotionById($motionId: String!) {
     created
     updated
     favorite {
-      user_id
-      label_id
       created
       updated
     }
     rating {
-      user_id
-      label_id
       score
       created
       updated
@@ -230,11 +226,10 @@ query Prices {
 `;
 
 export const RATE_MOTION = `
-mutation RateMotion($motion_id: String!, $label_id: String, $score: Int!) {
-  rate_motion(motion_id: $motion_id, label_id: $label_id, score: $score) {
+mutation RateMotion($motion_id: String!, $score: Int!) {
+  rate_motion(motion_id: $motion_id, score: $score) {
     motion_rating {
       motion_id
-      label_id
       score
     }
   }

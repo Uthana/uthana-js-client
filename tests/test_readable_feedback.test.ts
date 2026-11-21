@@ -37,9 +37,10 @@ it.each(contract.ratings)(
   "normalizes readable and numeric votes: $input",
   async ({ input, score }) => {
     send.mockResolvedValue({ data: { rate_motion: {} } });
-    await new UthanaClient("test").motions.rate("m1", input, { label_id: "annotation" });
-    expect(send).toHaveBeenCalledWith({ motion_id: "m1", score, label_id: "annotation" });
+    await new UthanaClient("test").motions.rate("m1", input);
+    expect(send).toHaveBeenCalledWith({ motion_id: "m1", score });
     expect(send).toHaveBeenCalledTimes(1);
+    expect(queries[0]).not.toMatch(/user_id|label_id/);
     expect(validate(schema, parse(queries[0]))).toEqual([]);
   },
 );
@@ -90,12 +91,8 @@ it.each(contract.invalid_clear_results)(
     expect(send).toHaveBeenCalledTimes(1);
   },
 );
-it("rejects annotation clears and preserves definitive errors without fallback", async () => {
+it("preserves definitive clear errors without fallback", async () => {
   const client = new UthanaClient("test");
-  await expect(client.motions.rate("m1", null, { label_id: "annotation" })).rejects.toThrow(
-    "whole motion",
-  );
-  expect(send).not.toHaveBeenCalled();
   const failure = new UthanaError(400, "Unknown clear_motion_rating field", "graphql");
   send.mockRejectedValue(failure);
   await expect(client.motions.rate("m1", null)).rejects.toBe(failure);
@@ -127,4 +124,11 @@ it.each([true, false])("requires confirmation when setting favorite=%s", async (
     kind: "uncertain",
   });
   expect(send).toHaveBeenCalledTimes(1);
+});
+
+it("reads current-user feedback without requesting internal identifiers", async () => {
+  const motion = { id: "m1", favorite: { created: "2026-11-20" }, rating: { score: 1 } };
+  send.mockResolvedValue({ data: { motion } });
+  await expect(new UthanaClient("test").motions.get("m1")).resolves.toEqual(motion);
+  expect(queries[0]).not.toMatch(/user_id|label_id/);
 });
