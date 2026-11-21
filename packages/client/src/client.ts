@@ -123,11 +123,20 @@ export class UthanaClient {
       throw new Error("GraphQL timeoutSeconds must be positive and at most 2147483.647 seconds");
     }
     const timeoutMs = Math.ceil(timeoutSeconds * 1000);
-    const doc = this._graffle
-      .transport({ raw: { signal: AbortSignal.timeout(timeoutMs) } })
-      .gql(query);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let signal: AbortSignal;
+    if (typeof AbortSignal.timeout === "function") {
+      signal = AbortSignal.timeout(timeoutMs);
+    } else {
+      const controller = new AbortController();
+      signal = controller.signal;
+      deadlineTimer = setTimeout(() => {
+        controller.abort(new DOMException("GraphQL request timed out", "TimeoutError"));
+      }, timeoutMs);
+    }
     let result: Record<string, unknown>;
     try {
+      const doc = this._graffle.transport({ raw: { signal } }).gql(query);
       result = (await doc.$send(variables)) as Record<string, unknown>;
     } catch (error) {
       if (mutating && isAmbiguousTransportError(error)) {
@@ -138,6 +147,8 @@ export class UthanaClient {
         );
       }
       throw error;
+    } finally {
+      clearTimeout(deadlineTimer);
     }
     const encoded = JSON.stringify(result);
     const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;
