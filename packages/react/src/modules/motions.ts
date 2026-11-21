@@ -209,19 +209,6 @@ export function useUthanaMotionsPaged(
   });
 }
 
-/** Restore a motion and refresh list, page and detail queries. */
-export function useUthanaRestoreMotion(): UseMutationResult<Motion, Error, string> {
-  const client = useUthanaClient();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (motionId: string) => client.motions.restore(motionId),
-    onSuccess: (_motion, motionId) => {
-      queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["uthana", "motion", motionId] });
-    },
-  });
-}
-
 /** Explicitly publish a public viewer link; never retry automatically. */
 export function useUthanaShareMotion(): UseMutationResult<
   ShareLink,

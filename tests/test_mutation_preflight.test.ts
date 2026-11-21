@@ -27,3 +27,26 @@ it("keeps a malformed response uncertain after a mutation was sent", async () =>
   });
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+it.each(["# generated\n", "# generated\r\n", "# generated\r", "\uFEFF, \n# first\n# second\n"])(
+  "recognizes mutations after GraphQL ignored tokens %j",
+  async (prefix) => {
+    const request = vi.fn().mockResolvedValue(new Response("not-json"));
+    vi.stubGlobal("fetch", request);
+    await expect(
+      new UthanaClient("test")._graphql(
+        `${prefix}mutation Rename { update_motion(motion_id: "m1", name: "Walk") { __typename } }`,
+      ),
+    ).rejects.toMatchObject({ kind: "uncertain" });
+    expect(request).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("does not mistake mutation text inside a comment for a mutation operation", async () => {
+  const request = vi.fn().mockResolvedValue(new Response("not-json"));
+  vi.stubGlobal("fetch", request);
+  await expect(
+    new UthanaClient("test")._graphql("# mutation Rename\nquery Read { __typename }"),
+  ).rejects.not.toMatchObject({ kind: "uncertain" });
+  expect(request).toHaveBeenCalledTimes(1);
+});
