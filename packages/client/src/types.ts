@@ -224,6 +224,7 @@ export interface LedgerEntry {
   status?: string | null;
 }
 
+/** Ledger filters restricted to the last seven days, relative to the client clock. */
 export interface LedgerOptions {
   limit?: number;
   beforeId?: string | null;
