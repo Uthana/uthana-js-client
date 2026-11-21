@@ -297,6 +297,8 @@ function LocomotionPanel({ characterId }: { characterId: string }) {
 
 ## Video to motion (vtm)
 
+Video uploads have a hard 200 MiB maximum, including byte snapshots and calls with `maxBytes: null`. A smaller `maxBytes` still applies. The API limits organizations without an active payment method or agreement to 50 MiB.
+
 Extract motion capture from video files. Returns a job to poll until complete.
 
 ```ts
