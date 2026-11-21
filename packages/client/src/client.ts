@@ -4,6 +4,7 @@
 
 import { Graffle } from "graffle";
 import { Throws } from "graffle/extensions/throws";
+import { getOperationAST, parse } from "graphql";
 import { UthanaError, isAmbiguousTransportError } from "./errors";
 import { CREATE_T2M } from "./graphql";
 import { models, normalizeModelName } from "./models";
@@ -106,7 +107,7 @@ export class UthanaClient {
       timeoutSeconds?: number;
     },
   ): Promise<T> {
-    const mutating = /^(?:[\s,\uFEFF]|#[^\r\n]*(?:\r\n?|\n|$))*mutation\b/i.test(query);
+    const mutating = getOperationAST(parse(query))?.operation !== "query";
     const doc = this._graffle.gql(query);
     let result: Record<string, unknown>;
     try {
