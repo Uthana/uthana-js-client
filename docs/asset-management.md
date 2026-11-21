@@ -1,21 +1,56 @@
-# Inspect and restore assets
+# Inspect and modify assets
 
-`characters.get(id)` returns character details, including its organization and creation/update dates. Missing or inaccessible characters raise a 404 error; missing dates remain null. Names can be duplicated, so select an asset by ID.
+Use `characters.get(id)` or `motions.get(id)` to inspect an asset. Character details include its organization and creation/update dates; missing dates remain null. Missing or inaccessible assets raise a 404 error. Names can be duplicated, so select an asset by ID.
 
 ```typescript
 const character = await client.characters.get(characterId);
-const renamed = await client.motions.modify({ motion_id: motionId, name: "Walk slowly" });
-const removed = await client.characters.modify({ character_id: characterId, deleted: true });
-const restored = await client.characters.modify({ character_id: characterId, deleted: false });
+const motion = await client.motions.get(motionId);
+```
+
+Use `characters.modify(params)` or `motions.modify(params)` to rename, delete or restore an asset. Each call returns the updated record. Provide at least one change; omitted fields stay unchanged.
+
+```typescript
+await client.characters.modify({ character_id: characterId, name: "Hero" });
+await client.motions.modify({ motion_id: motionId, name: "Walk slowly" });
+
+await client.characters.modify({ character_id: characterId, deleted: true });
+await client.characters.modify({ character_id: characterId, deleted: false });
 await client.motions.modify({ motion_id: motionId, deleted: false });
 ```
 
-Rename, delete and restore return the updated character or motion record, including ownership and timestamps. Only the fields being changed are sent, so renaming does not accidentally restore an asset and restoring does not clear its name.
+You can rename and restore in one call:
 
-Deletion is soft and restore reverses it. Deleting a character keeps motions; deleting a motion keeps derivatives made from it. Keep deleted asset IDs because the normal lists no longer include them. No helper retries a failed mutation automatically.
+```typescript
+await client.characters.modify({
+  character_id: characterId,
+  name: "Restored hero",
+  deleted: false,
+});
+```
 
-React exposes `useUthanaCharacter(id)`, `useUthanaRestoreCharacter()` and `useUthanaRestoreMotion()`. The detail query is disabled for a null ID. Restore hooks refresh list/page and affected detail queries.
+Deletion is soft: `deleted: false` restores the asset. Deleting a character keeps its motions; deleting a motion keeps derivatives made from it. Keep deleted asset IDs because the normal lists no longer include them.
 
-Use `characters.modify(params)` or `motions.modify(params)` to change a name, delete or restore. You can change the name and deleted state in one call. Omitted fields stay unchanged; `deleted: false` restores the asset.
+## React
 
-React provides `useUthanaModifyCharacter()` and `useUthanaModifyMotion()`. Call `.mutate(params)` from an event handler with the same object used by the client method. The hooks refresh lists, pages and detail queries after success and do not retry automatically.
+Use `useUthanaCharacter(id)` or `useUthanaMotion(id)` to inspect an asset. Pass null to disable the query.
+
+Modification hooks accept the same objects as the client methods through `.mutate(params)`. Call them from event handlers:
+
+```tsx
+import { useUthanaModifyCharacter } from "@uthana/react";
+
+function RestoreCharacter({ characterId }: { characterId: string }) {
+  const modify = useUthanaModifyCharacter();
+
+  return (
+    <button
+      disabled={modify.isPending}
+      onClick={() => modify.mutate({ character_id: characterId, deleted: false })}
+    >
+      Restore character
+    </button>
+  );
+}
+```
+
+Use `useUthanaModifyMotion()` with `motion_id` to modify a motion. Both hooks refresh lists, pages and the affected detail queries after success. They do not retry automatically. If a change returns an uncertain outcome, inspect the asset before trying again.
