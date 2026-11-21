@@ -4,6 +4,7 @@ import { OrgModule } from "@uthana/client";
 import { UthanaProvider, useUthanaClient, useUthanaUser } from "@uthana/react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { getUthanaClient } from "../packages/react/src/client";
 
 afterEach(() => vi.restoreAllMocks());
 it("releases delegated ownership after a cleared switch to API-key authentication", () => {
@@ -138,9 +139,11 @@ it("rejects a populated external cache when delegated credentials change", async
   await waitFor(() => expect(first.result.current.user?.id).toBe("user-one"));
   first.unmount();
   const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+  const working = getUthanaClient();
   expect(() => renderHook(() => useUthanaUser(), { wrapper: makeWrapper("second") })).toThrow(
     "new or cleared QueryClient",
   );
+  expect(getUthanaClient()).toBe(working);
   quiet.mockRestore();
 });
 it("requires a public scope for delegated React access", () => {

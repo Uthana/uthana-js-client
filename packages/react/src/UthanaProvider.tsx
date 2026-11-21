@@ -69,9 +69,6 @@ export function UthanaProvider({
 }: UthanaProviderProps) {
   const optionsKey = getUthanaClientOptionsKey(options);
   const clientKey = JSON.stringify([apiKey, optionsKey]);
-  const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
-
-  const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
   if (queryScope !== undefined && !queryScope.trim()) {
     throw new Error("queryScope must be a nonempty public account/organization namespace.");
   }
@@ -97,11 +94,15 @@ export function UthanaProvider({
           "Use a new or cleared QueryClient when delegated credentials change; never reuse another account's cache.",
         );
       }
-      if (isDelegated) {
-        delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
-      } else {
-        delegatedCacheOwners.delete(providedQueryClient);
-      }
+    }
+  }
+  const client = useMemo(() => createUthanaClient(apiKey, options), [apiKey, optionsKey]);
+  const queryClient = useMemo(() => new QueryClient(), [client, queryScope]);
+  if (providedQueryClient) {
+    if (isDelegated) {
+      delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
+    } else if (delegatedOwner !== undefined) {
+      delegatedCacheOwners.delete(providedQueryClient);
     }
   }
   const content = providedQueryClient ? (

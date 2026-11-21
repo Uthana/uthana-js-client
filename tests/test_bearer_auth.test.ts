@@ -1,6 +1,6 @@
 import { UthanaClient } from "@uthana/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { createUthanaClient } from "../packages/react/src/client";
+import { createUthanaClient, getUthanaClient } from "../packages/react/src/client";
 
 const { headers, mockGql } = vi.hoisted(() => ({
   headers: [] as unknown[],
@@ -25,6 +25,14 @@ vi.mock("graffle", () => ({
 }));
 vi.mock("graffle/extensions/throws", () => ({ Throws: {} }));
 afterEach(() => vi.unstubAllGlobals());
+it.each([" ", "valid-token"])(
+  "preserves the working singleton after invalid replacement: %s",
+  (accessToken) => {
+    const working = createUthanaClient("working-key");
+    expect(() => createUthanaClient("replacement-key", { accessToken })).toThrow();
+    expect(getUthanaClient()).toBe(working);
+  },
+);
 it("uses bearer headers for GraphQL, uploads and downloads", async () => {
   const client = new UthanaClient("", { accessToken: " delegated-token " });
   expect(headers.at(-1)).toEqual({ Authorization: "Bearer delegated-token" });
