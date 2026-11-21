@@ -20,7 +20,7 @@ export class VtmModule extends BaseModule {
 
   /**
    * Extract motion capture from a video up to 200 MiB. Poll via jobs.get().
-   * The API limits organizations without an active card to 50 MiB, except contracts.
+   * The API limits organizations without an active payment method or agreement to 50 MiB.
    * maxBytes can lower the client limit; null cannot remove the 200 MiB cap.
    */
   async create(
