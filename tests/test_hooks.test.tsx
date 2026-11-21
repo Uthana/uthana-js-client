@@ -9,8 +9,6 @@ import {
   useUthanaCharacter,
   useUthanaModifyCharacter,
   useUthanaModifyMotion,
-  useUthanaRestoreCharacter,
-  useUthanaRestoreMotion,
   useUthanaCharacters,
   useUthanaCharactersPaged,
   useUthanaMotionsPaged,
@@ -503,7 +501,7 @@ describe("paged asset hooks", () => {
   });
 });
 
-describe("character detail and restore hooks", () => {
+describe("character detail and modification hooks", () => {
   it("reads character detail and disables null selections", async () => {
     const { result, rerender } = renderHook(
       ({ id }: { id: string | null }) => useUthanaCharacter(id),
@@ -515,19 +513,67 @@ describe("character detail and restore hooks", () => {
     expect(result.current.data?.org_id).toBe("org");
   });
   it("restores the selected character", async () => {
-    const { result } = renderHook(() => useUthanaRestoreCharacter(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useUthanaModifyCharacter(), { wrapper: createWrapper() });
     await act(async () => {
-      await result.current.mutateAsync("c1");
+      await result.current.mutateAsync({ character_id: "c1", deleted: false });
     });
-    expect(mockClient.characters.restore).toHaveBeenCalledWith("c1");
+    expect(mockClient.characters.modify).toHaveBeenCalledWith({
+      character_id: "c1",
+      deleted: false,
+    });
   });
   it("restores the selected motion", async () => {
-    const { result } = renderHook(() => useUthanaRestoreMotion(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useUthanaModifyMotion(), { wrapper: createWrapper() });
     await act(async () => {
-      await result.current.mutateAsync("m1");
+      await result.current.mutateAsync({ motion_id: "m1", deleted: false });
     });
-    expect(mockClient.motions.restore).toHaveBeenCalledWith("m1");
+    expect(mockClient.motions.modify).toHaveBeenCalledWith({ motion_id: "m1", deleted: false });
   });
+});
+
+describe("restore retry policy", () => {
+  for (const { kind, useRestore } of [
+    {
+      kind: "characters",
+      useRestore: () => {
+        const modify = useUthanaModifyCharacter();
+        return () => modify.mutateAsync({ character_id: "c1", deleted: false });
+      },
+    },
+    {
+      kind: "motions",
+      useRestore: () => {
+        const modify = useUthanaModifyMotion();
+        return () => modify.mutateAsync({ motion_id: "m1", deleted: false });
+      },
+    },
+  ] as const) {
+    it(`does not retry uncertain ${kind} restores despite cache defaults`, async () => {
+      const error = new Error("Restore outcome is uncertain");
+      mockClient[kind].modify.mockReset().mockRejectedValue(error);
+      const cache = new QueryClient({
+        defaultOptions: { mutations: { retry: 2, retryDelay: 0 } },
+      });
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={cache}>
+          <UthanaProvider apiKey="test-key" queryClient={cache}>
+            {children}
+          </UthanaProvider>
+        </QueryClientProvider>
+      );
+      const { result } = renderHook(() => useRestore(), { wrapper });
+      await act(async () => {
+        await expect(result.current()).rejects.toBe(error);
+      });
+      expect(mockClient[kind].modify).toHaveBeenCalledTimes(1);
+      cache.clear();
+      mockClient[kind].modify.mockResolvedValue({
+        id: kind === "characters" ? "c1" : "m1",
+        name: "Hero",
+        deleted: null,
+      });
+    });
+  }
 });
 
 describe("paged hook error recovery", () => {
@@ -649,6 +695,7 @@ it("hydrates scoped pages across distinct server and browser client instances", 
 it.each(["characters", "motions"] as const)(
   "modifies %s explicitly and refreshes cached records",
   async (kind) => {
+    mockClient[kind].modify.mockClear();
     const cache = new QueryClient();
     const id = kind === "characters" ? "c1" : "m1";
     const detail =
@@ -679,5 +726,22 @@ it.each(["characters", "motions"] as const)(
     expect(mockClient[kind].modify).toHaveBeenCalledWith(params);
     expect(cache.getQueryState(detail)?.isInvalidated).toBe(true);
     expect(cache.getQueryState(page)?.isInvalidated).toBe(true);
+  },
+);
+
+it.each(["since", "until"] as const)(
+  "rejects an invalid %s date before reusing a cached unfiltered ledger",
+  async (field) => {
+    mockClient.org.getLedger.mockClear();
+    const { result, rerender } = renderHook(
+      ({ date }: { date: Date | null }) => useUthanaLedger({ [field]: date }),
+      { wrapper: createWrapper(), initialProps: { date: null } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
+    expect(() => rerender({ date: new Date(NaN) })).toThrow(
+      `${field} must be a valid Date or ISO 8601 timestamp`,
+    );
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
   },
 );

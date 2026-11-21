@@ -1,5 +1,5 @@
 import { UthanaClient } from "@uthana/client";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const { mockGql, queries } = vi.hoisted(() => ({ mockGql: vi.fn(), queries: [] as string[] }));
 vi.mock("graffle", () => ({
   Graffle: {
@@ -18,9 +18,13 @@ vi.mock("graffle", () => ({
 }));
 vi.mock("graffle/extensions/throws", () => ({ Throws: {} }));
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-20T00:00:00Z"));
   mockGql.mockReset();
   queries.length = 0;
 });
+
+afterEach(() => vi.useRealTimers());
 
 it("keeps decimal USD, zero and nullable references while paging", async () => {
   const client = new UthanaClient("test");
@@ -37,14 +41,14 @@ it("keeps decimal USD, zero and nullable references while paging", async () => {
     },
   ];
   mockGql.mockResolvedValue({ data: { payg_ledger: rows } });
-  const since = new Date("2026-11-01T00:00:00Z");
-  const options = { limit: 1, since, until: "2026-12-01T00:00:00Z", types: ["debit"] };
+  const since = new Date("2026-11-18T00:00:00Z");
+  const options = { limit: 1, since, until: "2026-11-19T00:00:00Z", types: ["debit"] };
   expect(await client.org.getLedger(options)).toEqual(rows);
   await client.org.getLedger({ ...options, beforeId: rows[0].id });
   expect(mockGql.mock.calls[0][0]).toEqual({
     limit: 1,
-    since: "2026-11-01T00:00:00.000Z",
-    until: "2026-12-01T00:00:00Z",
+    since: "2026-11-18T00:00:00.000Z",
+    until: "2026-11-19T00:00:00Z",
     types: ["debit"],
   });
   expect(mockGql.mock.calls[1][0].before_id).toBe("entry1");
@@ -52,20 +56,29 @@ it("keeps decimal USD, zero and nullable references while paging", async () => {
   expect(options.since).toBe(since);
   expect(options.types).toEqual(["debit"]);
 });
-it("omits unspecified filter arguments for older limit-only APIs", async () => {
+it("bounds default and null filters to the last seven days", async () => {
   mockGql.mockResolvedValue({ data: { payg_ledger: [] } });
   expect(
     await new UthanaClient("test").org.getLedger({ since: null, types: null, beforeId: null }),
   ).toEqual([]);
-  expect(mockGql).toHaveBeenCalledWith({ limit: 50 });
-  expect(queries[0]).not.toContain("$since");
+  expect(mockGql).toHaveBeenCalledWith({
+    limit: 50,
+    since: "2026-11-13T00:00:00.000Z",
+    until: "2026-11-20T00:00:00.000Z",
+  });
+  expect(queries[0]).toContain("$since: DateTime");
   expect(queries[0]).not.toContain("$before_id");
   expect(queries[0]).not.toContain("$types");
 });
 it("preserves an explicit empty type selection", async () => {
   mockGql.mockResolvedValue({ data: { payg_ledger: [] } });
   await new UthanaClient("test").org.getLedger({ types: [] });
-  expect(mockGql).toHaveBeenCalledWith({ limit: 50, types: [] });
+  expect(mockGql).toHaveBeenCalledWith({
+    limit: 50,
+    types: [],
+    since: "2026-11-13T00:00:00.000Z",
+    until: "2026-11-20T00:00:00.000Z",
+  });
 });
 it.each([0, 501, 1.5, NaN, Infinity])(
   "rejects invalid limit %s before transport",
@@ -126,4 +139,28 @@ it("returns an owned validated record without mutating the input", async () => {
   expect(entries[0]).toEqual({ id: "entry", total_usd: "1E-8", balance_after: null, quantity: 0 });
   expect(entries[0]).not.toBe(row);
   expect(row.private_extra).toBe("ignored");
+});
+
+it.each([
+  { since: "2026-11-12T23:59:59.999Z" },
+  { until: "2026-11-12T23:59:59.999Z" },
+  { until: "2026-11-20T00:00:00.001Z" },
+  { since: "2026-11-20T00:00:00.001Z" },
+  { since: "2026-11-19T00:00:00Z", until: "2026-11-19T00:00:00Z" },
+  { since: "2026-11-19T00:00:00Z", until: "2026-11-18T00:00:00Z" },
+])("rejects dates outside the recent window or reversed bounds: %j", async (options) => {
+  await expect(new UthanaClient("test").org.getLedger(options)).rejects.toThrow();
+  expect(mockGql).not.toHaveBeenCalled();
+});
+it("retains the seven-day bound when paging with an old entry ID", async () => {
+  mockGql.mockResolvedValue({ data: { payg_ledger: [] } });
+  await new UthanaClient("test").org.getLedger({
+    beforeId: "old-entry",
+    since: "2026-11-13T00:00:00Z",
+  });
+  expect(mockGql.mock.calls[0][0]).toMatchObject({
+    before_id: "old-entry",
+    since: "2026-11-13T00:00:00Z",
+    until: "2026-11-20T00:00:00.000Z",
+  });
 });
