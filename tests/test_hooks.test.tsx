@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider, dehydrate, hydrate } from "@tanstack/
 import {
   UthanaProvider,
   useUthanaCharacter,
+  useUthanaModifyCharacter,
+  useUthanaModifyMotion,
   useUthanaRestoreCharacter,
   useUthanaRestoreMotion,
   useUthanaCharacters,
@@ -69,6 +71,7 @@ const { mockClient } = vi.hoisted(() => {
     mockClient: {
       apiKey: "test-key",
       motions: {
+        modify: vi.fn().mockResolvedValue({ id: "m1", name: "Hero", deleted: null }),
         restore: vi.fn().mockResolvedValue({ id: "m1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "m1" }], next_cursor: null }),
         list: mockMotionsList,
@@ -79,6 +82,7 @@ const { mockClient } = vi.hoisted(() => {
         rename: mockMotionRename,
       },
       characters: {
+        modify: vi.fn().mockResolvedValue({ id: "c1", name: "Hero", deleted: null }),
         get: vi.fn().mockResolvedValue({ id: "c1", org_id: "org", created: null }),
         restore: vi.fn().mockResolvedValue({ id: "c1", deleted: null }),
         listPaged: vi.fn().mockResolvedValue({ items: [{ id: "c1" }], next_cursor: "next" }),
@@ -660,3 +664,39 @@ it("clears a vote through the React hook and refreshes both detail and list cach
   expect(cache.getQueryState(["uthana", "motions"])?.isInvalidated).toBe(true);
   expect(cache.getQueryState(["uthana", "motion", "m1"])?.isInvalidated).toBe(true);
 });
+
+it.each(["characters", "motions"] as const)(
+  "modifies %s explicitly and refreshes cached records",
+  async (kind) => {
+    const cache = new QueryClient();
+    const id = kind === "characters" ? "c1" : "m1";
+    const detail =
+      kind === "characters"
+        ? ["uthana", "characters", "detail", "scope", id]
+        : ["uthana", "motion", id];
+    const page = ["uthana", kind, "paged", "scope", {}];
+    cache.setQueryData(detail, { id });
+    cache.setQueryData(page, { items: [{ id }] });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={cache}>
+        <UthanaProvider apiKey="test-key" queryClient={cache}>
+          {children}
+        </UthanaProvider>
+      </QueryClientProvider>
+    );
+    const hook = kind === "characters" ? useUthanaModifyCharacter : useUthanaModifyMotion;
+    const { result } = renderHook(() => hook(), { wrapper });
+    const params =
+      kind === "characters"
+        ? { character_id: id, name: "Hero", deleted: false }
+        : { motion_id: id, name: "Hero", deleted: false };
+    expect(mockClient[kind].modify).not.toHaveBeenCalled();
+    // @ts-expect-error The parameter shape follows the selected resource in this parameterized test.
+    act(() => result.current.mutate(params));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient[kind].modify).toHaveBeenCalledTimes(1);
+    expect(mockClient[kind].modify).toHaveBeenCalledWith(params);
+    expect(cache.getQueryState(detail)?.isInvalidated).toBe(true);
+    expect(cache.getQueryState(page)?.isInvalidated).toBe(true);
+  },
+);

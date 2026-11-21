@@ -42,6 +42,7 @@ import type {
   RobotFormat,
   ShareLink,
   TextToMotionResult,
+  ModifyMotionParams,
 } from "../types";
 import { UthanaCharacters } from "../types";
 import { validateAssetPageLimit } from "../utils";
@@ -477,28 +478,54 @@ export class MotionsModule extends BaseModule {
 
   /** Soft-delete a motion by ID, returning its updated record. */
   async delete(motion_id: string): Promise<Motion> {
-    return this._update(motion_id, { deleted: true });
+    return this.modify({ motion_id, deleted: true });
   }
 
   /** Rename a motion by ID, returning its updated record. */
   async rename(motion_id: string, new_name: string): Promise<Motion> {
-    return this._update(motion_id, { name: new_name });
+    return this.modify({ motion_id, name: new_name });
   }
 
   /** Restore a deleted motion by ID. */
   async restore(motionId: string): Promise<Motion> {
-    return this._update(motionId, { deleted: false });
+    return this.modify({ motion_id: motionId, deleted: false });
   }
 
-  private async _update(
-    motionId: string,
-    changes: { name?: string; deleted?: boolean },
-  ): Promise<Motion> {
-    return this._client._graphql<Motion>(
+  /** Change a motion's name or deleted state. Returns the updated motion. */
+  async modify(params: ModifyMotionParams): Promise<Motion> {
+    if (params === null || typeof params !== "object") {
+      throw new Error("Motion changes must include motion_id and name or deleted");
+    }
+    const { motion_id, name, deleted } = params;
+    if (typeof motion_id !== "string" || !motion_id.trim()) {
+      throw new Error("motion_id must be a nonempty string");
+    }
+    if (name !== undefined && typeof name !== "string") {
+      throw new Error("Motion name must be a string");
+    }
+    if (deleted !== undefined && typeof deleted !== "boolean") {
+      throw new Error("Motion deleted must be true or false");
+    }
+    if (name === undefined && deleted === undefined) {
+      throw new Error("Provide name or deleted to modify a motion");
+    }
+    const result = await this._client._graphql<Motion>(
       UPDATE_MOTION,
-      { motion_id: motionId, ...changes },
+      {
+        motion_id,
+        ...(name === undefined ? {} : { name }),
+        ...(deleted === undefined ? {} : { deleted }),
+      },
       { path: "update_motion.motion" },
     );
+    if (!result || result.id !== motion_id) {
+      throw new UthanaError(
+        502,
+        "Changing the motion returned no confirmation. Check the motion before trying again.",
+        "uncertain",
+      );
+    }
+    return result;
   }
 
   /** Add to your favorites; repeated calls keep it favorited. Existing false removes it. */
