@@ -201,7 +201,7 @@ describe("React hooks", () => {
 
     result.current.mutate({ motion_id: "m1", score: 1 });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockClient.motions.rate).toHaveBeenCalledWith("m1", 1, expect.anything());
+    expect(mockClient.motions.rate).toHaveBeenCalledWith("m1", 1);
   });
 
   it("useUthanaCharacters fetches and returns characters", async () => {
@@ -690,6 +690,25 @@ it("hydrates scoped pages across distinct server and browser client instances", 
   });
   expect(browser.result.current.data?.items[0]?.id).toBe("hydrated");
   expect(mockClient.characters.listPaged).not.toHaveBeenCalled();
+});
+
+it("clears a vote through the React hook and refreshes both detail and list caches", async () => {
+  const cache = new QueryClient();
+  cache.setQueryData(["uthana", "motions"], []);
+  cache.setQueryData(["uthana", "motion", "m1"], { id: "m1", rating: { score: 1 } });
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey="test-key" queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  const { result } = renderHook(() => useUthanaRateMotion(), { wrapper });
+  act(() => result.current.mutate({ motion_id: "m1", score: null }));
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(mockClient.motions.rate).toHaveBeenCalledWith("m1", null);
+  expect(cache.getQueryState(["uthana", "motions"])?.isInvalidated).toBe(true);
+  expect(cache.getQueryState(["uthana", "motion", "m1"])?.isInvalidated).toBe(true);
 });
 
 it.each(["characters", "motions"] as const)(

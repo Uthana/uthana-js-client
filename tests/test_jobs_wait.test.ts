@@ -90,3 +90,84 @@ describe("jobs.wait", () => {
     );
   });
 });
+
+it.each([0, -1, NaN, Infinity, true, null, 2147483648])(
+  "rejects invalid polling timing %s before transport",
+  async (value) => {
+    const client = new UthanaClient("test");
+    mockGql.mockClear();
+    // @ts-expect-error Runtime validation.
+    await expect(client.jobs.wait("j1", { intervalMs: value })).rejects.toThrow("intervalMs");
+    // @ts-expect-error Runtime validation.
+    await expect(client.jobs.wait("j1", { timeoutMs: value })).rejects.toThrow("timeoutMs");
+    expect(mockGql).not.toHaveBeenCalled();
+  },
+);
+it("stops waiting for a slow request at the polling deadline", async () => {
+  mockGql.mockReset().mockImplementation(() => new Promise(() => {}));
+  await expect(new UthanaClient("test").jobs.wait("j1", { timeoutMs: 20 })).rejects.toMatchObject({
+    statusCode: 408,
+  });
+  expect(mockGql).toHaveBeenCalledTimes(1);
+});
+it.each([
+  [null, 404],
+  [{}, 404],
+  [{ id: "j1" }, 502],
+  [{ id: "j1", status: " " }, 502],
+  [{ status: 0 }, 502],
+])("rejects missing jobs or malformed status", async (job, statusCode) => {
+  mockGql.mockReset().mockResolvedValue({ data: { job } });
+  await expect(new UthanaClient("test").jobs.wait("j1")).rejects.toMatchObject({ statusCode });
+  expect(mockGql).toHaveBeenCalledTimes(1);
+});
+it("preserves a lookup failure without retrying", async () => {
+  const error = new Error("lookup failed");
+  mockGql.mockReset().mockRejectedValue(error);
+  await expect(new UthanaClient("test").jobs.wait("j1")).rejects.toBe(error);
+  expect(mockGql).toHaveBeenCalledTimes(1);
+});
+
+it("gives the polling deadline precedence over an equal request timeout", async () => {
+  const client = new UthanaClient("test", { timeout: 0.02 });
+  vi.spyOn(client.jobs, "get").mockImplementation(
+    () =>
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new DOMException("Request timed out", "TimeoutError")), 20);
+      }),
+  );
+  await expect(client.jobs.wait("j1")).rejects.toMatchObject({ statusCode: 408 });
+});
+it.each(["resolve", "reject"])(
+  "enforces the deadline when a read settles late: %s",
+  async (outcome) => {
+    const clock = { now: vi.fn(() => 0) };
+    vi.stubGlobal("performance", clock);
+    const client = new UthanaClient("test", { timeout: 0.02 });
+    vi.spyOn(client.jobs, "get").mockImplementation(async () => {
+      clock.now.mockReturnValue(21);
+      if (outcome === "reject") {
+        throw new DOMException("Request timed out", "TimeoutError");
+      }
+      return { id: "j1", status: "FINISHED" };
+    });
+    try {
+      await expect(client.jobs.wait("j1")).rejects.toMatchObject({ statusCode: 408 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  },
+);
+it.each(["Actionable failure", { code: "invalid_motion", detail: "No usable frames" }])(
+  "preserves job failure diagnostics: %s",
+  async (result) => {
+    mockGql
+      .mockReset()
+      .mockResolvedValue({ data: { job: { id: "j1", status: "FAILED", result } } });
+    await expect(new UthanaClient("test").jobs.wait("j1")).rejects.toMatchObject({
+      statusCode: 500,
+      apiMessage: typeof result === "string" ? result : JSON.stringify(result),
+    });
+    expect(mockGql).toHaveBeenCalledTimes(1);
+  },
+);

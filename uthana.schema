@@ -6,6 +6,7 @@
 # Graffle codegen: pnpm codegen
 
 scalar Upload
+scalar DateTime
 
 type User {
   id: ID
@@ -33,6 +34,8 @@ type Motion {
   name: String
   created: String
   deleted: String
+  favorite: MotionFavorite
+  rating: MotionRating
 }
 
 type Job {
@@ -45,8 +48,20 @@ type Job {
 }
 
 type MotionFavorite {
-  id: ID
-  motion_id: String
+  created: DateTime!
+  updated: DateTime!
+  user_id: String!
+  motion_id: String!
+  label_id: String
+}
+
+type MotionRating {
+  created: DateTime!
+  updated: DateTime!
+  user_id: String!
+  motion_id: String!
+  label_id: String
+  score: Int!
 }
 
 type Query {
@@ -81,13 +96,16 @@ type UpdateMotionPayload {
   deleted: String
 }
 
-type CreateMotionFavoritePayload {
-  id: ID
-  motion_id: String
+type FavoriteMotion {
+  motion_favorite: MotionFavorite!
 }
 
-type DeleteMotionFavoritePayload {
-  id: ID
+type RateMotion {
+  motion_rating: MotionRating!
+}
+
+type ClearMotionRating {
+  ok: Boolean!
 }
 
 type Mutation {
@@ -120,6 +138,7 @@ type Mutation {
     character_id: String
   ): CreateMotionFromGltfPayload
   update_motion(id: String!, name: String, deleted: Boolean): UpdateMotionPayload
-  create_motion_favorite(motion_id: String!): CreateMotionFavoritePayload
-  delete_motion_favorite(motion_id: String!): DeleteMotionFavoritePayload
+  favorite_motion(motion_id: String!, favorite: Boolean!, label_id: String): FavoriteMotion!
+  rate_motion(motion_id: String!, score: Int!, label_id: String): RateMotion!
+  clear_motion_rating(motion_id: String!): ClearMotionRating!
 }

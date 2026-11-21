@@ -36,8 +36,15 @@ export interface Motion {
   created?: string | null;
   updated?: string | null;
   deleted?: string | null;
-  favorite?: { user_id?: string; label_id?: string; created?: string; updated?: string } | null;
-  rating?: { user_id?: string; label_id?: string; score?: number; created?: string } | null;
+  favorite?: {
+    created?: string;
+    updated?: string;
+  } | null;
+  rating?: {
+    score?: number;
+    created?: string;
+    updated?: string;
+  } | null;
   tags?: Record<string, unknown> | string[] | null;
   assets?: Array<{
     id?: string;
@@ -245,6 +252,9 @@ export interface ShareLink {
   preview_url: string;
   png_url: string;
 }
+
+/** Personal vote: "like", "dislike", or null to clear it. */
+export type MotionRatingValue = "like" | "dislike" | null;
 
 /** Changes to a character. Omitted fields stay unchanged. */
 export interface ModifyCharacterParams {

@@ -10,9 +10,9 @@ import {
   STITCH,
   CREATE_LOCOMOTION,
   CREATE_LOOPED_MOTION,
-  CREATE_MOTION_FAVORITE,
+  FAVORITE_MOTION,
+  CLEAR_MOTION_RATING,
   CREATE_MOTION_FROM_GLTF,
-  DELETE_MOTION_FAVORITE,
   GET_MOTION_BY_ID,
   LIST_LOCOMOTION_STYLES,
   LIST_MOTIONS,
@@ -36,6 +36,7 @@ import type {
   Motion,
   MotionPage,
   MotionPageOptions,
+  MotionRatingValue,
   MotionCatalog,
   OutputFormat,
   RobotFormat,
@@ -287,16 +288,35 @@ export class MotionsModule extends BaseModule {
     );
   }
 
-  /** Rate a motion (thumbs up/down). score: 1 = thumbs up, 0 = thumbs down. */
-  async rate(
-    motion_id: string,
-    score: 0 | 1,
-    options?: { label_id?: string | null },
-  ): Promise<void> {
+  /** Save "like" or "dislike", or pass null to clear your vote. */
+  async rate(motion_id: string, score: MotionRatingValue | 0 | 1): Promise<void> {
+    if (score === null) {
+      const result = await this._client._graphql<unknown>(
+        CLEAR_MOTION_RATING,
+        { motion_id },
+        { path: "clear_motion_rating" },
+      );
+      if (
+        result === null ||
+        typeof result !== "object" ||
+        !("ok" in result) ||
+        result.ok !== true
+      ) {
+        throw new UthanaError(
+          502,
+          "Clearing the rating returned no confirmation. Inspect the motion's current rating before trying again.",
+          "uncertain",
+        );
+      }
+      return;
+    }
+    const numericScore = score === "like" ? 1 : score === "dislike" ? 0 : score;
+    if (numericScore !== 0 && numericScore !== 1) {
+      throw new Error("Motion rating score must be 'like', 'dislike', or null to clear your vote");
+    }
     await this._client._graphql(RATE_MOTION, {
       motion_id,
-      label_id: options?.label_id ?? null,
-      score,
+      score: numericScore,
     });
   }
 
@@ -500,13 +520,33 @@ export class MotionsModule extends BaseModule {
     return result;
   }
 
-  /** Set or unset a motion as favorite. */
-  async favorite(motion_id: string, favorite: boolean): Promise<void> {
-    if (favorite) {
-      await this._client._graphql(CREATE_MOTION_FAVORITE, { motion_id });
-    } else {
-      await this._client._graphql(DELETE_MOTION_FAVORITE, { motion_id });
+  /** Add to your favorites; repeated calls keep it favorited. Existing false removes it. */
+  async favorite(motion_id: string, favorite = true): Promise<void> {
+    if (typeof favorite !== "boolean") {
+      throw new Error("Favorite state must be true or false");
     }
+    const result = await this._client._graphql<unknown>(
+      FAVORITE_MOTION,
+      { motion_id, favorite },
+      { path: "favorite_motion" },
+    );
+    if (
+      result === null ||
+      typeof result !== "object" ||
+      !("__typename" in result) ||
+      result.__typename !== "FavoriteMotion"
+    ) {
+      throw new UthanaError(
+        502,
+        "Changing the favorite returned no confirmation. Check your favorites before trying again.",
+        "uncertain",
+      );
+    }
+  }
+
+  /** Remove from your favorites; repeating the call is harmless. */
+  async unfavorite(motion_id: string): Promise<void> {
+    await this.favorite(motion_id, false);
   }
 
   /**

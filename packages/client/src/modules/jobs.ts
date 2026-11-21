@@ -55,28 +55,91 @@ export class JobsModule extends BaseModule {
     return transformJob(raw);
   }
 
-  /** Poll until job finishes or fails. Throws UthanaError on FAILED or timeout. */
+  /** Poll existing work. Timing out stops local polling, not the upstream job. */
   async wait(job_id: string, options?: { intervalMs?: number; timeoutMs?: number }): Promise<Job> {
-    const intervalMs = options?.intervalMs ?? 5000;
-    const timeoutMs = options?.timeoutMs ?? this._client.timeout * 1000;
-    const deadline = Date.now() + timeoutMs;
-
+    const intervalMs = options?.intervalMs === undefined ? 5000 : options.intervalMs;
+    const timeoutMs =
+      options?.timeoutMs === undefined ? this._client.timeout * 1000 : options.timeoutMs;
+    const maxTimerMs = 2147483647;
+    for (const [name, value] of [
+      ["intervalMs", intervalMs],
+      ["timeoutMs", timeoutMs],
+    ] as const) {
+      if (
+        typeof value !== "number" ||
+        !Number.isFinite(value) ||
+        value <= 0 ||
+        value > maxTimerMs
+      ) {
+        throw new Error(
+          `${name} must be positive finite milliseconds, no greater than ${maxTimerMs}`,
+        );
+      }
+    }
+    const deadline = performance.now() + timeoutMs;
+    const timeoutError = new UthanaError(408, `Job ${job_id} did not finish within ${timeoutMs}ms`);
     for (;;) {
-      const job = await this.get(job_id);
-      const status = job?.status ?? "";
-
-      if (status === "FINISHED") return job;
-      if (status === "FAILED") {
-        const msg =
-          (job?.result as Record<string, unknown>)?.message ?? job?.result ?? "Job failed";
-        throw new UthanaError(500, typeof msg === "string" ? msg : JSON.stringify(msg));
+      const remainingMs = deadline - performance.now();
+      if (remainingMs <= 0) {
+        throw timeoutError;
       }
-
-      if (Date.now() >= deadline) {
-        throw new UthanaError(408, `Job ${job_id} did not finish within ${timeoutMs}ms`);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let job: Job;
+      try {
+        // shortcut: abandoned reads keep their HTTP timeout; add cancellation if they cause load.
+        job = await Promise.race([
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(timeoutError), Math.ceil(remainingMs));
+          }),
+          this.get(job_id),
+        ]);
+      } catch (error) {
+        if (performance.now() >= deadline) {
+          throw timeoutError;
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
       }
-
-      await new Promise((r) => setTimeout(r, intervalMs));
+      if (performance.now() >= deadline) {
+        throw timeoutError;
+      }
+      const isMissingJob = Object.entries(job).every(
+        ([field, value]) => ["created", "started", "ended"].includes(field) && value == null,
+      );
+      if (isMissingJob) {
+        throw new UthanaError(404, `Job ${job_id} was not found or is not accessible`);
+      }
+      if (typeof job.status !== "string" || !job.status.trim()) {
+        throw new UthanaError(
+          502,
+          `Job ${job_id} returned no valid status; expected a nonempty status string`,
+          "invalid_response",
+        );
+      }
+      if (job.status === "FINISHED") {
+        return job;
+      }
+      if (job.status === "FAILED") {
+        const result: unknown = job.result;
+        const message =
+          result !== null && typeof result === "object" && "message" in result
+            ? result.message
+            : null;
+        let failureMessage = `Job ${job_id} failed`;
+        if (typeof message === "string") {
+          failureMessage = message;
+        } else if (typeof result === "string") {
+          failureMessage = result;
+        } else if (result != null) {
+          failureMessage = JSON.stringify(result) ?? failureMessage;
+        }
+        throw new UthanaError(500, failureMessage);
+      }
+      const sleepMs = Math.min(intervalMs, deadline - performance.now());
+      if (sleepMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, sleepMs));
+      }
     }
   }
 }

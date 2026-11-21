@@ -147,16 +147,13 @@ query GetMotionById($motionId: String!) {
     created
     updated
     favorite {
-      user_id
-      label_id
       created
       updated
     }
     rating {
-      user_id
-      label_id
       score
       created
+      updated
     }
     tags
     assets {
@@ -229,11 +226,10 @@ query Prices {
 `;
 
 export const RATE_MOTION = `
-mutation RateMotion($motion_id: String!, $label_id: String, $score: Int!) {
-  rate_motion(motion_id: $motion_id, label_id: $label_id, score: $score) {
+mutation RateMotion($motion_id: String!, $score: Int!) {
+  rate_motion(motion_id: $motion_id, score: $score) {
     motion_rating {
       motion_id
-      label_id
       score
     }
   }
@@ -395,20 +391,15 @@ mutation UpdateMotion($motion_id: String!, $name: String, $deleted: Boolean) {
 }
 `;
 
-export const CREATE_MOTION_FAVORITE = `
-mutation create_motion_favorite($motion_id: String!) {
-  create_motion_favorite(motion_id: $motion_id) {
-    id
-    motion_id
-  }
+export const FAVORITE_MOTION = `
+mutation FavoriteMotion($motion_id: String!, $favorite: Boolean!) {
+  favorite_motion(motion_id: $motion_id, favorite: $favorite) { __typename }
 }
 `;
 
-export const DELETE_MOTION_FAVORITE = `
-mutation delete_motion_favorite($motion_id: String!) {
-  delete_motion_favorite(motion_id: $motion_id) {
-    id
-  }
+export const CLEAR_MOTION_RATING = `
+mutation ClearMotionRating($motion_id: String!) {
+  clear_motion_rating(motion_id: $motion_id) { ok }
 }
 `;
 

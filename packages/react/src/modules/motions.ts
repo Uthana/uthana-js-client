@@ -1,6 +1,6 @@
 import type { ShareLink, ModifyMotionParams } from "@uthana/client";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
+import type { MotionRatingValue, Motion, MotionPage, MotionPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -122,12 +122,12 @@ export function useUthanaRateMotion() {
   const client = useUthanaClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { motion_id: string; score: 0 | 1; label_id?: string | null }) =>
-      client.motions.rate(params.motion_id, params.score, {
-        label_id: params.label_id,
-      }),
-    onSuccess: () => {
+    mutationFn: (params: { motion_id: string; score: MotionRatingValue | 0 | 1 }) =>
+      client.motions.rate(params.motion_id, params.score),
+    retry: false,
+    onSuccess: (_data, params) => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["uthana", "motion", params.motion_id] });
     },
   });
 }
