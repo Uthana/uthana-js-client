@@ -394,7 +394,7 @@ export class MotionsModule extends BaseModule {
     return this._update(motion_id, { name: new_name });
   }
 
-  /** Restore a soft-deleted motion by ID using existing write permissions. */
+  /** Restore a deleted motion by ID. */
   async restore(motionId: string): Promise<Motion> {
     return this._update(motionId, { deleted: false });
   }
