@@ -728,3 +728,20 @@ it.each(["characters", "motions"] as const)(
     expect(cache.getQueryState(page)?.isInvalidated).toBe(true);
   },
 );
+
+it.each(["since", "until"] as const)(
+  "rejects an invalid %s date before reusing a cached unfiltered ledger",
+  async (field) => {
+    mockClient.org.getLedger.mockClear();
+    const { result, rerender } = renderHook(
+      ({ date }: { date: Date | null }) => useUthanaLedger({ [field]: date }),
+      { wrapper: createWrapper(), initialProps: { date: null } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
+    expect(() => rerender({ date: new Date(NaN) })).toThrow(
+      `${field} must be a valid Date or ISO 8601 timestamp`,
+    );
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
+  },
+);
