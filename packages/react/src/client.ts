@@ -3,21 +3,33 @@
  */
 
 import type { UthanaClient, UthanaClientOptions } from "@uthana/client";
-import { UthanaClient as UthanaClientClass } from "@uthana/client";
+import { DEFAULT_TIMEOUT, UthanaClient as UthanaClientClass } from "@uthana/client";
 
 let clientInstance: UthanaClient | null = null;
+let clientOptionsKey: string | undefined;
+
+// Private credential state; never use this value in public query keys.
+export function getUthanaClientOptionsKey(options?: UthanaClientOptions): string {
+  return JSON.stringify([
+    options?.accessToken !== undefined,
+    typeof options?.accessToken === "string" ? options.accessToken.trim() : options?.accessToken,
+    options?.domain ?? "uthana.com",
+    options?.timeout ?? DEFAULT_TIMEOUT,
+    options?.maxResponseBytes ?? null,
+    options?.maxMutationResponseBytes ?? null,
+  ]);
+}
 
 /**
  * Create or return the singleton Uthana client for React apps.
  * Call this once (e.g. in a root layout or provider) with your API key.
- * If called again with a different apiKey, the singleton is replaced.
+ * Credentials or request options changing replaces the singleton.
  */
 export function createUthanaClient(apiKey: string, options?: UthanaClientOptions): UthanaClient {
-  if (clientInstance && clientInstance.apiKey !== apiKey) {
-    clientInstance = null;
-  }
-  if (!clientInstance) {
+  const optionsKey = getUthanaClientOptionsKey(options);
+  if (!clientInstance || clientInstance.apiKey !== apiKey || clientOptionsKey !== optionsKey) {
     clientInstance = new UthanaClientClass(apiKey, options);
+    clientOptionsKey = optionsKey;
   }
   return clientInstance;
 }
