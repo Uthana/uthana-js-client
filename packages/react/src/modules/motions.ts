@@ -1,5 +1,6 @@
+import type { ShareLink, ModifyMotionParams } from "@uthana/client";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import type { Motion, MotionPage, MotionPageOptions, ModifyMotionParams } from "@uthana/client";
+import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -198,6 +199,25 @@ export function useUthanaMotionsPaged(
   return useQuery({
     queryKey: ["uthana", "motions", "paged", scope, options],
     queryFn: () => client.motions.listPaged(options),
+    retry: false,
+  });
+}
+
+/** Explicitly publish a public viewer link; never retry automatically. */
+export function useUthanaShareMotion(): UseMutationResult<
+  ShareLink,
+  Error,
+  { character_id: string; motion_id: string; start?: number; end?: number; timeoutSeconds?: number }
+> {
+  const client = useUthanaClient();
+  return useMutation({
+    mutationFn: (options: {
+      character_id: string;
+      motion_id: string;
+      start?: number;
+      end?: number;
+      timeoutSeconds?: number;
+    }) => client.motions.share(options.character_id, options.motion_id, options),
     retry: false,
   });
 }

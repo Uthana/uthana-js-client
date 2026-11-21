@@ -18,6 +18,8 @@ import { VtmModule } from "./modules/vtm";
 import type { CreateCharacterResult, ModelType, OutputFormat } from "./types";
 import { DEFAULT_TIMEOUT } from "./types";
 
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /** Options for UthanaClient construction. */
 export interface UthanaClientOptions {
   /** API host (e.g. "uthana.com"). Defaults to production when omitted. */
@@ -59,6 +61,9 @@ export class UthanaClient {
 
   private readonly _graffle: {
     gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    transport: (options: { raw: { signal: AbortSignal } }) => {
+      gql: (query: string) => { $send: (vars?: Record<string, unknown>) => Promise<unknown> };
+    };
   };
   private readonly _authHeader: string;
 
@@ -108,9 +113,30 @@ export class UthanaClient {
     },
   ): Promise<T> {
     const mutating = getOperationAST(parse(query))?.operation !== "query";
-    const doc = this._graffle.gql(query);
+    const timeoutSeconds = options?.timeoutSeconds ?? this.timeout;
+    if (
+      typeof timeoutSeconds !== "number" ||
+      !Number.isFinite(timeoutSeconds) ||
+      timeoutSeconds <= 0 ||
+      timeoutSeconds > MAX_TIMEOUT_MS / 1000
+    ) {
+      throw new Error("GraphQL timeoutSeconds must be positive and at most 2147483.647 seconds");
+    }
+    const timeoutMs = Math.ceil(timeoutSeconds * 1000);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let signal: AbortSignal;
+    if (typeof AbortSignal.timeout === "function") {
+      signal = AbortSignal.timeout(timeoutMs);
+    } else {
+      const controller = new AbortController();
+      signal = controller.signal;
+      deadlineTimer = setTimeout(() => {
+        controller.abort(new DOMException("GraphQL request timed out", "TimeoutError"));
+      }, timeoutMs);
+    }
     let result: Record<string, unknown>;
     try {
+      const doc = this._graffle.transport({ raw: { signal } }).gql(query);
       result = (await doc.$send(variables)) as Record<string, unknown>;
     } catch (error) {
       if (mutating && isAmbiguousTransportError(error)) {
@@ -121,6 +147,8 @@ export class UthanaClient {
         );
       }
       throw error;
+    } finally {
+      clearTimeout(deadlineTimer);
     }
     const encoded = JSON.stringify(result);
     const limit = mutating ? this._maxMutationResponseBytes : this._maxResponseBytes;

@@ -24,6 +24,7 @@ export {
   useUthanaMotionPreview,
   useUthanaModifyMotion,
   useUthanaMotions,
+  useUthanaShareMotion,
   useUthanaMotionsPaged,
   useUthanaRateMotion,
   useUthanaTrimMotion,

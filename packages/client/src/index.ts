@@ -19,6 +19,7 @@ export {
 export type {
   ModifyCharacterParams,
   ModifyMotionParams,
+  ShareLink,
   RobotFormat,
   LedgerEntry,
   LedgerOptions,
