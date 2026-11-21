@@ -313,6 +313,7 @@ export function useUthanaRestoreCharacter(): UseMutationResult<Character, Error,
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (characterId: string) => client.characters.restore(characterId),
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
     },

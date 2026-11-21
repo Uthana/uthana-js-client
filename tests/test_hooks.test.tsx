@@ -521,6 +521,34 @@ describe("character detail and restore hooks", () => {
   });
 });
 
+describe("restore retry policy", () => {
+  for (const { kind, id, useRestore } of [
+    { kind: "characters", id: "c1", useRestore: useUthanaRestoreCharacter },
+    { kind: "motions", id: "m1", useRestore: useUthanaRestoreMotion },
+  ] as const) {
+    it(`does not retry uncertain ${kind} restores despite cache defaults`, async () => {
+      const error = new Error("Restore outcome is uncertain");
+      mockClient[kind].restore.mockReset().mockRejectedValue(error);
+      const cache = new QueryClient({
+        defaultOptions: { mutations: { retry: 2, retryDelay: 0 } },
+      });
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={cache}>
+          <UthanaProvider apiKey="test-key" queryClient={cache}>
+            {children}
+          </UthanaProvider>
+        </QueryClientProvider>
+      );
+      const { result } = renderHook(() => useRestore(), { wrapper });
+      await act(async () => {
+        await expect(result.current.mutateAsync(id)).rejects.toBe(error);
+      });
+      expect(mockClient[kind].restore).toHaveBeenCalledTimes(1);
+      cache.clear();
+    });
+  }
+});
+
 describe("paged hook error recovery", () => {
   it("reports invalid character cursors without automatic retries", async () => {
     mockClient.characters.listPaged.mockReset().mockRejectedValue(new Error("Invalid page cursor"));
