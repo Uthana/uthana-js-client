@@ -29,6 +29,7 @@ export {
   useUthanaModifyMotion,
   useUthanaMotions,
   useUthanaMotionsPaged,
+  useUthanaLedger,
   useUthanaOrg,
   useUthanaPrices,
   useUthanaRateMotion,

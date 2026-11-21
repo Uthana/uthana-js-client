@@ -2,8 +2,11 @@
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
 
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { LedgerEntry, LedgerOptions } from "@uthana/client";
+
 import { useQuery } from "@tanstack/react-query";
-import { useUthanaClient } from "../UthanaProvider";
+import { useUthanaClient, useUthanaQueryScope } from "../UthanaProvider";
 
 const USER_QUERY_KEY = ["uthana", "user"] as const;
 const ORG_QUERY_KEY = ["uthana", "org"] as const;
@@ -46,4 +49,21 @@ export function useUthanaPrices() {
     queryFn: () => client.org.getPrices(),
   });
   return { prices, ...rest };
+}
+
+/** Read one ledger page; filters and page position are part of its cache key. */
+export function useUthanaLedger(options: LedgerOptions = {}): UseQueryResult<LedgerEntry[], Error> {
+  const client = useUthanaClient();
+  const scope = useUthanaQueryScope(client);
+  for (const name of ["since", "until"] as const) {
+    const value = options[name];
+    if (value instanceof Date && !Number.isFinite(value.getTime())) {
+      throw new Error(`${name} must be a valid Date or ISO 8601 timestamp`);
+    }
+  }
+  return useQuery({
+    queryKey: ["uthana", "ledger", scope, options],
+    queryFn: () => client.org.getLedger(options),
+    retry: false,
+  });
 }

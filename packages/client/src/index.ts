@@ -19,6 +19,8 @@ export {
 export type {
   ModifyCharacterParams,
   ModifyMotionParams,
+  LedgerEntry,
+  LedgerOptions,
   AssetOrder,
   AssetSource,
   AssetPageOptions,

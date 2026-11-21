@@ -21,6 +21,7 @@ import {
   useUthanaMotionDownloads,
   useUthanaMotionPreview,
   useUthanaMotions,
+  useUthanaLedger,
   useUthanaOrg,
   useUthanaRateMotion,
   useUthanaRenameCharacter,
@@ -91,7 +92,11 @@ const { mockClient } = vi.hoisted(() => {
         delete: mockCharacterDelete,
         generateFromImage: mockCharacterGenerateFromImage,
       },
-      org: { getUser: mockUser, getOrg: mockOrg },
+      org: {
+        getUser: mockUser,
+        getOrg: mockOrg,
+        getLedger: vi.fn().mockResolvedValue([{ id: "entry1", total_usd: "0.00" }]),
+      },
       jobs: { list: mockJobsList, get: mockJobGet },
       motionDownloads: {
         list: mockMotionDownloadsList,
@@ -109,6 +114,10 @@ vi.mock("../packages/react/src/client.ts", async (importOriginal) => ({
     apiKey === "other-account"
       ? {
           ...mockClient,
+          org: {
+            ...mockClient.org,
+            getLedger: vi.fn().mockResolvedValue([{ id: "other-ledger", total_usd: "1.00" }]),
+          },
           characters: {
             ...mockClient.characters,
             listPaged: vi
@@ -619,6 +628,38 @@ it("does not expose the previous account's pages through a shared query cache", 
   expect(keys).not.toContain("other-account");
 });
 
+it("keeps ledger filters and page IDs in separate cache entries", async () => {
+  mockClient.org.getLedger.mockClear();
+  const { result, rerender } = renderHook(
+    ({ beforeId }: { beforeId: string | null }) => useUthanaLedger({ beforeId, types: ["debit"] }),
+    { wrapper: createWrapper(), initialProps: { beforeId: null } },
+  );
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.[0].total_usd).toBe("0.00");
+  rerender({ beforeId: "entry1" });
+  await waitFor(() =>
+    expect(mockClient.org.getLedger).toHaveBeenCalledWith({ beforeId: "entry1", types: ["debit"] }),
+  );
+});
+
+it("does not expose another account's ledger through a shared QueryClient", async () => {
+  let apiKey = "test-key";
+  const cache = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={cache}>
+      <UthanaProvider apiKey={apiKey} queryClient={cache}>
+        {children}
+      </UthanaProvider>
+    </QueryClientProvider>
+  );
+  const { result, rerender } = renderHook(() => useUthanaLedger(), { wrapper });
+  await waitFor(() => expect(result.current.data?.[0]?.id).toBe("entry1"));
+  apiKey = "other-account";
+  rerender();
+  expect(result.current.data?.[0]?.id).not.toBe("entry1");
+  await waitFor(() => expect(result.current.data?.[0]?.id).toBe("other-ledger"));
+});
+
 it("hydrates scoped pages across distinct server and browser client instances", async () => {
   const serverCache = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   const makeWrapper =
@@ -685,5 +726,22 @@ it.each(["characters", "motions"] as const)(
     expect(mockClient[kind].modify).toHaveBeenCalledWith(params);
     expect(cache.getQueryState(detail)?.isInvalidated).toBe(true);
     expect(cache.getQueryState(page)?.isInvalidated).toBe(true);
+  },
+);
+
+it.each(["since", "until"] as const)(
+  "rejects an invalid %s date before reusing a cached unfiltered ledger",
+  async (field) => {
+    mockClient.org.getLedger.mockClear();
+    const { result, rerender } = renderHook(
+      ({ date }: { date: Date | null }) => useUthanaLedger({ [field]: date }),
+      { wrapper: createWrapper(), initialProps: { date: null } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
+    expect(() => rerender({ date: new Date(NaN) })).toThrow(
+      `${field} must be a valid Date or ISO 8601 timestamp`,
+    );
+    expect(mockClient.org.getLedger).toHaveBeenCalledTimes(1);
   },
 );

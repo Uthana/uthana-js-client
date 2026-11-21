@@ -28,6 +28,12 @@ export {
   useUthanaRateMotion,
   useUthanaTrimMotion,
 } from "./motions";
-export { useUthanaOrg, useUthanaPrices, useUthanaUsage, useUthanaUser } from "./org";
+export {
+  useUthanaLedger,
+  useUthanaOrg,
+  useUthanaPrices,
+  useUthanaUsage,
+  useUthanaUser,
+} from "./org";
 export { useUthanaCreateTtmJob, useUthanaTtm } from "./ttm";
 export { useUthanaVtm } from "./vtm";
