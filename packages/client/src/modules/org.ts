@@ -9,6 +9,7 @@ import type { LedgerEntry, LedgerOptions, Org, PaygPrice, User } from "../types"
 import { BaseModule } from "./base";
 
 const LEDGER_MAX_LIMIT = 500;
+const LEDGER_HISTORY_MS = 7 * 24 * 60 * 60 * 1000;
 
 const USD_DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const USD_FIELDS = new Set(["total_usd", "balance_before", "balance_after", "unit_price"]);
@@ -139,7 +140,7 @@ export class OrgModule extends BaseModule {
     return this._client._graphql<Record<string, unknown>>(GET_USAGE);
   }
 
-  /** Read PAYG charges, payments and credits, newest first. Does not change billing. */
+  /** Read PAYG charges, payments and credits from the last seven days, newest first. */
   async getLedger(options: LedgerOptions = {}): Promise<LedgerEntry[]> {
     const limit = options.limit === undefined ? 50 : options.limit;
     if (!Number.isInteger(limit) || limit < 1 || limit > LEDGER_MAX_LIMIT) {
@@ -156,13 +157,28 @@ export class OrgModule extends BaseModule {
       args.push("before_id: $before_id");
       variables.before_id = options.beforeId;
     }
+    const now = Date.now();
+    const cutoff = now - LEDGER_HISTORY_MS;
+    const times = { since: new Date(cutoff).toISOString(), until: new Date(now).toISOString() };
     for (const name of ["since", "until"] as const) {
       const value = options[name];
       if (value != null) {
-        declared.push(`$${name}: DateTime`);
-        args.push(`${name}: $${name}`);
-        variables[name] = ledgerTime(name, value);
+        times[name] = ledgerTime(name, value);
+        const timestamp = Date.parse(times[name]);
+        if (timestamp < cutoff || timestamp > now) {
+          throw new Error(
+            `${name} must be within the last 7 days. Use the API or web for older history.`,
+          );
+        }
       }
+    }
+    if (Date.parse(times.since) >= Date.parse(times.until)) {
+      throw new Error("since must be earlier than until");
+    }
+    for (const name of ["since", "until"] as const) {
+      declared.push(`$${name}: DateTime`);
+      args.push(`${name}: $${name}`);
+      variables[name] = times[name];
     }
     if (options.types != null) {
       if (
