@@ -111,6 +111,7 @@ it("stops waiting for a slow request at the polling deadline", async () => {
   expect(mockGql).toHaveBeenCalledTimes(1);
 });
 it.each([
+  [null, 404],
   [{}, 404],
   [{ id: "j1" }, 502],
   [{ id: "j1", status: " " }, 502],

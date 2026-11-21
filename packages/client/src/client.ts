@@ -172,7 +172,7 @@ export class UthanaClient {
       for (const key of parts) {
         out = (out as Record<string, unknown>)?.[key];
       }
-      if (out === undefined) {
+      if (out === undefined || (out === null && options.pathDefault != null)) {
         return (options.pathDefault ?? {}) as T;
       }
       return out as T;

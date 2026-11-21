@@ -92,3 +92,23 @@ it("keeps fragment-first reads under query limits and preserves their transport 
   send.mockResolvedValue({ data: { user: { id: "u" } } });
   await expect(client._graphql(query)).rejects.toMatchObject({ kind: "response_too_large" });
 });
+
+it.each([
+  [undefined, null],
+  [null, null],
+  [{}, {}],
+  [[], []],
+  [false, false],
+  [0, 0],
+])("applies only concrete defaults to nullable response fields: %s", async (fallback, expected) => {
+  send.mockResolvedValue({ data: { job: null } });
+  const result = await new UthanaClient("test")._graphql(
+    'query Read { job(job_id: "j1") { id } }',
+    {},
+    {
+      path: "job",
+      pathDefault: fallback,
+    },
+  );
+  expect(result).toEqual(expected);
+});
