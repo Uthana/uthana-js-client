@@ -377,8 +377,8 @@ const { character } = await client.characters.generateFromImage(pending, pending
 const { character } = await client.characters.createFromImage(imageFile);
 
 // Rename or delete
-await client.characters.modify({ character_id: characterId, name: "New name" });
-await client.characters.modify({ character_id: characterId, deleted: true });
+await client.characters.rename(characterId, "New name");
+await client.characters.delete(characterId);
 ```
 
 ```tsx
@@ -490,8 +490,8 @@ const preview = await client.motions.preview(characterId, motionId);
 await client.motions.rate(motionId, 1); // 1 = thumbs up, 0 = thumbs down
 
 // Rename, delete, favorite
-await client.motions.modify({ motion_id: motionId, name: "New Name" });
-await client.motions.modify({ motion_id: motionId, deleted: true });
+await client.motions.rename(motionId, "New Name");
+await client.motions.delete(motionId);
 await client.motions.favorite(motionId, true);
 
 // Bake custom GLTF animation data as a new motion for an existing character
