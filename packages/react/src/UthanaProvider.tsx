@@ -97,7 +97,11 @@ export function UthanaProvider({
           "Use a new or cleared QueryClient when delegated credentials change; never reuse another account's cache.",
         );
       }
-      delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
+      if (isDelegated) {
+        delegatedCacheOwners.set(providedQueryClient, { clientKey, scope: queryScope });
+      } else {
+        delegatedCacheOwners.delete(providedQueryClient);
+      }
     }
   }
   const content = providedQueryClient ? (
