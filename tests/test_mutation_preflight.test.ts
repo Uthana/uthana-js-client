@@ -50,3 +50,15 @@ it("does not mistake mutation text inside a comment for a mutation operation", a
   ).rejects.not.toMatchObject({ kind: "uncertain" });
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+it("recognizes a mutation after a leading fragment definition", async () => {
+  const request = vi.fn().mockResolvedValue(new Response("not-json"));
+  vi.stubGlobal("fetch", request);
+  await expect(
+    new UthanaClient("test")._graphql(`
+    fragment Fields on Motion { id }
+    mutation Rename { update_motion(motion_id: "m1", name: "Walk") { ...Fields } }
+  `),
+  ).rejects.toMatchObject({ kind: "uncertain" });
+  expect(request).toHaveBeenCalledTimes(1);
+});
