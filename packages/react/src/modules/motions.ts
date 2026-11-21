@@ -1,5 +1,5 @@
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import type { Motion, MotionPage, MotionPageOptions } from "@uthana/client";
+import type { Motion, MotionPage, MotionPageOptions, ModifyMotionParams } from "@uthana/client";
 /**
  * (c) Copyright 2026 Uthana, Inc. All Rights Reserved
  */
@@ -211,6 +211,20 @@ export function useUthanaRestoreMotion(): UseMutationResult<Motion, Error, strin
     onSuccess: (_motion, motionId) => {
       queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["uthana", "motion", motionId] });
+    },
+  });
+}
+
+/** Change a motion's name or deleted state and refresh its queries. */
+export function useUthanaModifyMotion(): UseMutationResult<Motion, Error, ModifyMotionParams> {
+  const client = useUthanaClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: ModifyMotionParams) => client.motions.modify(params),
+    retry: false,
+    onSuccess: (_motion, params) => {
+      queryClient.invalidateQueries({ queryKey: MOTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["uthana", "motion", params.motion_id] });
     },
   });
 }

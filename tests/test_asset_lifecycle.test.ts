@@ -72,3 +72,51 @@ describe.each(["characters", "motions"] as const)("%s lifecycle", (kind) => {
     expect(mockGql).toHaveBeenCalledTimes(1);
   });
 });
+
+describe.each(["characters", "motions"] as const)("%s modify", (kind) => {
+  it.each([{ name: "Hero" }, { deleted: true }, { name: "Hero", deleted: false }])(
+    "sends one explicit patch: %s",
+    async (changes) => {
+      const client = new UthanaClient("test");
+      const singular = kind === "characters" ? "character" : "motion";
+      const record = { id: "asset", name: "Hero", deleted: null };
+      mockGql.mockResolvedValue({ data: { [`update_${singular}`]: { [singular]: record } } });
+      const result =
+        kind === "characters"
+          ? await client.characters.modify(
+              Object.freeze({ character_id: "asset", ...changes, org_id: "ignored" }),
+            )
+          : await client.motions.modify(
+              Object.freeze({ motion_id: "asset", ...changes, org_id: "ignored" }),
+            );
+      expect(result).toEqual(record);
+      expect(mockGql).toHaveBeenCalledWith({ [`${singular}_id`]: "asset", ...changes });
+    },
+  );
+  it.each([{}, { name: null }, { deleted: null }, { deleted: 1 }])(
+    "rejects invalid changes before writing: %s",
+    async (changes) => {
+      const client = new UthanaClient("test");
+      const singular = kind === "characters" ? "character" : "motion";
+      // @ts-expect-error Runtime validation of untrusted input.
+      await expect(
+        client[kind].modify({ [`${singular}_id`]: "asset", ...changes }),
+      ).rejects.toThrow();
+      expect(mockGql).not.toHaveBeenCalled();
+    },
+  );
+  it.each([null, {}, { id: "another-asset" }])(
+    "requires a matching result without retry: %s",
+    async (record) => {
+      const client = new UthanaClient("test");
+      const singular = kind === "characters" ? "character" : "motion";
+      mockGql.mockResolvedValue({ data: { [`update_${singular}`]: { [singular]: record } } });
+      const result =
+        kind === "characters"
+          ? client.characters.modify({ character_id: "asset", deleted: false })
+          : client.motions.modify({ motion_id: "asset", deleted: false });
+      await expect(result).rejects.toMatchObject({ kind: "uncertain" });
+      expect(mockGql).toHaveBeenCalledTimes(1);
+    },
+  );
+});
