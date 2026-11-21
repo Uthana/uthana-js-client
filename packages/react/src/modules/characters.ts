@@ -307,19 +307,6 @@ export function useUthanaCharacter(characterId: string | null): UseQueryResult<C
   });
 }
 
-/** Restore a character and refresh character queries, including paged lists. */
-export function useUthanaRestoreCharacter(): UseMutationResult<Character, Error, string> {
-  const client = useUthanaClient();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (characterId: string) => client.characters.restore(characterId),
-    retry: false,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHARACTERS_QUERY_KEY });
-    },
-  });
-}
-
 /** Change a character's name or deleted state and refresh its queries. */
 export function useUthanaModifyCharacter(): UseMutationResult<
   Character,
