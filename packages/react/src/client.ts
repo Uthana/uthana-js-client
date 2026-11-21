@@ -27,10 +27,7 @@ export function getUthanaClientOptionsKey(options?: UthanaClientOptions): string
  */
 export function createUthanaClient(apiKey: string, options?: UthanaClientOptions): UthanaClient {
   const optionsKey = getUthanaClientOptionsKey(options);
-  if (clientInstance && (clientInstance.apiKey !== apiKey || clientOptionsKey !== optionsKey)) {
-    clientInstance = null;
-  }
-  if (!clientInstance) {
+  if (!clientInstance || clientInstance.apiKey !== apiKey || clientOptionsKey !== optionsKey) {
     clientInstance = new UthanaClientClass(apiKey, options);
     clientOptionsKey = optionsKey;
   }
