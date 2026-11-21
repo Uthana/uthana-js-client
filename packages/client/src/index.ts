@@ -42,7 +42,6 @@ export type {
   MotionCatalog,
   MotionDownloadRecord,
   Org,
-  UploadLimit,
   OutputFormat,
   PaygPrice,
   TextToMotionResult,

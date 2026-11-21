@@ -10,17 +10,8 @@ export interface User {
   email_verified?: boolean | null;
 }
 
-/** Server-owned upload policy. A null maximum is unknown or unbounded. */
-export interface UploadLimit {
-  category: string;
-  max_bytes: number | null;
-  extensions: string[];
-  max_bytes_without_preprocessing: number | null;
-}
-
 /** Org object from org.get_org. */
 export interface Org {
-  upload_limits?: UploadLimit[] | null;
   id?: string;
   name?: string | null;
   motion_download_secs_per_month?: number | null;
