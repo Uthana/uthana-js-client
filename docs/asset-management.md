@@ -40,6 +40,8 @@ Deletion is soft: `deleted: false` restores the asset. Deleting a character keep
 
 Use `useUthanaCharacter(id)` or `useUthanaMotion(id)` to inspect an asset. Pass null to disable the query.
 
+Use `useUthanaRenameCharacter()` with `{ character_id, name }` to rename a character, or `useUthanaDeleteCharacter()` with `{ character_id }` to delete one. Pass these objects to `.mutate(params)` from an event handler.
+
 Modification hooks accept the same objects as the client methods through `.mutate(params)`. Call them from event handlers:
 
 ```tsx

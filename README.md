@@ -386,7 +386,8 @@ await client.characters.delete(characterId);
 import {
   useUthanaCharacters,
   useUthanaCreateCharacter,
-  useUthanaModifyCharacter,
+  useUthanaRenameCharacter,
+  useUthanaDeleteCharacter,
 } from "@uthana/react";
 
 // File upload — single step
@@ -448,18 +449,17 @@ function GenerateWithSelection() {
 // List, rename, delete
 function CharacterList() {
   const { characters } = useUthanaCharacters();
-  const modify = useUthanaModifyCharacter();
+  const rename = useUthanaRenameCharacter();
+  const remove = useUthanaDeleteCharacter();
   return (
     <ul>
       {characters?.map((c) => (
         <li key={c.id}>
           {c.name}
-          <button onClick={() => modify.mutate({ character_id: c.id!, name: "New name" })}>
+          <button onClick={() => rename.mutate({ character_id: c.id!, name: "New name" })}>
             Rename
           </button>
-          <button onClick={() => modify.mutate({ character_id: c.id!, deleted: true })}>
-            Delete
-          </button>
+          <button onClick={() => remove.mutate({ character_id: c.id! })}>Delete</button>
         </li>
       ))}
     </ul>
@@ -755,6 +755,8 @@ try {
 | `useUthanaRateMotion`                        | Rate motion mutation                      |
 | `useUthanaCharacters`                        | List characters                           |
 | `useUthanaCreateCharacter`                   | Create character (file, prompt, or image) |
+| `useUthanaRenameCharacter`                   | Rename character mutation                 |
+| `useUthanaDeleteCharacter`                   | Delete character mutation                 |
 | `useUthanaModifyCharacter`                   | Rename, delete or restore a character     |
 | `useUthanaModifyMotion`                      | Rename, delete or restore a motion        |
 | `useUthanaJobs(method?)`                     | List jobs                                 |
