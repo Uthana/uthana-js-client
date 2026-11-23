@@ -31,3 +31,25 @@ describe("VTM model selection", () => {
     expect(models.vtm.default).toBe("video-to-motion-2.0");
   });
 });
+
+describe("video upload limits", () => {
+  it("rejects an oversized file before reading or submitting it", async () => {
+    const client = new UthanaClient("synthetic-key");
+    const upload = vi.spyOn(client, "_graphqlUpload");
+    const file = new File(["video"], "clip.mp4");
+    Object.defineProperty(file, "size", { value: 200 * 1024 * 1024 + 1 });
+    await expect(client.vtm.create(file, { maxBytes: null })).rejects.toThrow("200 MiB");
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized byte snapshots even when the optional limit is disabled", async () => {
+    const client = new UthanaClient("synthetic-key");
+    const upload = vi.spyOn(client, "_graphqlUpload");
+    const bytes = new Uint8Array(1);
+    Object.defineProperty(bytes, "byteLength", { value: 200 * 1024 * 1024 + 1 });
+    await expect(client.vtm.createFromBytes("clip.mp4", bytes, { maxBytes: null })).rejects.toThrow(
+      "200 MiB",
+    );
+    expect(upload).not.toHaveBeenCalled();
+  });
+});

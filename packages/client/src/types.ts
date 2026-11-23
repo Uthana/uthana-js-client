@@ -109,7 +109,7 @@ export interface CreateLocomotionOptions {
   move_speed?: number | null;
   /** From listLocomotionStyles; API default neutral_male_a. */
   style_id?: string | null;
-  /** Direction in degrees on ground plane, -180 to 180; API default 0. */
+  /** Character-relative degrees, -180 to 180: 0 forward (default), 90 left, -90 right, 180 backward. */
   travel_angle?: number | null;
 }
 
